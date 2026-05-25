@@ -5,6 +5,7 @@ import {
   THEME_BOOT_SCRIPT,
   ThemeProvider,
 } from "@/components/theme-provider";
+import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +19,7 @@ const geistMono = Geist_Mono({
 
 // Public URL used by social-card crawlers (Slack, iMessage, Twitter, etc.)
 // to resolve relative paths in og:image / twitter:image.
-const siteUrl =
-  process.env.NEXT_PUBLIC_APP_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "https://kcals.vercel.app");
+const siteUrl = getSiteUrl();
 
 const title = "kcals — a beautifully simple calorie tracker";
 const description =

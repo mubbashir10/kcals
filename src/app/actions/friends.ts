@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
 import { areFriends, normEmail } from "@/lib/friends";
 import { requireUserId } from "@/lib/session";
+import { getSiteUrl } from "@/lib/site";
 import { auth } from "@/auth";
 
 // Random URL-safe token used in /friends/accept/[token] links.
@@ -242,12 +243,5 @@ export async function removeFriend(friendUserId: string) {
 }
 
 function inviteUrl(token: string): string {
-  // Prefer an explicit public URL (set by Vercel) so links work in shared
-  // contexts; fall back to relative for local dev.
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : "");
-  return `${base}/friends/accept/${token}`;
+  return `${getSiteUrl()}/friends/accept/${token}`;
 }

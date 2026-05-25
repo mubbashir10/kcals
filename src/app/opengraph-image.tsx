@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { getSiteHost } from "@/lib/site";
 
 // Next.js metadata-file conventions:
 // https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image
@@ -120,7 +121,7 @@ export default async function Image() {
             textTransform: "uppercase",
           }}
         >
-          kcals.vercel.app
+          {getSiteHost()}
         </div>
       </div>
     ),
