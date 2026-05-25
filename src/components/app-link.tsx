@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { ComponentProps } from "react";
 
@@ -31,6 +33,7 @@ interface AppLinkProps extends Omit<LinkProps, "prefetch" | "transitionTypes"> {
 export function AppLink({
   direction = "forward",
   prefetch = true,
+  onNavigate,
   ...props
 }: AppLinkProps) {
   const transitionTypes =
@@ -41,6 +44,16 @@ export function AppLink({
         : ["nav-forward"];
 
   return (
-    <Link {...props} prefetch={prefetch} transitionTypes={transitionTypes} />
+    <Link
+      {...props}
+      prefetch={prefetch}
+      transitionTypes={transitionTypes}
+      onNavigate={(e) => {
+        // Tell <NavProgress /> a navigation is starting. It debounces 100ms
+        // so the bar never shows for cache-hit-instant transitions.
+        window.dispatchEvent(new Event("kcals:nav-start"));
+        onNavigate?.(e);
+      }}
+    />
   );
 }

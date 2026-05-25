@@ -267,3 +267,20 @@
     translate: 0 !important;
   }
 }
+
+/* Linear-style top progress bar — see <NavProgress />. Creeps to 90%
+   while waiting, capped before reaching 100% so it never finishes on its
+   own (a stuck nav stays visible instead of pretending to be done).      */
+@keyframes nav-progress-creep {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  40% {
+    width: 60%;
+  }
+  100% {
+    width: 90%;
+    opacity: 1;
+  }
+}

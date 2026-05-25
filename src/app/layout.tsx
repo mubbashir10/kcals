@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { ViewTransition } from "react";
+import { Suspense, ViewTransition } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {
   THEME_BOOT_SCRIPT,
   ThemeProvider,
 } from "@/components/theme-provider";
+import { NavProgress } from "@/components/nav-progress";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { getSiteUrl } from "@/lib/site";
 
@@ -102,6 +103,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <ThemeProvider>
           <ViewTransition
             enter={{
