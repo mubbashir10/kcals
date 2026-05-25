@@ -12,7 +12,7 @@ import type { UsdaFood } from "./usda";
 const SEARCH_URL = "https://world.openfoodfacts.org/cgi/search.pl";
 
 // OFF asks API consumers to identify themselves with a descriptive UA.
-const USER_AGENT = "CalorieMatter/1.0 (https://calorie-matter.app)";
+const USER_AGENT = "kcals/1.0 (https://kcals.app)";
 
 // Synthetic-id range for OFF results. Must not collide with Custom foods
 // (which use -CustomFood.id, i.e. small negatives starting at -1).
