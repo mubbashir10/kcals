@@ -16,8 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { setWidgetState, type WidgetId } from "@/app/actions/widgets";
-import type { WidgetState } from "@/lib/widget-order";
+import { setWidgetState } from "@/app/actions/widgets";
+import type { WidgetId, WidgetState } from "@/lib/widget-order";
 
 // Per-widget expand/minimize/hide dropdown. Used on every home-dashboard
 // widget; the parent passes its own widgetId so the menu knows which row

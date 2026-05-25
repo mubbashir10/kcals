@@ -5,7 +5,8 @@ import { Ruler } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { setUnits, type UnitsPreference } from "@/app/actions/widgets";
+import { setUnits } from "@/app/actions/widgets";
+import type { UnitsPreference } from "@/lib/widget-order";
 
 const UNITS: { value: UnitsPreference; label: string; hint: string }[] = [
   { value: "metric", label: "Metric", hint: "kg · cm" },

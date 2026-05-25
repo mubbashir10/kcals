@@ -14,8 +14,12 @@ export const REORDERABLE_WIDGETS = [
   "friends",
 ] as const;
 export type ReorderableWidgetId = (typeof REORDERABLE_WIDGETS)[number];
+export type WidgetId = ReorderableWidgetId;
 
 export type WidgetState = "expanded" | "minimized" | "hidden";
+
+export type CalorieDisplayMode = "remaining" | "consumed";
+export type UnitsPreference = "metric" | "imperial";
 
 // Widgets the user can hide. The calorie ring is currently always-visible
 // (it's the focal point), so it is omitted. Update this list to match what

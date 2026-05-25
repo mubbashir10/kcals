@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { setWidgetState, type WidgetId } from "@/app/actions/widgets";
+import { setWidgetState } from "@/app/actions/widgets";
+import type { WidgetId } from "@/lib/widget-order";
 
 // Minimize/hide dropdown for the dashboard sections that don't render
 // inside a single Card (Meals, Friends). Same affordance as the per-widget

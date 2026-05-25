@@ -10,7 +10,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
-import type { WidgetState } from "@/app/actions/widgets";
+import type { WidgetState } from "@/lib/widget-order";
 
 type Breakdown =
   | {

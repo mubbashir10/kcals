@@ -17,13 +17,12 @@ import {
 
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-  setCalorieDisplay,
-  setWidgetState,
-  type CalorieDisplayMode,
-  type WidgetId,
-  type WidgetState,
-} from "@/app/actions/widgets";
+import { setCalorieDisplay, setWidgetState } from "@/app/actions/widgets";
+import type {
+  CalorieDisplayMode,
+  WidgetId,
+  WidgetState,
+} from "@/lib/widget-order";
 
 const STATES: {
   value: WidgetState;

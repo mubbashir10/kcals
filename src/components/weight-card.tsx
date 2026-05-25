@@ -39,7 +39,8 @@ import { WidgetMenu } from "@/components/widget-menu";
 import { kgToLb, lbToKg } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
-import { setWidgetState, type WidgetState } from "@/app/actions/widgets";
+import { setWidgetState } from "@/app/actions/widgets";
+import type { WidgetState } from "@/lib/widget-order";
 
 export type WeightCardProps = {
   latest: { weightKg: number; loggedAt: string } | null;

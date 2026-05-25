@@ -7,12 +7,12 @@ import { requireUserId } from "@/lib/session";
 import {
   REORDERABLE_WIDGETS,
   parseWidgetStates,
+  type CalorieDisplayMode,
   type ReorderableWidgetId,
+  type UnitsPreference,
+  type WidgetId,
   type WidgetState,
 } from "@/lib/widget-order";
-
-export type WidgetId = ReorderableWidgetId;
-export type { WidgetState };
 
 export async function setWidgetState(id: WidgetId, state: WidgetState) {
   if (!(REORDERABLE_WIDGETS as readonly string[]).includes(id)) {
@@ -36,8 +36,6 @@ export async function setWidgetState(id: WidgetId, state: WidgetState) {
   revalidatePath("/");
 }
 
-export type CalorieDisplayMode = "remaining" | "consumed";
-
 export async function setCalorieDisplay(mode: CalorieDisplayMode) {
   const userId = await requireUserId();
   await db.profile.updateMany({
@@ -46,8 +44,6 @@ export async function setCalorieDisplay(mode: CalorieDisplayMode) {
   });
   revalidatePath("/");
 }
-
-export type UnitsPreference = "metric" | "imperial";
 
 export async function setUnits(units: UnitsPreference) {
   const userId = await requireUserId();
