@@ -26,5 +26,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|icon.svg|logo.svg).*)"],
+  // Exclude paths that should be reachable without auth: Next internals,
+  // static assets, the auth API, and social-card metadata files (Slack /
+  // Twitter / iMessage crawlers can't sign in).
+  matcher: [
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon.svg|logo.svg|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+  ],
 };

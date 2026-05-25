@@ -16,10 +16,56 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Public URL used by social-card crawlers (Slack, iMessage, Twitter, etc.)
+// to resolve relative paths in og:image / twitter:image.
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "https://kcals.vercel.app");
+
+const title = "kcals — a beautifully simple calorie tracker";
+const description =
+  "Track meals, hit your goals, share progress with the people you eat with. Free, fast, and minimal.";
+
 export const metadata: Metadata = {
-  title: "kcals",
-  description: "A beautifully simple calorie tracker.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: title,
+    template: "%s · kcals",
+  },
+  description,
+  applicationName: "kcals",
+  keywords: [
+    "calorie tracker",
+    "macro tracker",
+    "weight tracking",
+    "TDEE calculator",
+    "BMR calculator",
+    "nutrition log",
+    "food log",
+    "USDA food database",
+  ],
+  authors: [{ name: "kcals" }],
+  creator: "kcals",
   icons: { icon: "/logo.svg" },
+  openGraph: {
+    type: "website",
+    siteName: "kcals",
+    url: siteUrl,
+    title,
+    description,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
