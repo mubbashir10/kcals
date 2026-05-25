@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import {
-  ChevronDown,
   ChevronUp,
   Download,
   EyeOff,
@@ -36,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { WidgetMenu } from "@/components/widget-menu";
 import { kgToLb, lbToKg } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
@@ -104,7 +104,12 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
               ) : (
                 <span className="text-xs text-muted-foreground">—</span>
               )}
-              <StateMenu current="minimized" onChange={changeState} />
+              <WidgetMenu
+                widgetId="weight"
+                current="minimized"
+                label="Weight"
+                size="sm"
+              />
             </div>
           </div>
         </Card>
@@ -590,46 +595,6 @@ function parseWeightCsv(
   }
 
   return { rows, invalidCount };
-}
-
-function StateMenu({
-  current,
-  onChange,
-}: {
-  current: WidgetState;
-  onChange: (next: WidgetState) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Weight options"
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
-        <DropdownMenuGroup>
-          {current !== "expanded" && (
-            <DropdownMenuItem
-              className="cursor-pointer rounded-lg text-sm"
-              onClick={() => onChange("expanded")}
-            >
-              <ChevronDown className="mr-2 h-3.5 w-3.5 opacity-70" />
-              Expand
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            variant="destructive"
-            className="cursor-pointer rounded-lg text-sm"
-            onClick={() => onChange("hidden")}
-          >
-            <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
-            Hide
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 
 function round1(n: number) {

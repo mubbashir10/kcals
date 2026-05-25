@@ -10,6 +10,7 @@ import {
   type ActiveResult,
 } from "@/lib/tdee";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import { buildDailySnapshot } from "@/lib/daily-snapshot";
 
 // Same split as the home page. If this ever becomes per-user, move into Profile.
 const MACRO_TARGETS = {
@@ -26,27 +27,92 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
   if (!profile) return null;
 
   const tz = profile.timezone || "UTC";
-  const bmr = calculateBmr({
-    sex: profile.sex as "male" | "female",
-    age: profile.age,
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    bodyFatPct: profile.bodyFatPct,
-  });
-
   const todayKey = dayKeyInTz(tz, now);
-  const todayActivity = await db.activityLog.findUnique({
+
+  // Ensure today's ActivityLog row exists with snapshot fields. If it
+  // doesn't, we lazy-create it with the current defaults so historical
+  // TDEE stays pinned to the profile state at first interaction.
+  let todayActivity = await db.activityLog.findUnique({
     where: { userId_dayKey: { userId, dayKey: todayKey } },
   });
 
-  const active: ActiveResult = todayActivity
+  // Back-compat: if a row exists but predates the snapshot fields, fill
+  // them in now. Cheap: one extra write the first time we see the row.
+  const needsSnapshot =
+    !todayActivity ||
+    todayActivity.bmrKcal == null ||
+    todayActivity.defaultActiveKcal == null ||
+    todayActivity.tdeeKcal == null;
+
+  if (needsSnapshot) {
+    const snapshot = buildDailySnapshot(
+      profile,
+      todayActivity
+        ? {
+            mode: todayActivity.mode as "estimate" | "override",
+            steps: todayActivity.steps,
+            liftingMin: todayActivity.liftingMin,
+            cardioMin: todayActivity.cardioMin,
+            wearableKcal: todayActivity.wearableKcal,
+          }
+        : null
+    );
+    todayActivity = await db.activityLog.upsert({
+      where: { userId_dayKey: { userId, dayKey: todayKey } },
+      create: {
+        userId,
+        dayKey: todayKey,
+        mode: "estimate",
+        bmrKcal: snapshot.bmrKcal,
+        defaultActiveKcal: snapshot.defaultActiveKcal,
+        overrideActiveKcal: snapshot.overrideActiveKcal,
+        tdeeKcal: snapshot.tdeeKcal,
+      },
+      update: {
+        bmrKcal: snapshot.bmrKcal,
+        defaultActiveKcal: snapshot.defaultActiveKcal,
+        overrideActiveKcal: snapshot.overrideActiveKcal,
+        tdeeKcal: snapshot.tdeeKcal,
+      },
+    });
+  }
+
+  // BMR for display — prefer the stored snapshot (historically stable),
+  // fall back to live computation if for some reason it's null.
+  const bmr: BmrResult =
+    todayActivity?.bmrKcal != null
+      ? {
+          kcal: todayActivity.bmrKcal,
+          formula:
+            profile.bodyFatPct != null ? "katch-mcardle" : "mifflin-st-jeor",
+        }
+      : calculateBmr({
+          sex: profile.sex as "male" | "female",
+          age: profile.age,
+          heightCm: profile.heightCm,
+          weightKg: profile.weightKg,
+          bodyFatPct: profile.bodyFatPct,
+        });
+
+  // Active source: override if present, else the default snapshot.
+  const hasOverride =
+    todayActivity != null &&
+    (todayActivity.overrideActiveKcal != null ||
+      (todayActivity.mode === "estimate" &&
+        ((todayActivity.steps ?? 0) > 0 ||
+          (todayActivity.liftingMin ?? 0) > 0 ||
+          (todayActivity.cardioMin ?? 0) > 0)) ||
+      (todayActivity.mode === "override" &&
+        (todayActivity.wearableKcal ?? 0) > 0));
+
+  const active: ActiveResult = hasOverride
     ? activeKcalDaily({
         weightKg: profile.weightKg,
-        mode: todayActivity.mode as "estimate" | "override",
-        steps: todayActivity.steps,
-        liftingMin: todayActivity.liftingMin,
-        cardioMin: todayActivity.cardioMin,
-        wearableKcal: todayActivity.wearableKcal,
+        mode: todayActivity!.mode as "estimate" | "override",
+        steps: todayActivity!.steps,
+        liftingMin: todayActivity!.liftingMin,
+        cardioMin: todayActivity!.cardioMin,
+        wearableKcal: todayActivity!.wearableKcal,
       })
     : activeKcal({
         weightKg: profile.weightKg,
@@ -59,7 +125,11 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
         activeKcalOverride: profile.activeKcalOverride,
       });
 
-  const tdee = calculateTdee(bmr.kcal, active);
+  // TDEE comes from the stored snapshot when available, otherwise compute.
+  const tdee =
+    todayActivity?.tdeeKcal != null
+      ? todayActivity.tdeeKcal
+      : calculateTdee(bmr.kcal, active);
   const calorieGoal = Math.round(tdee);
 
   const meals = await db.meal.findMany({

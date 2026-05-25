@@ -32,7 +32,7 @@ import { updateMeal, deleteMeal } from "@/app/actions/meals";
 import {
   deleteFood,
   updateFoodGrams,
-  updateFoodKcal,
+  updateFoodQuickAdd,
 } from "@/app/actions/foods";
 
 export type MealCardFood = {
@@ -81,7 +81,6 @@ export function MealCard({
           <time className="text-xs text-muted-foreground tabular-nums">
             {time}
           </time>
-          <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
         </button>
 
         <div className="flex items-center gap-3">
@@ -422,6 +421,9 @@ function FoodEditDialog({
 
   const [grams, setGrams] = useState<string>("");
   const [kcalInput, setKcalInput] = useState<string>("");
+  const [proteinInput, setProteinInput] = useState<string>("");
+  const [carbsInput, setCarbsInput] = useState<string>("");
+  const [fatInput, setFatInput] = useState<string>("");
   const [savePending, startSave] = useTransition();
   const [deletePending, startDelete] = useTransition();
 
@@ -430,10 +432,13 @@ function FoodEditDialog({
     if (food) {
       setGrams(String(round1(food.grams)));
       setKcalInput(String(Math.round(food.kcal)));
+      setProteinInput(macroInitial(food.proteinG));
+      setCarbsInput(macroInitial(food.carbsG));
+      setFatInput(macroInitial(food.fatG));
     }
   }, [food]);
 
-  // Branch 1: quick-add row — edit kcal directly, no portion/macros.
+  // Branch 1: quick-add row — edit kcal + macros directly, no portion math.
   // Branch 2: scanned food — edit grams, derive kcal/macros from per-100g.
   const g = parseFloat(grams);
   const validGrams = Number.isFinite(g) && g > 0 && g < 5000;
@@ -468,7 +473,12 @@ function FoodEditDialog({
     if (!food || !valid) return;
     startSave(async () => {
       if (isQuickAdd) {
-        await updateFoodKcal(food.id, round1(kVal));
+        await updateFoodQuickAdd(food.id, {
+          kcal: round1(kVal),
+          proteinG: parseMacro(proteinInput),
+          carbsG: parseMacro(carbsInput),
+          fatG: parseMacro(fatInput),
+        });
       } else {
         await updateFoodGrams(food.id, round1(g));
       }
@@ -500,33 +510,64 @@ function FoodEditDialog({
 
             <div className="mt-4 space-y-5">
               {isQuickAdd ? (
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="edit-kcal"
-                    className="text-xs uppercase tracking-wider text-muted-foreground"
-                  >
-                    Calories
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="edit-kcal"
-                      inputMode="numeric"
-                      autoFocus
-                      value={kcalInput}
-                      onChange={(e) => setKcalInput(e.target.value)}
-                      className="pr-14 text-lg"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && valid) {
-                          e.preventDefault();
-                          onSave();
-                        }
-                      }}
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                      kcal
-                    </span>
+                <>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-kcal"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
+                      Calories
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="edit-kcal"
+                        inputMode="numeric"
+                        autoFocus
+                        value={kcalInput}
+                        onChange={(e) => setKcalInput(e.target.value)}
+                        className="pr-14 text-lg"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && valid) {
+                            e.preventDefault();
+                            onSave();
+                          }
+                        }}
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                        kcal
+                      </span>
+                    </div>
                   </div>
-                </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Macros
+                      <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+                        (optional)
+                      </span>
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <MacroEditInput
+                        id="edit-protein"
+                        label="P"
+                        value={proteinInput}
+                        onChange={setProteinInput}
+                      />
+                      <MacroEditInput
+                        id="edit-carbs"
+                        label="C"
+                        value={carbsInput}
+                        onChange={setCarbsInput}
+                      />
+                      <MacroEditInput
+                        id="edit-fat"
+                        label="F"
+                        value={fatInput}
+                        onChange={setFatInput}
+                      />
+                    </div>
+                  </div>
+                </>
               ) : (
                 <>
                   <div className="space-y-2">
@@ -646,4 +687,47 @@ function FoodStat({
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
+}
+
+// Show the existing macro value when editing a quick-add row, but leave the
+// field blank if it's zero so the placeholder ("0") guides the user.
+function macroInitial(g: number): string {
+  return g > 0 ? String(round1(g)) : "";
+}
+
+function parseMacro(s: string): number {
+  const n = parseFloat(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return round1(Math.min(n, 1000));
+}
+
+function MacroEditInput({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        className="pl-7 pr-8 tabular-nums"
+      />
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+        g
+      </span>
+    </div>
+  );
 }

@@ -5,15 +5,24 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 
-// Directly set the kcal on a quick-add food row. Used by the kcal-only
-// edit UI in MealCard (when food.grams === 0).
-export async function updateFoodKcal(id: number, kcal: number) {
+// Directly set kcal (and optional macros) on a quick-add food row. Used by
+// the edit UI in MealCard when food.grams === 0 — there's no portion to
+// scale from, so every nutrient is entered directly.
+export async function updateFoodQuickAdd(
+  id: number,
+  values: { kcal: number; proteinG: number; carbsG: number; fatG: number }
+) {
+  const { kcal, proteinG, carbsG, fatG } = values;
   if (!Number.isFinite(kcal) || kcal <= 0 || kcal > 10000) {
     throw new Error("Invalid kcal");
   }
+  for (const m of [proteinG, carbsG, fatG]) {
+    if (!Number.isFinite(m) || m < 0 || m > 1000) {
+      throw new Error("Invalid macro");
+    }
+  }
   const userId = await requireUserId();
 
-  // Ownership check via parent meal.
   const food = await db.food.findFirst({
     where: { id, meal: { userId } },
     select: { id: true },
@@ -22,7 +31,12 @@ export async function updateFoodKcal(id: number, kcal: number) {
 
   await db.food.update({
     where: { id },
-    data: { kcal: round1(kcal) },
+    data: {
+      kcal: round1(kcal),
+      proteinG: round1(proteinG),
+      carbsG: round1(carbsG),
+      fatG: round1(fatG),
+    },
   });
   revalidatePath("/");
 }

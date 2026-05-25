@@ -1,15 +1,18 @@
 "use client";
 
 import { useTransition } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
   Circle,
-  Eye,
   EyeOff,
   Flame,
   Maximize2,
   Minimize2,
   Scale,
+  UtensilsCrossed,
+  Users,
+  Zap,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -22,13 +25,11 @@ import {
   type WidgetState,
 } from "@/app/actions/widgets";
 
-type WidgetSettings = {
-  maintenance: WidgetState;
-  weight: WidgetState;
-  calorieDisplay: CalorieDisplayMode;
-};
-
-const STATES: { value: WidgetState; label: string; icon: typeof Eye }[] = [
+const STATES: {
+  value: WidgetState;
+  label: string;
+  icon: LucideIcon;
+}[] = [
   { value: "expanded", label: "Expanded", icon: Maximize2 },
   { value: "minimized", label: "Minimized", icon: Minimize2 },
   { value: "hidden", label: "Hidden", icon: EyeOff },
@@ -42,34 +43,55 @@ const CALORIE_MODES: {
   { value: "consumed", label: "Consumed" },
 ];
 
-export function WidgetsSettings({ initial }: { initial: WidgetSettings }) {
+// Every widget the user can customize from settings. Order here is the
+// display order in the settings page (not the home dashboard).
+const WIDGETS: {
+  id: WidgetId;
+  label: string;
+  icon: LucideIcon;
+  accent: string;
+}[] = [
+  { id: "calorie", label: "Calorie ring", icon: Circle, accent: "text-emerald-500" },
+  { id: "macros", label: "Macros", icon: ArrowLeftRight, accent: "text-rose-500" },
+  { id: "maintenance", label: "Maintenance calories", icon: Flame, accent: "text-amber-500" },
+  { id: "activity", label: "Today's activity", icon: Zap, accent: "text-sky-500" },
+  { id: "weight", label: "Weight", icon: Scale, accent: "text-violet-500" },
+  { id: "meals", label: "Today's meals", icon: UtensilsCrossed, accent: "text-orange-500" },
+  { id: "friends", label: "Friends", icon: Users, accent: "text-fuchsia-500" },
+];
+
+type WidgetsSettingsProps = {
+  states: Partial<Record<WidgetId, WidgetState>>;
+  calorieDisplay: CalorieDisplayMode;
+};
+
+export function WidgetsSettings({ initial }: { initial: WidgetsSettingsProps }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         Choose how each widget appears on your home dashboard.
       </p>
 
-      <CalorieDisplayRow current={initial.calorieDisplay} />
-
-      <WidgetRow
-        id="maintenance"
-        label="Maintenance calories"
-        icon={Flame}
-        accent="text-amber-500"
-        current={initial.maintenance}
-      />
-      <WidgetRow
-        id="weight"
-        label="Weight"
-        icon={Scale}
-        accent="text-muted-foreground"
-        current={initial.weight}
-      />
+      {WIDGETS.map((w) => (
+        <WidgetRow
+          key={w.id}
+          id={w.id}
+          label={w.label}
+          icon={w.icon}
+          accent={w.accent}
+          current={initial.states[w.id] ?? "expanded"}
+          extra={
+            w.id === "calorie" ? (
+              <CalorieDisplayToggle current={initial.calorieDisplay} />
+            ) : null
+          }
+        />
+      ))}
     </div>
   );
 }
 
-function CalorieDisplayRow({ current }: { current: CalorieDisplayMode }) {
+function CalorieDisplayToggle({ current }: { current: CalorieDisplayMode }) {
   const [pending, startTransition] = useTransition();
 
   function set(next: CalorieDisplayMode) {
@@ -80,12 +102,10 @@ function CalorieDisplayRow({ current }: { current: CalorieDisplayMode }) {
   }
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="mb-3 flex items-center gap-2">
-        <Circle className="h-3.5 w-3.5 text-emerald-500" />
-        <span className="text-sm font-medium">Calorie ring</span>
-        <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
-          Show
+    <div className="mt-3 border-t border-border/60 pt-3">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Display
         </span>
       </div>
       <div
@@ -115,7 +135,7 @@ function CalorieDisplayRow({ current }: { current: CalorieDisplayMode }) {
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -125,12 +145,14 @@ function WidgetRow({
   icon: Icon,
   accent,
   current,
+  extra,
 }: {
   id: WidgetId;
   label: string;
-  icon: typeof Eye;
+  icon: LucideIcon;
   accent: string;
   current: WidgetState;
+  extra?: React.ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -174,6 +196,7 @@ function WidgetRow({
           );
         })}
       </div>
+      {extra}
     </Card>
   );
 }

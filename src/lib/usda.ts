@@ -28,6 +28,8 @@ export type UsdaFood = {
   };
   /** Suggested serving size in grams, if the entry provides one (mainly Branded foods). */
   servingSizeG: number | null;
+  /** Only set for community-contributed (dataType "Custom") entries. */
+  createdAtIso?: string;
   servingLabel: string | null;
 };
 

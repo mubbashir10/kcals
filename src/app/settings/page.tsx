@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { parseWidgetStates } from "@/lib/widget-order";
 import { UnitsSettings } from "@/components/units-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
 
@@ -58,14 +59,7 @@ export default async function SettingsPage() {
           </h2>
           <WidgetsSettings
             initial={{
-              maintenance: profile.widgetMaintenance as
-                | "expanded"
-                | "minimized"
-                | "hidden",
-              weight: profile.widgetWeight as
-                | "expanded"
-                | "minimized"
-                | "hidden",
+              states: parseWidgetStates(profile.widgetStates),
               calorieDisplay: profile.calorieDisplay as
                 | "remaining"
                 | "consumed",

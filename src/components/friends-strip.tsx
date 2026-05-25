@@ -7,6 +7,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { cn } from "@/lib/utils";
 import type { FriendSummary } from "@/lib/friends";
 
@@ -15,17 +16,20 @@ import type { FriendSummary } from "@/lib/friends";
 // so users have an obvious path to invite someone.
 export function FriendsStrip({ friends }: { friends: FriendSummary[] }) {
   return (
-    <section className="mt-8">
+    <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-tight">Friends</h2>
-        {friends.length > 0 && (
-          <Link
-            href="/friends"
-            className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Manage
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold tracking-tight">Friends</h2>
+          {friends.length > 0 && (
+            <Link
+              href="/friends"
+              className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Manage
+            </Link>
+          )}
+        </div>
+        <SectionWidgetMenu widgetId="friends" label="Friends" />
       </div>
 
       <div className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-2 [&::-webkit-scrollbar]:hidden">

@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import {
+  ChevronUp,
   Dumbbell,
+  EyeOff,
   Footprints,
   MoreHorizontal,
   Pencil,
@@ -14,6 +16,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { WidgetMenu } from "@/components/widget-menu";
+import type { WidgetState } from "@/lib/widget-order";
 import {
   Dialog,
   DialogClose,
@@ -35,6 +39,7 @@ import {
   upsertTodayActivity,
   type ActivityMode,
 } from "@/app/actions/activity";
+import { setWidgetState } from "@/app/actions/widgets";
 
 export type ActivityCardProps = {
   today: {
@@ -50,11 +55,45 @@ export type ActivityCardProps = {
     cardioMinutesPerSession: number | null;
     activeKcalOverride: number | null;
   };
+  state: Exclude<WidgetState, "hidden">;
 };
 
-export function ActivityCard({ today, defaults }: ActivityCardProps) {
+export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
+
+  if (state === "minimized") {
+    return (
+      <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Activity
+            </span>
+          </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-xs text-foreground/80">
+              {logged ? <MinimizedSummaryText today={today!} /> : "Using estimate"}
+            </span>
+            <WidgetMenu
+              widgetId="activity"
+              current="minimized"
+              label="Activity"
+              size="sm"
+            />
+          </div>
+        </div>
+
+        <LogActivityDialog
+          open={open}
+          onOpenChange={setOpen}
+          today={today}
+          defaults={defaults}
+        />
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -84,18 +123,33 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
                 </>
               )}
             </button>
-            {logged ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  aria-label="Activity options"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Activity options"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await setWidgetState("activity", "minimized");
+                  }}
+                  className="cursor-pointer rounded-lg text-sm"
                 >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-44 rounded-xl p-1.5"
+                  <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Minimize
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await setWidgetState("activity", "hidden");
+                  }}
+                  className="cursor-pointer rounded-lg text-sm"
                 >
+                  <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Hide
+                </DropdownMenuItem>
+                {logged && (
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={async () => {
@@ -106,13 +160,9 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
                     <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
                     Clear today's log
                   </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              // Reserve the spot the dropdown would take so the Log button
-              // keeps the same right-offset whether or not it's present.
-              <div aria-hidden className="h-7 w-7" />
-            )}
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -123,7 +173,7 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
             <p className="text-sm text-foreground/80">
               Using your typical-day estimate.
               <span className="ml-1 text-muted-foreground">
-                Log today's actual activity for an accurate TDEE.
+                Log today's actual activity before bed for an accurate TDEE.
               </span>
             </p>
           )}
@@ -138,6 +188,31 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
       />
     </>
   );
+}
+
+function MinimizedSummaryText({
+  today,
+}: {
+  today: NonNullable<ActivityCardProps["today"]>;
+}) {
+  if (today.mode === "override") {
+    return (
+      <>
+        {today.wearableKcal != null
+          ? `${today.wearableKcal.toLocaleString()} kcal`
+          : "—"}{" "}
+        <span className="text-muted-foreground">from wearable</span>
+      </>
+    );
+  }
+  const parts: string[] = [];
+  if (today.steps && today.steps > 0)
+    parts.push(`${today.steps.toLocaleString()} steps`);
+  if (today.liftingMin && today.liftingMin > 0)
+    parts.push(`${today.liftingMin}m lift`);
+  if (today.cardioMin && today.cardioMin > 0)
+    parts.push(`${today.cardioMin}m cardio`);
+  return <>{parts.length === 0 ? "Rest day" : parts.join(" · ")}</>;
 }
 
 function ActivitySummary({
@@ -184,12 +259,9 @@ function ActivitySummary({
     });
   }
 
-  if (chips.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">Logged as a rest day.</p>
-    );
-  }
-
+  // chips.length === 0 isn't reachable: page.tsx only passes `today` when
+  // there's an actual override (≥1 non-zero field). An empty snapshot row
+  // shows the "Using your typical-day estimate" copy instead.
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       {chips.map((c, i) => (

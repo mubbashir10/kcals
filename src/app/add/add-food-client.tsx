@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, Loader2, Plus, Search, Sparkles, X, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  BookmarkPlus,
+  Loader2,
+  Plus,
+  Search,
+  Sparkles,
+  X,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatTimeInTz } from "@/lib/clock";
+import { CustomFoodDialog } from "@/components/custom-food-dialog";
 import { logFood } from "./actions";
 
 type Food = {
@@ -27,6 +37,8 @@ type Food = {
   per100g: { kcal: number; proteinG: number; carbsG: number; fatG: number };
   servingSizeG: number | null;
   servingLabel: string | null;
+  /** Only set for community-contributed custom foods. */
+  createdAtIso?: string;
 };
 
 export type MealOption = {
@@ -65,6 +77,7 @@ export function AddFoodClient({
   );
 
   const [quickOpen, setQuickOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
 
   const reqId = useRef(0);
 
@@ -153,7 +166,7 @@ export function AddFoodClient({
           )}
         </div>
 
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => setQuickOpen(true)}
@@ -161,6 +174,14 @@ export function AddFoodClient({
           >
             <Zap className="h-3 w-3" />
             Just add calories
+          </button>
+          <button
+            type="button"
+            onClick={() => setCustomOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-4 text-xs font-medium text-muted-foreground transition-all hover:border-foreground/40 hover:bg-accent/40 hover:text-foreground"
+          >
+            <BookmarkPlus className="h-3 w-3" />
+            Save a custom food
           </button>
         </div>
 
@@ -191,22 +212,42 @@ export function AddFoodClient({
           )}
 
           {!loading && results.length > 0 && (() => {
-            const whole = results.filter((f) => f.dataType !== "Branded");
-            const branded = results.filter((f) => f.dataType === "Branded");
-            const bothPresent = whole.length > 0 && branded.length > 0;
+            const custom = results.filter((f) => f.dataType === "Custom");
+            const branded = results.filter(
+              (f) => f.dataType === "Branded" || f.dataType === "OpenFoodFacts"
+            );
+            const whole = results.filter(
+              (f) =>
+                f.dataType !== "Custom" &&
+                f.dataType !== "Branded" &&
+                f.dataType !== "OpenFoodFacts"
+            );
+            // Show group labels whenever more than one group has results.
+            const groupCount =
+              (custom.length > 0 ? 1 : 0) +
+              (whole.length > 0 ? 1 : 0) +
+              (branded.length > 0 ? 1 : 0);
+            const showLabels = groupCount > 1;
 
             return (
               <div className="space-y-6">
+                {custom.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "Community" : null}
+                    foods={custom}
+                    onSelect={setSelected}
+                  />
+                )}
                 {whole.length > 0 && (
                   <ResultGroup
-                    label={bothPresent ? "Whole foods" : null}
+                    label={showLabels ? "Whole foods" : null}
                     foods={whole}
                     onSelect={setSelected}
                   />
                 )}
                 {branded.length > 0 && (
                   <ResultGroup
-                    label={bothPresent ? "Branded" : null}
+                    label={showLabels ? "Branded" : null}
                     foods={branded}
                     onSelect={setSelected}
                   />
@@ -229,6 +270,12 @@ export function AddFoodClient({
         open={quickOpen}
         target={target}
         onClose={() => setQuickOpen(false)}
+      />
+
+      <CustomFoodDialog
+        open={customOpen}
+        onOpenChange={setCustomOpen}
+        initialName={query.trim()}
       />
     </>
   );
@@ -370,6 +417,9 @@ function ResultRow({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {f.brand ? `${f.brand} · ` : ""}
             {dataTypeLabel(f.dataType)}
+            {f.createdAtIso && f.dataType === "Custom" && (
+              <> · added {formatAddedAt(f.createdAtIso)}</>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -808,9 +858,21 @@ function titleCase(s: string) {
 
 function dataTypeLabel(t: string) {
   if (t === "Branded") return "Branded";
+  if (t === "OpenFoodFacts") return "Branded";
   if (t === "Foundation") return "Whole food";
   if (t === "SR Legacy") return "Reference";
+  if (t === "Custom") return "Community";
   return t;
+}
+
+function formatAddedAt(iso: string) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+  if (days < 1) return "today";
+  if (days < 2) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
 }
 
 function round1(n: number) {

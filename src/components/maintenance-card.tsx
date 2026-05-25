@@ -1,29 +1,16 @@
-"use client";
-
-import { useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  ChevronDown,
-  ChevronUp,
   Dumbbell,
-  EyeOff,
   Flame,
   Footprints,
   Heart,
-  MoreHorizontal,
   Watch,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
-import { setWidgetState, type WidgetState } from "@/app/actions/widgets";
+import type { WidgetState } from "@/app/actions/widgets";
 
 type Breakdown =
   | {
@@ -75,7 +62,12 @@ function MinimizedView({ tdee }: { tdee: number }) {
               kcal/day
             </span>
           </div>
-          <WidgetMenu current="minimized" />
+          <WidgetMenu
+            widgetId="maintenance"
+            current="minimized"
+            label="Maintenance"
+            size="sm"
+          />
         </div>
       </div>
     </Card>
@@ -98,7 +90,11 @@ function ExpandedView({
             Maintenance calories
           </span>
         </div>
-        <WidgetMenu current="expanded" />
+        <WidgetMenu
+          widgetId="maintenance"
+          current="expanded"
+          label="Maintenance"
+        />
       </div>
       <div className="mt-3 text-5xl font-semibold leading-none tabular-nums tracking-tight">
         {Math.round(tdee).toLocaleString()}
@@ -192,54 +188,3 @@ function BreakdownItem({
   );
 }
 
-function WidgetMenu({ current }: { current: WidgetState }) {
-  const [pending, startTransition] = useTransition();
-
-  function set(next: WidgetState) {
-    startTransition(async () => {
-      await setWidgetState("maintenance", next);
-    });
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Maintenance options"
-        disabled={pending}
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted disabled:opacity-50"
-      >
-        <MoreHorizontal className="h-3.5 w-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
-        <DropdownMenuGroup>
-          {current !== "expanded" && (
-            <DropdownMenuItem
-              className="cursor-pointer rounded-lg text-sm"
-              onClick={() => set("expanded")}
-            >
-              <ChevronDown className="mr-2 h-3.5 w-3.5 opacity-70" />
-              Expand
-            </DropdownMenuItem>
-          )}
-          {current !== "minimized" && (
-            <DropdownMenuItem
-              className="cursor-pointer rounded-lg text-sm"
-              onClick={() => set("minimized")}
-            >
-              <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-              Minimize
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem
-            variant="destructive"
-            className="cursor-pointer rounded-lg text-sm"
-            onClick={() => set("hidden")}
-          >
-            <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
-            Hide
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}

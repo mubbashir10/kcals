@@ -6,22 +6,32 @@ import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import {
   REORDERABLE_WIDGETS,
+  parseWidgetStates,
   type ReorderableWidgetId,
+  type WidgetState,
 } from "@/lib/widget-order";
 
-export type WidgetId = "maintenance" | "weight";
-export type WidgetState = "expanded" | "minimized" | "hidden";
-
-const FIELD: Record<WidgetId, "widgetMaintenance" | "widgetWeight"> = {
-  maintenance: "widgetMaintenance",
-  weight: "widgetWeight",
-};
+export type WidgetId = ReorderableWidgetId;
+export type { WidgetState };
 
 export async function setWidgetState(id: WidgetId, state: WidgetState) {
+  if (!(REORDERABLE_WIDGETS as readonly string[]).includes(id)) {
+    throw new Error(`Unknown widget id: ${id}`);
+  }
+  if (state !== "expanded" && state !== "minimized" && state !== "hidden") {
+    throw new Error(`Invalid widget state: ${state}`);
+  }
   const userId = await requireUserId();
+  const profile = await db.profile.findUnique({
+    where: { userId },
+    select: { widgetStates: true },
+  });
+  if (!profile) return;
+
+  const next = { ...parseWidgetStates(profile.widgetStates), [id]: state };
   await db.profile.updateMany({
     where: { userId },
-    data: { [FIELD[id]]: state },
+    data: { widgetStates: JSON.stringify(next) },
   });
   revalidatePath("/");
 }

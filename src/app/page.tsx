@@ -8,15 +8,26 @@ import { CalorieRingWidget } from "@/components/calorie-ring-widget";
 import { FriendsStrip } from "@/components/friends-strip";
 import { IncomingInviteBanner } from "@/components/incoming-invite-banner";
 import { Logo } from "@/components/logo";
-import { MacroCard } from "@/components/macro-card";
+import { MacrosWidget } from "@/components/macros-widget";
 import { MaintenanceCard } from "@/components/maintenance-card";
 import { MealCard } from "@/components/meal-card";
+import {
+  MinimizedFriendsSummary,
+  MinimizedMealsSummary,
+} from "@/components/minimized-summaries";
 import { NewMealButton } from "@/components/new-meal-button";
+import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { UserMenu } from "@/components/user-menu";
-import { SortableWidgets } from "@/components/sortable-widgets";
+import {
+  SortableWidgets,
+  type SortableWidgetItem,
+} from "@/components/sortable-widgets";
 import { WeightCard } from "@/components/weight-card";
-import type { WidgetState } from "@/app/actions/widgets";
-import { parseWidgetOrder } from "@/lib/widget-order";
+import {
+  getWidgetState,
+  parseWidgetOrder,
+  parseWidgetStates,
+} from "@/lib/widget-order";
 import { listFriendSummaries, pendingInvitesForUser } from "@/lib/friends";
 import { getSession } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
@@ -54,8 +65,14 @@ export default async function Home() {
     macroGoals,
   } = stats;
 
-  const maintenanceState = normalizeWidgetState(profile.widgetMaintenance);
-  const weightState = normalizeWidgetState(profile.widgetWeight);
+  const widgetStates = parseWidgetStates(profile.widgetStates);
+  const calorieState = getWidgetState(widgetStates, "calorie");
+  const macrosState = getWidgetState(widgetStates, "macros");
+  const maintenanceState = getWidgetState(widgetStates, "maintenance");
+  const activityState = getWidgetState(widgetStates, "activity");
+  const weightState = getWidgetState(widgetStates, "weight");
+  const mealsState = getWidgetState(widgetStates, "meals");
+  const friendsState = getWidgetState(widgetStates, "friends");
 
   const [friendSummaries, incomingInvites] = await Promise.all([
     listFriendSummaries(userId, now),
@@ -117,13 +134,16 @@ export default async function Home() {
 
         <SortableWidgets
           initialOrder={parseWidgetOrder(profile.widgetOrder)}
-          items={[
-            {
+          items={([
+            calorieState !== "hidden" && {
               id: "calorie" as const,
               node: (
                 <CalorieRingWidget
                   consumed={Math.round(consumed.kcal)}
                   goal={calorieGoal}
+                  bmrKcal={bmr.kcal}
+                  activeKcal={active.kcal}
+                  state={calorieState}
                   initialMode={
                     (profile.calorieDisplay as "remaining" | "consumed") ??
                     "remaining"
@@ -131,175 +151,169 @@ export default async function Home() {
                 />
               ),
             },
-            {
+            macrosState !== "hidden" && {
               id: "macros" as const,
               node: (
-                <section className="grid grid-cols-3 gap-3">
-                  <MacroCard
-                    label="Protein"
-                    value={Math.round(consumed.protein)}
-                    goal={macroGoals.protein}
-                    accent="oklch(0.68 0.2 20)"
-                  />
-                  <MacroCard
-                    label="Carbs"
-                    value={Math.round(consumed.carbs)}
-                    goal={macroGoals.carbs}
-                    accent="oklch(0.78 0.16 75)"
-                  />
-                  <MacroCard
-                    label="Fat"
-                    value={Math.round(consumed.fat)}
-                    goal={macroGoals.fat}
-                    accent="oklch(0.6 0.18 280)"
-                  />
-                </section>
+                <MacrosWidget
+                  consumed={{
+                    protein: Math.round(consumed.protein),
+                    carbs: Math.round(consumed.carbs),
+                    fat: Math.round(consumed.fat),
+                  }}
+                  goals={macroGoals}
+                  state={macrosState}
+                />
               ),
             },
-            ...(maintenanceState !== "hidden"
-              ? [
-                  {
-                    id: "maintenance" as const,
-                    node: (
-                      <MaintenanceCard
-                        tdee={tdee}
-                        state={maintenanceState}
-                        breakdown={
-                          active.source === "override"
-                            ? {
-                                kind: "override",
-                                bmrKcal: bmr.kcal,
-                                bmrFormula: bmr.formula,
-                                activeKcal: active.kcal,
-                                activeHint: "From wearable",
-                              }
-                            : {
-                                kind: "estimate",
-                                bmrKcal: bmr.kcal,
-                                bmrFormula: bmr.formula,
-                                neatKcal: active.fromSteps,
-                                neatHint:
-                                  todayActivity?.steps && todayActivity.steps > 0
-                                    ? `${todayActivity.steps.toLocaleString()} steps today`
-                                    : profile.stepsPerDay && profile.stepsPerDay > 0
-                                    ? `${profile.stepsPerDay.toLocaleString()} steps/day avg`
-                                    : "Log steps for today",
-                                eatKcal: active.fromLifting + active.fromCardio,
-                                eatHint: todayActivity
-                                  ? eatHintForDailyLog(
-                                      todayActivity.liftingMin,
-                                      todayActivity.cardioMin
-                                    )
-                                  : [
-                                      active.fromLifting > 0 && "lifting",
-                                      active.fromCardio > 0 && "cardio",
-                                    ]
-                                      .filter(Boolean)
-                                      .join(" + ") || "Log workout for today",
-                              }
+            maintenanceState !== "hidden" && {
+              id: "maintenance" as const,
+              node: (
+                <MaintenanceCard
+                  tdee={tdee}
+                  state={maintenanceState}
+                  breakdown={
+                    active.source === "override"
+                      ? {
+                          kind: "override",
+                          bmrKcal: bmr.kcal,
+                          bmrFormula: bmr.formula,
+                          activeKcal: active.kcal,
+                          activeHint: "From wearable",
                         }
-                      />
-                    ),
-                  },
-                ]
-              : []),
-            {
+                      : {
+                          kind: "estimate",
+                          bmrKcal: bmr.kcal,
+                          bmrFormula: bmr.formula,
+                          neatKcal: active.fromSteps,
+                          neatHint:
+                            todayActivity?.steps && todayActivity.steps > 0
+                              ? `${todayActivity.steps.toLocaleString()} steps today`
+                              : profile.stepsPerDay &&
+                                profile.stepsPerDay > 0
+                              ? `${profile.stepsPerDay.toLocaleString()} steps/day avg`
+                              : "Log steps for today",
+                          eatKcal: active.fromLifting + active.fromCardio,
+                          eatHint: todayActivity
+                            ? eatHintForDailyLog(
+                                todayActivity.liftingMin,
+                                todayActivity.cardioMin
+                              )
+                            : [
+                                active.fromLifting > 0 && "lifting",
+                                active.fromCardio > 0 && "cardio",
+                              ]
+                                .filter(Boolean)
+                                .join(" + ") || "Log workout for today",
+                        }
+                  }
+                />
+              ),
+            },
+            activityState !== "hidden" && {
               id: "activity" as const,
               node: (
                 <ActivityCard
                   today={
-                    todayActivity
-                      ? {
-                          mode: todayActivity.mode as "estimate" | "override",
-                          steps: todayActivity.steps,
-                          liftingMin: todayActivity.liftingMin,
-                          cardioMin: todayActivity.cardioMin,
-                          wearableKcal: todayActivity.wearableKcal,
-                        }
-                      : null
+                    activityOverride(todayActivity)
                   }
                   defaults={{
                     stepsPerDay: profile.stepsPerDay,
-                    liftingMinutesPerSession: profile.liftingMinutesPerSession,
+                    liftingMinutesPerSession:
+                      profile.liftingMinutesPerSession,
                     cardioMinutesPerSession: profile.cardioMinutesPerSession,
                     activeKcalOverride: profile.activeKcalOverride,
                   }}
+                  state={activityState}
                 />
               ),
             },
-            ...(weightState !== "hidden"
-              ? [
-                  {
-                    id: "weight" as const,
-                    node: (
-                      <WeightCard
-                        latest={
-                          latestWeight
-                            ? {
-                                weightKg: latestWeight.weightKg,
-                                loggedAt: latestWeight.loggedAt.toISOString(),
-                              }
-                            : null
-                        }
-                        delta7dKg={delta7dKg}
-                        units={profile.units as "metric" | "imperial"}
-                        timezone={tz}
-                        state={weightState}
-                      />
-                    ),
-                  },
-                ]
-              : []),
-            {
-              id: "meals" as const,
+            weightState !== "hidden" && {
+              id: "weight" as const,
               node: (
-                <section>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold tracking-tight">
-                      Today's meals
-                    </h2>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {meals.length === 0
-                        ? "nothing yet"
-                        : `${meals.length} ${meals.length === 1 ? "meal" : "meals"} · ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
-                    </span>
-                  </div>
-
-                  {meals.length === 0 ? (
-                    <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-12 text-center shadow-none">
-                      <p className="text-sm text-muted-foreground">
-                        No meals logged yet.
-                      </p>
-                      <Link
-                        href="/add"
-                        className="mt-4 inline-flex h-9 items-center justify-center gap-1 rounded-full bg-foreground px-5 text-xs font-medium text-background transition-opacity hover:opacity-90"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Add food
-                      </Link>
-                    </Card>
-                  ) : (
-                    <div className="space-y-3">
-                      {meals.map((m) => (
-                        <MealCard key={m.id} meal={m} timezone={tz} />
-                      ))}
-                    </div>
-                  )}
-                </section>
+                <WeightCard
+                  latest={
+                    latestWeight
+                      ? {
+                          weightKg: latestWeight.weightKg,
+                          loggedAt: latestWeight.loggedAt.toISOString(),
+                        }
+                      : null
+                  }
+                  delta7dKg={delta7dKg}
+                  units={profile.units as "metric" | "imperial"}
+                  timezone={tz}
+                  state={weightState}
+                />
               ),
             },
-            {
-              id: "friends" as const,
-              node: <FriendsStrip friends={friendSummaries} />,
-            },
-          ]}
-        />
+            mealsState !== "hidden" && {
+              id: "meals" as const,
+              node:
+                mealsState === "minimized" ? (
+                  <MinimizedMealsSummary
+                    mealCount={meals.length}
+                    foodCount={foodCount}
+                    kcal={Math.round(consumed.kcal)}
+                  />
+                ) : (
+                  <section>
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold tracking-tight">
+                          Today's meals
+                        </h2>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {meals.length === 0
+                            ? "nothing yet"
+                            : `${meals.length} ${meals.length === 1 ? "meal" : "meals"} · ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
+                        </span>
+                      </div>
+                      <SectionWidgetMenu widgetId="meals" label="Meals" />
+                    </div>
 
-        {meals.length > 0 && (
-          <div className="mt-12 flex justify-center">
-            <NewMealButton suggestedName={autoMealNameInTz(now, tz)} />
-          </div>
-        )}
+                    {meals.length === 0 ? (
+                      <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-12 text-center shadow-none">
+                        <p className="text-sm text-muted-foreground">
+                          No meals logged yet.
+                        </p>
+                        <Link
+                          href="/add"
+                          className="mt-4 inline-flex h-9 items-center justify-center gap-1 rounded-full bg-foreground px-5 text-xs font-medium text-background transition-opacity hover:opacity-90"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add food
+                        </Link>
+                      </Card>
+                    ) : (
+                      <>
+                        <div className="space-y-3">
+                          {meals.map((m) => (
+                            <MealCard key={m.id} meal={m} timezone={tz} />
+                          ))}
+                        </div>
+                        <div className="mt-4 flex justify-center">
+                          <NewMealButton
+                            suggestedName={autoMealNameInTz(now, tz)}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </section>
+                ),
+            },
+            friendsState !== "hidden" && {
+              id: "friends" as const,
+              node:
+                friendsState === "minimized" ? (
+                  <MinimizedFriendsSummary count={friendSummaries.length} />
+                ) : (
+                  <FriendsStrip friends={friendSummaries} />
+                ),
+            },
+          ] as (SortableWidgetItem | false)[]).filter(
+            (x): x is SortableWidgetItem => x !== false
+          )}
+        />
       </main>
     </div>
   );
@@ -315,9 +329,41 @@ function eatHintForDailyLog(
   return parts.join(" + ") || "Rest day";
 }
 
-function normalizeWidgetState(
-  raw: string | null | undefined
-): Exclude<WidgetState, never> {
-  if (raw === "minimized" || raw === "hidden") return raw;
-  return "expanded";
+// The activity card only treats today as "logged" when there's an actual
+// override — not just because a snapshot row exists (we lazy-create one
+// for TDEE snapshotting). An empty/cleared row should look the same as
+// "haven't logged anything today" and use the profile default.
+function activityOverride(
+  row:
+    | {
+        mode: string;
+        steps: number | null;
+        liftingMin: number | null;
+        cardioMin: number | null;
+        wearableKcal: number | null;
+      }
+    | null
+): {
+  mode: "estimate" | "override";
+  steps: number | null;
+  liftingMin: number | null;
+  cardioMin: number | null;
+  wearableKcal: number | null;
+} | null {
+  if (!row) return null;
+  const hasOverride =
+    (row.mode === "override" && (row.wearableKcal ?? 0) > 0) ||
+    (row.mode === "estimate" &&
+      ((row.steps ?? 0) > 0 ||
+        (row.liftingMin ?? 0) > 0 ||
+        (row.cardioMin ?? 0) > 0));
+  if (!hasOverride) return null;
+  return {
+    mode: row.mode as "estimate" | "override",
+    steps: row.steps,
+    liftingMin: row.liftingMin,
+    cardioMin: row.cardioMin,
+    wearableKcal: row.wearableKcal,
+  };
 }
+

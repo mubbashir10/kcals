@@ -29,6 +29,8 @@ model User {
   weightLogs   WeightLog[]
   activityLogs ActivityLog[]
   meals        Meal[]
+  // Custom foods this user contributed to the shared library.
+  createdCustomFoods CustomFood[] @relation("CustomFoodCreatedBy")
 
   // Friends — canonical: every friendship is stored as one row with
   // userAId < userBId, so each user shows up on either side.
@@ -106,15 +108,16 @@ model Profile {
   cardioMinutesPerSession  Int? // avg duration; defaults to 30 if null
   activeKcalOverride       Int? // wearable-tracker number (override mode)
 
-  // Home dashboard widget state — "expanded" | "minimized" | "hidden"
-  widgetMaintenance String @default("expanded")
-  widgetWeight      String @default("expanded")
+  // Per-widget state on the home dashboard. JSON map of
+  //   { [widgetId]: "expanded" | "minimized" | "hidden" }
+  // Missing keys fall back to "expanded". See REORDERABLE_WIDGETS for the
+  // current set of widget IDs.
+  widgetStates   String  @default("{}")
   // Calorie ring display — "remaining" (default) shows what's left to eat;
   // "consumed" shows what's been eaten so far.
-  calorieDisplay    String @default("remaining")
+  calorieDisplay String  @default("remaining")
   // JSON array of widget IDs in display order. NULL = default order.
-  // Currently only the middle section is reorderable: maintenance, activity, weight.
-  widgetOrder       String?
+  widgetOrder    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,22 +136,42 @@ model WeightLog {
   @@index([userId, loggedAt])
 }
 
-// One row per day in the user's timezone.
+// One row per day in the user's timezone. Snapshots the TDEE math at
+// the time the row is touched so historical days remain stable even
+// after the user changes their profile defaults later.
+//
+// Read order for the day's active kcal:
+//   overrideActiveKcal (when user logged today's actual)  →  fall back to
+//   defaultActiveKcal (snapshot of "typical day" estimate)
+//
+// TDEE is precomputed and stored in `tdeeKcal`.
 model ActivityLog {
   id     Int    @id @default(autoincrement())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // YYYY-MM-DD in the user's timezone at the moment the log was created.
-  dayKey       String
+  // YYYY-MM-DD in the user's timezone at the moment the row was created.
+  dayKey String
+
+  // Override inputs — present only when the user logged today's actual
+  // activity. `mode` distinguishes estimate-style (steps/lift/cardio
+  // duration) from a wearable-pasted total.
   mode         String // "estimate" | "override"
   steps        Int? // estimate mode
   liftingMin   Int? // estimate mode — minutes that day
   cardioMin    Int? // estimate mode — minutes that day
   wearableKcal Int? // override mode — total active kcal from wearable
-  loggedAt     DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  // Daily TDEE snapshots — written by the actions whenever the row is
+  // upserted, so reads never recompute on the fly.
+  bmrKcal            Float? // snapshot of BMR for that day
+  defaultActiveKcal  Float? // snapshot of the user's typical-day estimate
+  overrideActiveKcal Float? // active kcal computed from override inputs (null when no override)
+  tdeeKcal           Float? // bmrKcal + (overrideActiveKcal ?? defaultActiveKcal)
+
+  loggedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, dayKey])
   @@index([userId, loggedAt])
@@ -167,6 +190,51 @@ model Meal {
   foods Food[]
 
   @@index([userId, loggedAt])
+}
+
+// A community-contributed custom food — the ones USDA doesn't have
+// (homemade recipes, regional brands, restaurants, etc.). Once saved
+// by any user, the entry is visible in every user's search so we don't
+// duplicate work. We attribute the creator (for moderation) and surface
+// `createdAt` in search results so users can prefer recent submissions.
+//
+// All nutrients are stored per 100g, matching the canonical form we
+// normalize USDA results to. Optional nutrients are null when unknown.
+model CustomFood {
+  id Int @id @default(autoincrement())
+
+  // Who added it. Kept for attribution and moderation; we do not show
+  // the contributor's name in UI by default.
+  createdById String
+  createdBy   User   @relation("CustomFoodCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Identity
+  name  String
+  brand String?
+
+  // Required: how many kcal in 100g of this food.
+  kcal Float
+
+  // Macros per 100g — null when unknown rather than 0, so we can show
+  // "—" instead of pretending it's actually zero.
+  proteinG     Float?
+  carbsG       Float?
+  fatG         Float?
+  fiberG       Float?
+  sugarG       Float?
+  saturatedFatG Float?
+  sodiumMg     Float?
+  cholesterolMg Float?
+
+  // Optional default serving — e.g. 250g labelled "1 cup".
+  servingSizeG Float?
+  servingLabel String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([createdAt])
 }
 
 // A single logged food item inside a meal. Nutrients are stored

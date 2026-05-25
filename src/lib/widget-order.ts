@@ -15,6 +15,56 @@ export const REORDERABLE_WIDGETS = [
 ] as const;
 export type ReorderableWidgetId = (typeof REORDERABLE_WIDGETS)[number];
 
+export type WidgetState = "expanded" | "minimized" | "hidden";
+
+// Widgets the user can hide. The calorie ring is currently always-visible
+// (it's the focal point), so it is omitted. Update this list to match what
+// WidgetsSettings offers.
+//
+// NOTE: every reorderable widget can be minimized; only a subset can be hidden.
+export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [
+  "calorie",
+  "macros",
+  "maintenance",
+  "activity",
+  "weight",
+  "meals",
+  "friends",
+];
+
+// Default state for each widget when the user hasn't picked one yet.
+const DEFAULT_STATE: WidgetState = "expanded";
+
+export type WidgetStates = Partial<Record<ReorderableWidgetId, WidgetState>>;
+
+export function parseWidgetStates(
+  stored: string | null | undefined
+): WidgetStates {
+  if (typeof stored !== "string" || stored.length === 0) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object") return {};
+  const result: WidgetStates = {};
+  for (const id of REORDERABLE_WIDGETS) {
+    const v = (parsed as Record<string, unknown>)[id];
+    if (v === "expanded" || v === "minimized" || v === "hidden") {
+      result[id] = v;
+    }
+  }
+  return result;
+}
+
+export function getWidgetState(
+  states: WidgetStates,
+  id: ReorderableWidgetId
+): WidgetState {
+  return states[id] ?? DEFAULT_STATE;
+}
+
 /**
  * Parse a stored widget-order JSON string. Returns a normalized list that:
  * - contains every reorderable id exactly once
