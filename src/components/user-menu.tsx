@@ -27,7 +27,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InstallAppItem } from "@/components/install-app-item";
+import {
+  InstallAppDialog,
+  InstallAppItem,
+} from "@/components/install-app-item";
 import { ThemeMenuGroup } from "@/components/theme-menu-group";
 
 export async function UserMenu() {
@@ -40,7 +43,9 @@ export async function UserMenu() {
     null;
 
   return (
-    <DropdownMenu>
+    <>
+      <InstallAppDialog />
+      <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Open menu"
         className="group inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-all focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -150,7 +155,8 @@ export async function UserMenu() {
           </>
         )}
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+    </>
   );
 }
 
