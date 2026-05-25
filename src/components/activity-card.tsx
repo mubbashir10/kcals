@@ -65,24 +65,22 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
   if (state === "minimized") {
     return (
       <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Activity
             </span>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-xs text-foreground/80">
-              {logged ? <MinimizedSummaryText today={today!} /> : "Using estimate"}
-            </span>
-            <WidgetMenu
-              widgetId="activity"
-              current="minimized"
-              label="Activity"
-              size="sm"
-            />
-          </div>
+          <WidgetMenu
+            widgetId="activity"
+            current="minimized"
+            label="Activity"
+            size="sm"
+          />
+        </div>
+        <div className="mt-1 truncate text-sm text-foreground/80">
+          {logged ? <MinimizedSummaryText today={today!} /> : "Using estimate"}
         </div>
 
         <LogActivityDialog
@@ -105,65 +103,62 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
               Today's activity
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="inline-flex h-7 items-center gap-0.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Activity options"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
-              {logged ? (
-                <>
-                  <Pencil className="h-3 w-3" />
-                  Edit
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3 w-3" />
-                  Log
-                </>
-              )}
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Activity options"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
+              <DropdownMenuItem
+                onClick={() => setTimeout(() => setOpen(true), 0)}
+                className="cursor-pointer rounded-lg text-sm"
               >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await setWidgetState("activity", "minimized");
-                  }}
-                  className="cursor-pointer rounded-lg text-sm"
-                >
-                  <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Minimize
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await setWidgetState("activity", "hidden");
-                  }}
-                  className="cursor-pointer rounded-lg text-sm"
-                >
-                  <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Hide
-                </DropdownMenuItem>
-                {logged && (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={async () => {
-                      await deleteTodayActivity();
-                    }}
-                    className="cursor-pointer rounded-lg text-sm"
-                  >
-                    <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Clear today's log
-                  </DropdownMenuItem>
+                {logged ? (
+                  <>
+                    <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
+                    Edit today's log
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-3.5 w-3.5 opacity-70" />
+                    Log today
+                  </>
                 )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await setWidgetState("activity", "minimized");
+                }}
+                className="cursor-pointer rounded-lg text-sm"
+              >
+                <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
+                Minimize
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await setWidgetState("activity", "hidden");
+                }}
+                className="cursor-pointer rounded-lg text-sm"
+              >
+                <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
+                Hide
+              </DropdownMenuItem>
+              {logged && (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={async () => {
+                    await deleteTodayActivity();
+                  }}
+                  className="cursor-pointer rounded-lg text-sm"
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Clear today's log
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="mt-3">

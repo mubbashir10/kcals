@@ -29,36 +29,36 @@ export function MacrosWidget({
   if (state === "minimized") {
     return (
       <Card className="rounded-2xl border-border/60 px-4 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Macros
           </span>
-          <div className="flex items-center gap-3">
-            <MiniMacro
-              label="P"
-              accent={ACCENTS.protein}
-              value={Math.round(consumed.protein)}
-              goal={goals.protein}
-            />
-            <MiniMacro
-              label="C"
-              accent={ACCENTS.carbs}
-              value={Math.round(consumed.carbs)}
-              goal={goals.carbs}
-            />
-            <MiniMacro
-              label="F"
-              accent={ACCENTS.fat}
-              value={Math.round(consumed.fat)}
-              goal={goals.fat}
-            />
-            <WidgetMenu
-              widgetId="macros"
-              current="minimized"
-              label="Macros"
-              size="sm"
-            />
-          </div>
+          <WidgetMenu
+            widgetId="macros"
+            current="minimized"
+            label="Macros"
+            size="sm"
+          />
+        </div>
+        <div className="mt-1 grid grid-cols-3 gap-2">
+          <MiniMacro
+            label="P"
+            accent={ACCENTS.protein}
+            value={Math.round(consumed.protein)}
+            goal={goals.protein}
+          />
+          <MiniMacro
+            label="C"
+            accent={ACCENTS.carbs}
+            value={Math.round(consumed.carbs)}
+            goal={goals.carbs}
+          />
+          <MiniMacro
+            label="F"
+            accent={ACCENTS.fat}
+            value={Math.round(consumed.fat)}
+            goal={goals.fat}
+          />
         </div>
       </Card>
     );

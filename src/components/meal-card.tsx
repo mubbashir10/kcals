@@ -65,35 +65,32 @@ export function MealCard({
   const [editingFood, setEditingFood] = useState<MealCardFood | null>(null);
 
   const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
+  const mealProtein = meal.foods.reduce((a, f) => a + f.proteinG, 0);
+  const mealCarbs = meal.foods.reduce((a, f) => a + f.carbsG, 0);
+  const mealFat = meal.foods.reduce((a, f) => a + f.fatG, 0);
   const time = formatTimeInTz(meal.loggedAt, timezone);
 
   return (
     <Card className="overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
-      <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-5 py-3">
-        <button
-          type="button"
-          onClick={() => setRenameOpen(true)}
-          className="group flex min-w-0 items-baseline gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        >
-          <h3 className="truncate text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground/70">
-            {meal.name ?? "Meal"}
-          </h3>
-          <time className="text-xs text-muted-foreground tabular-nums">
-            {time}
-          </time>
-        </button>
+      <header className="border-b border-border/60 bg-muted/30 px-5 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setRenameOpen(true)}
+            className="group min-w-0 flex-1 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <h3 className="truncate text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground/70">
+              {meal.name ?? "Meal"}
+            </h3>
+            <time className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
+              {time}
+            </time>
+          </button>
 
-        <div className="flex items-center gap-3">
-          <div className="text-xs tabular-nums text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {Math.round(mealKcal)}
-            </span>{" "}
-            kcal
-          </div>
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Meal options"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
@@ -117,6 +114,25 @@ export function MealCard({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
+          <span>
+            <span className="font-semibold text-foreground">
+              {Math.round(mealKcal)}
+            </span>{" "}
+            kcal
+          </span>
+          <span aria-hidden className="text-muted-foreground/40">·</span>
+          <span>
+            P <span className="font-medium text-foreground/80">{Math.round(mealProtein)}</span>
+          </span>
+          <span>
+            C <span className="font-medium text-foreground/80">{Math.round(mealCarbs)}</span>
+          </span>
+          <span>
+            F <span className="font-medium text-foreground/80">{Math.round(mealFat)}</span>
+          </span>
         </div>
       </header>
 
@@ -206,14 +222,14 @@ function FoodRow({
           }
         }}
         className={cn(
-          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-accent/40",
+          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40",
           deletePending && "opacity-50"
         )}
       >
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm">{f.name}</div>
+          <div className="truncate text-[13px] leading-tight">{f.name}</div>
           {(f.brand || f.grams > 0) && (
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {f.brand ? f.brand : null}
               {f.brand && f.grams > 0 ? " · " : null}
               {f.grams > 0 ? `${round1(f.grams)} g` : null}
@@ -221,32 +237,30 @@ function FoodRow({
           )}
         </div>
 
-        <div className="min-w-[44px] text-right">
-          <div className="text-base font-semibold tabular-nums">
+        <div className="shrink-0 text-right tabular-nums">
+          <span className="text-[13px] font-semibold">
             {Math.round(f.kcal)}
-          </div>
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            kcal
-          </div>
+          </span>
+          <span className="ml-1 text-[10px] text-muted-foreground">kcal</span>
         </div>
 
-        <div className="flex flex-col items-center gap-0.5">
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
             onClick={handleEditClick}
             aria-label="Edit food"
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <Pencil className="h-2.5 w-2.5" />
+            <Pencil className="h-3 w-3" />
           </button>
           <button
             type="button"
             onClick={handleDelete}
             disabled={deletePending}
             aria-label="Delete food"
-            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/15 disabled:pointer-events-none"
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/15 disabled:pointer-events-none"
           >
-            <Trash2 className="h-2.5 w-2.5" />
+            <Trash2 className="h-3 w-3" />
           </button>
         </div>
       </div>

@@ -48,27 +48,25 @@ export function MaintenanceCard({
 function MinimizedView({ tdee }: { tdee: number }) {
   return (
     <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Flame className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Maintenance
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-base font-semibold leading-none tabular-nums tracking-tight">
-            {Math.round(tdee).toLocaleString()}
-            <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-              kcal/day
-            </span>
-          </div>
-          <WidgetMenu
-            widgetId="maintenance"
-            current="minimized"
-            label="Maintenance"
-            size="sm"
-          />
-        </div>
+        <WidgetMenu
+          widgetId="maintenance"
+          current="minimized"
+          label="Maintenance"
+          size="sm"
+        />
+      </div>
+      <div className="mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
+        {Math.round(tdee).toLocaleString()}
+        <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+          kcal/day
+        </span>
       </div>
     </Card>
   );

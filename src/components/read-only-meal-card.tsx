@@ -55,22 +55,22 @@ export function ReadOnlyMealCard({
           {meal.foods.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between gap-3 px-5 py-3"
+              className="flex items-center justify-between gap-3 px-5 py-2.5"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{f.name}</div>
-                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                <div className="truncate text-[13px] leading-tight">{f.name}</div>
+                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
                   {f.brand ? `${f.brand} · ` : ""}
                   {round1(f.grams)} g
                 </div>
               </div>
-              <div className="min-w-[44px] text-right">
-                <div className="text-base font-semibold tabular-nums">
+              <div className="shrink-0 text-right tabular-nums">
+                <span className="text-[13px] font-semibold">
                   {Math.round(f.kcal)}
-                </div>
-                <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                </span>
+                <span className="ml-1 text-[10px] text-muted-foreground">
                   kcal
-                </div>
+                </span>
               </div>
             </li>
           ))}

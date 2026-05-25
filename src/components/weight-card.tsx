@@ -66,55 +66,53 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
 
   if (state === "minimized") {
     return (
-      <>
-        <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
-          <AppLink
-            href="/weight"
-            aria-label="View weight history"
-            className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <Scale className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                Weight
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {display ? (
-                <div className="flex items-baseline gap-2">
-                  <span className="text-base font-semibold leading-none tabular-nums">
-                    {display.value}
-                    <span className="ml-0.5 text-[10px] font-normal text-muted-foreground">
-                      {display.unit}
-                    </span>
-                  </span>
-                  {deltaDisplay && deltaDisplay.direction !== "flat" && (
-                    <span
-                      className={
-                        "text-[10px] font-medium tabular-nums " +
-                        (deltaDisplay.direction === "down"
-                          ? "text-emerald-500"
-                          : "text-rose-500")
-                      }
-                    >
-                      {deltaDisplay.label.replace(" · 7d", "")}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-              <WidgetMenu
-                widgetId="weight"
-                current="minimized"
-                label="Weight"
-                size="sm"
-              />
-            </div>
+      <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
+        <AppLink
+          href="/weight"
+          aria-label="View weight history"
+          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        />
+        <div className="relative flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Scale className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Weight
+            </span>
           </div>
-        </Card>
-      </>
+          <WidgetMenu
+            widgetId="weight"
+            current="minimized"
+            label="Weight"
+            size="sm"
+          />
+        </div>
+        <div className="relative mt-1 flex items-baseline gap-2">
+          {display ? (
+            <>
+              <span className="text-base font-semibold leading-none tabular-nums">
+                {display.value}
+                <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
+                  {display.unit}
+                </span>
+              </span>
+              {deltaDisplay && deltaDisplay.direction !== "flat" && (
+                <span
+                  className={
+                    "text-[11px] font-medium tabular-nums " +
+                    (deltaDisplay.direction === "down"
+                      ? "text-emerald-500"
+                      : "text-rose-500")
+                  }
+                >
+                  {deltaDisplay.label.replace(" · 7d", "")}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+        </div>
+      </Card>
     );
   }
 
@@ -133,83 +131,83 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
               Weight
             </span>
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="inline-flex h-7 items-center gap-0.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Weight options"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
-              <Plus className="h-3 w-3" />
-              Log
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Weight options"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
-              >
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-48 rounded-xl p-1.5"
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    onClick={() => changeState("minimized")}
-                    className="cursor-pointer rounded-lg text-sm"
-                  >
-                    <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Minimize
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onClick={() => changeState("hidden")}
-                    className="cursor-pointer rounded-lg text-sm"
-                  >
-                    <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Hide
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    onClick={() => setImportOpen(true)}
-                    className="cursor-pointer rounded-lg text-sm"
-                  >
-                    <Upload className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Import CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    render={
-                      <a
-                        href="/api/weight/export"
-                        download
-                        className="cursor-pointer rounded-lg text-sm"
-                      />
-                    }
-                  >
-                    <Download className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Export CSV
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    render={
-                      <a
-                        href="/api/weight/template"
-                        download
-                        className="cursor-pointer rounded-lg text-sm"
-                      />
-                    }
-                  >
-                    <FileText className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Download template
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-48 rounded-xl p-1.5"
+            >
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => setTimeout(() => setOpen(true), 0)}
+                  className="cursor-pointer rounded-lg text-sm"
+                >
+                  <Plus className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Log weight
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => changeState("minimized")}
+                  className="cursor-pointer rounded-lg text-sm"
+                >
+                  <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Minimize
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => changeState("hidden")}
+                  className="cursor-pointer rounded-lg text-sm"
+                >
+                  <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Hide
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => setTimeout(() => setImportOpen(true), 0)}
+                  className="cursor-pointer rounded-lg text-sm"
+                >
+                  <Upload className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Import CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  render={
+                    <a
+                      href="/api/weight/export"
+                      download
+                      className="cursor-pointer rounded-lg text-sm"
+                    />
+                  }
+                >
+                  <Download className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Export CSV
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  render={
+                    <a
+                      href="/api/weight/template"
+                      download
+                      className="cursor-pointer rounded-lg text-sm"
+                    />
+                  }
+                >
+                  <FileText className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Download template
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {display ? (

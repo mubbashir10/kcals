@@ -67,58 +67,58 @@ export function CalorieRingWidget({
     const label = mode === "remaining" ? "left" : "eaten";
     return (
       <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Flame className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Calories
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="text-base font-semibold leading-none tabular-nums tracking-tight">
-              {Math.round(value).toLocaleString()}
-              <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                {label}
-              </span>
-            </div>
-            <WidgetMenu
-              widgetId="calorie"
-              current="minimized"
-              label="Calorie ring"
-              size="sm"
-            />
-          </div>
+          <WidgetMenu
+            widgetId="calorie"
+            current="minimized"
+            label="Calorie ring"
+            size="sm"
+          />
+        </div>
+        <div className="mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
+          {Math.round(value).toLocaleString()}
+          <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+            {label}
+          </span>
         </div>
       </Card>
     );
   }
 
   return (
-    <Card className="relative rounded-3xl border-border/60 px-6 py-12 shadow-card-lg">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={
-          mode === "remaining"
-            ? "Switch to showing consumed"
-            : "Switch to showing remaining"
-        }
-        className="absolute left-4 top-4 inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      >
-        <ArrowLeftRight className="h-3 w-3" />
-        {mode === "remaining" ? "Remaining" : "Consumed"}
-      </button>
+    <Card className="rounded-3xl border-border/60 px-5 pb-8 pt-4 shadow-card-lg sm:px-6 sm:pb-10 sm:pt-5">
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={
+            mode === "remaining"
+              ? "Switch to showing consumed"
+              : "Switch to showing remaining"
+          }
+          className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeftRight className="h-3 w-3" />
+          {mode === "remaining" ? "Remaining" : "Consumed"}
+        </button>
 
-      <div className="absolute right-4 top-4 flex items-center gap-2">
-        <GoalChip type={goalType} offset={kcalOffset} />
-        <WidgetMenu
-          widgetId="calorie"
-          current="expanded"
-          label="Calorie ring"
-        />
+        <div className="flex items-center gap-1.5">
+          <GoalChip type={goalType} offset={kcalOffset} />
+          <WidgetMenu
+            widgetId="calorie"
+            current="expanded"
+            label="Calorie ring"
+          />
+        </div>
       </div>
 
-      <div className="flex flex-col items-center">
+      <div className="mt-8 flex flex-col items-center sm:mt-10">
         <CalorieRing consumed={consumed} goal={goal} mode={mode} />
 
         {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
