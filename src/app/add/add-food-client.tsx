@@ -462,17 +462,47 @@ function PortionDialog({
   target: Target;
   onClose: () => void;
 }) {
+  // Canonical state is grams. `qtyStr` is a display-only string that the user
+  // can type into; we mirror it back to grams on change. We keep both as
+  // separate strings so partial inputs like "1." don't get clobbered.
   const [grams, setGrams] = useState<string>("100");
+  const [qtyStr, setQtyStr] = useState<string>("1");
   const [pending, startTransition] = useTransition();
+
+  const servingG = food?.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
+  const unitLabel = food?.servingLabel ? extractUnitName(food.servingLabel) : null;
 
   useEffect(() => {
     if (!food) return;
-    setGrams(
-      food.servingSizeG && food.servingSizeG > 0
-        ? String(Math.round(food.servingSizeG))
-        : "100"
-    );
+    if (servingG) {
+      setGrams(formatGrams(servingG));
+      setQtyStr("1");
+    } else {
+      setGrams("100");
+      setQtyStr("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [food]);
+
+  function onGramsChange(s: string) {
+    setGrams(s);
+    if (!servingG) return;
+    const n = parseFloat(s);
+    if (Number.isFinite(n) && n >= 0) {
+      setQtyStr(formatQty(n / servingG));
+    } else {
+      setQtyStr("");
+    }
+  }
+
+  function onQtyChange(s: string) {
+    setQtyStr(s);
+    if (!servingG) return;
+    const n = parseFloat(s);
+    if (Number.isFinite(n) && n >= 0) {
+      setGrams(formatGrams(n * servingG));
+    }
+  }
 
   const g = parseFloat(grams);
   const valid = Number.isFinite(g) && g > 0 && g < 5000;
@@ -536,24 +566,53 @@ function PortionDialog({
                   >
                     Serving
                   </Label>
-                  {food.servingLabel && (
+                  {servingG && unitLabel && (
                     <span className="text-[10px] text-muted-foreground/70">
-                      {food.servingLabel}
+                      1 {unitLabel} = {formatGrams(servingG)}g
                     </span>
                   )}
                 </div>
-                <div className="relative">
-                  <Input
-                    id="grams"
-                    inputMode="decimal"
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
-                    className="pr-12 text-lg"
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                    g
-                  </span>
-                </div>
+                {servingG && unitLabel ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <Input
+                        id="qty"
+                        inputMode="decimal"
+                        value={qtyStr}
+                        onChange={(e) => onQtyChange(e.target.value)}
+                        className="pr-16 text-lg"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                        {unitLabel}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="grams"
+                        inputMode="decimal"
+                        value={grams}
+                        onChange={(e) => onGramsChange(e.target.value)}
+                        className="pr-8 text-lg"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                        g
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      id="grams"
+                      inputMode="decimal"
+                      value={grams}
+                      onChange={(e) => onGramsChange(e.target.value)}
+                      className="pr-12 text-lg"
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                      g
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
@@ -877,4 +936,25 @@ function formatAddedAt(iso: string) {
 
 function round1(n: number) {
   return Math.round(n * 10) / 10;
+}
+
+// "1 paratha" → "paratha"; "1 scoop (30g protein)" → "scoop";
+// falls back to the raw label if nothing strippable is found.
+function extractUnitName(label: string): string {
+  const stripped = label
+    .replace(/^\s*1\s+/, "")
+    .replace(/\s*\(.+\)\s*$/, "")
+    .trim();
+  return stripped.length > 0 ? stripped : label;
+}
+
+function formatGrams(n: number): string {
+  return String(Math.round(n));
+}
+
+// Up to 2 decimals, trailing zeros trimmed: 1.5, 0.63, 80
+function formatQty(n: number): string {
+  if (!Number.isFinite(n)) return "";
+  const rounded = Math.round(n * 100) / 100;
+  return String(rounded);
 }
