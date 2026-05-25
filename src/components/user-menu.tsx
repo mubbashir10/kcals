@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InstallAppItem } from "@/components/install-app-item";
 import { ThemeMenuGroup } from "@/components/theme-menu-group";
 
 export async function UserMenu() {
@@ -115,6 +116,7 @@ export async function UserMenu() {
             <Settings className="mr-2 h-3.5 w-3.5 opacity-70" />
             Settings
           </DropdownMenuItem>
+          <InstallAppItem />
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />

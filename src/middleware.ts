@@ -27,9 +27,11 @@ export default auth((req) => {
 
 export const config = {
   // Exclude paths that should be reachable without auth: Next internals,
-  // static assets, the auth API, and social-card metadata files (Slack /
-  // Twitter / iMessage crawlers can't sign in).
+  // static assets, the auth API, social-card metadata files (Slack /
+  // Twitter / iMessage crawlers can't sign in), and PWA install assets
+  // (manifest + icons must be fetchable from the signin page itself so the
+  // browser can show the install prompt before the user logs in).
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon.svg|logo.svg|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };

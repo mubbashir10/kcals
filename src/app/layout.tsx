@@ -45,7 +45,14 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "kcals" }],
   creator: "kcals",
-  icons: { icon: "/logo.svg" },
+  // Icons handled by app/icon.tsx + app/apple-icon.tsx file conventions.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "kcals",
+    // Translucent status bar so our ambient gradient bleeds into it on iOS.
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     type: "website",
     siteName: "kcals",
@@ -63,6 +70,17 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+};
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  // Prevents accidental pinch-zoom on input focus on iOS — feels app-like.
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({
