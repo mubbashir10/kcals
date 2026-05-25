@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/clock";
+import { requireUserId } from "@/lib/session";
 
 export type ActivityMode = "estimate" | "override";
 
@@ -27,7 +28,8 @@ function sanitizeInt(
 }
 
 export async function upsertTodayActivity(input: ActivityLogInput) {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   const tz = profile?.timezone || "UTC";
   const key = dayKeyInTz(tz);
 
@@ -51,8 +53,8 @@ export async function upsertTodayActivity(input: ActivityLogInput) {
         };
 
   await db.activityLog.upsert({
-    where: { dayKey: key },
-    create: { dayKey: key, ...data },
+    where: { userId_dayKey: { userId, dayKey: key } },
+    create: { userId, dayKey: key, ...data },
     update: data,
   });
 
@@ -60,10 +62,11 @@ export async function upsertTodayActivity(input: ActivityLogInput) {
 }
 
 export async function deleteTodayActivity() {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   const tz = profile?.timezone || "UTC";
   const key = dayKeyInTz(tz);
 
-  await db.activityLog.deleteMany({ where: { dayKey: key } });
+  await db.activityLog.deleteMany({ where: { userId, dayKey: key } });
   revalidatePath("/");
 }

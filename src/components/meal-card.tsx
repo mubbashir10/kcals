@@ -29,7 +29,11 @@ import {
   timeInputValueInTz,
 } from "@/lib/clock";
 import { updateMeal, deleteMeal } from "@/app/actions/meals";
-import { deleteFood, updateFoodGrams } from "@/app/actions/foods";
+import {
+  deleteFood,
+  updateFoodGrams,
+  updateFoodKcal,
+} from "@/app/actions/foods";
 
 export type MealCardFood = {
   id: number;
@@ -104,7 +108,8 @@ export function MealCard({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="cursor-pointer rounded-lg text-sm text-destructive focus:text-destructive"
+                  variant="destructive"
+                  className="cursor-pointer rounded-lg text-sm"
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
@@ -208,10 +213,13 @@ function FoodRow({
       >
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm">{f.name}</div>
-          <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {f.brand ? `${f.brand} · ` : ""}
-            {round1(f.grams)} g
-          </div>
+          {(f.brand || f.grams > 0) && (
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {f.brand ? f.brand : null}
+              {f.brand && f.grams > 0 ? " · " : null}
+              {f.grams > 0 ? `${round1(f.grams)} g` : null}
+            </div>
+          )}
         </div>
 
         <div className="min-w-[44px] text-right">
@@ -410,29 +418,43 @@ function FoodEditDialog({
   food: MealCardFood | null;
   onClose: () => void;
 }) {
+  const isQuickAdd = !!food && food.grams === 0;
+
   const [grams, setGrams] = useState<string>("");
+  const [kcalInput, setKcalInput] = useState<string>("");
   const [savePending, startSave] = useTransition();
   const [deletePending, startDelete] = useTransition();
 
-  // reset grams whenever a new food opens
+  // reset inputs whenever a new food opens
   useEffect(() => {
-    if (food) setGrams(String(round1(food.grams)));
+    if (food) {
+      setGrams(String(round1(food.grams)));
+      setKcalInput(String(Math.round(food.kcal)));
+    }
   }, [food]);
 
+  // Branch 1: quick-add row — edit kcal directly, no portion/macros.
+  // Branch 2: scanned food — edit grams, derive kcal/macros from per-100g.
   const g = parseFloat(grams);
-  const valid = Number.isFinite(g) && g > 0 && g < 5000;
+  const validGrams = Number.isFinite(g) && g > 0 && g < 5000;
 
-  // Derive per-100g from what's stored so we can live-recompute.
-  const per100g = food
-    ? {
-        kcal: (food.kcal / food.grams) * 100,
-        proteinG: (food.proteinG / food.grams) * 100,
-        carbsG: (food.carbsG / food.grams) * 100,
-        fatG: (food.fatG / food.grams) * 100,
-      }
-    : null;
+  const kVal = parseFloat(kcalInput);
+  const validKcal = Number.isFinite(kVal) && kVal > 0 && kVal < 10000;
 
-  const factor = valid ? g / 100 : 0;
+  const valid = isQuickAdd ? validKcal : validGrams;
+
+  // Per-100g basis — only meaningful when food has a real serving size.
+  const per100g =
+    food && food.grams > 0
+      ? {
+          kcal: (food.kcal / food.grams) * 100,
+          proteinG: (food.proteinG / food.grams) * 100,
+          carbsG: (food.carbsG / food.grams) * 100,
+          fatG: (food.fatG / food.grams) * 100,
+        }
+      : null;
+
+  const factor = validGrams ? g / 100 : 0;
   const computed = per100g
     ? {
         kcal: per100g.kcal * factor,
@@ -445,7 +467,11 @@ function FoodEditDialog({
   function onSave() {
     if (!food || !valid) return;
     startSave(async () => {
-      await updateFoodGrams(food.id, round1(g));
+      if (isQuickAdd) {
+        await updateFoodKcal(food.id, round1(kVal));
+      } else {
+        await updateFoodGrams(food.id, round1(g));
+      }
       onClose();
     });
   }
@@ -473,50 +499,82 @@ function FoodEditDialog({
             )}
 
             <div className="mt-4 space-y-5">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-grams"
-                  className="text-xs uppercase tracking-wider text-muted-foreground"
-                >
-                  Serving
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="edit-grams"
-                    inputMode="decimal"
-                    autoFocus
-                    value={grams}
-                    onChange={(e) => setGrams(e.target.value)}
-                    className="pr-12 text-lg"
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                    g
-                  </span>
+              {isQuickAdd ? (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="edit-kcal"
+                    className="text-xs uppercase tracking-wider text-muted-foreground"
+                  >
+                    Calories
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="edit-kcal"
+                      inputMode="numeric"
+                      autoFocus
+                      value={kcalInput}
+                      onChange={(e) => setKcalInput(e.target.value)}
+                      className="pr-14 text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && valid) {
+                          e.preventDefault();
+                          onSave();
+                        }
+                      }}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                      kcal
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="edit-grams"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
+                      Serving
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="edit-grams"
+                        inputMode="decimal"
+                        autoFocus
+                        value={grams}
+                        onChange={(e) => setGrams(e.target.value)}
+                        className="pr-12 text-lg"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                        g
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
-                <FoodStat
-                  label="kcal"
-                  value={computed ? Math.round(computed.kcal) : 0}
-                  emphasis
-                />
-                <FoodStat
-                  label="P"
-                  value={computed ? round1(computed.proteinG) : 0}
-                  unit="g"
-                />
-                <FoodStat
-                  label="C"
-                  value={computed ? round1(computed.carbsG) : 0}
-                  unit="g"
-                />
-                <FoodStat
-                  label="F"
-                  value={computed ? round1(computed.fatG) : 0}
-                  unit="g"
-                />
-              </div>
+                  <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
+                    <FoodStat
+                      label="kcal"
+                      value={computed ? Math.round(computed.kcal) : 0}
+                      emphasis
+                    />
+                    <FoodStat
+                      label="P"
+                      value={computed ? round1(computed.proteinG) : 0}
+                      unit="g"
+                    />
+                    <FoodStat
+                      label="C"
+                      value={computed ? round1(computed.carbsG) : 0}
+                      unit="g"
+                    />
+                    <FoodStat
+                      label="F"
+                      value={computed ? round1(computed.fatG) : 0}
+                      unit="g"
+                    />
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center gap-2">
                 <Button

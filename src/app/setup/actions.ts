@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 
 export type SaveProfileInput = {
   sex: "male" | "female";
@@ -23,15 +24,12 @@ export type SaveProfileInput = {
 };
 
 export async function saveProfile(input: SaveProfileInput) {
-  const existing = await db.profile.findFirst();
-  if (existing) {
-    await db.profile.update({
-      where: { id: existing.id },
-      data: input,
-    });
-  } else {
-    await db.profile.create({ data: input });
-  }
+  const userId = await requireUserId();
+  await db.profile.upsert({
+    where: { userId },
+    create: { userId, ...input },
+    update: input,
+  });
 
   revalidatePath("/");
   redirect("/");

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+import {
+  THEME_BOOT_SCRIPT,
+  ThemeProvider,
+} from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "kcals",
   description: "A beautifully simple calorie tracker.",
+  icons: { icon: "/logo.svg" },
 };
 
 export default function RootLayout({
@@ -29,15 +33,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Blocks paint until the theme class is on <html> — prevents
+            light/dark flash on first load. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

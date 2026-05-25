@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, TrendingDown, TrendingUp, Minus } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 import { kgToLb } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { WeightChart } from "@/components/weight-chart";
@@ -14,13 +15,15 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function WeightPage() {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) redirect("/setup");
 
   const units = profile.units as "metric" | "imperial";
   const tz = profile.timezone || "UTC";
 
   const logs = await db.weightLog.findMany({
+    where: { userId },
     orderBy: { loggedAt: "desc" },
   });
 
@@ -60,7 +63,7 @@ export default async function WeightPage() {
     <div className="relative flex flex-1 flex-col">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.92_0.06_70_/_0.5)_0%,transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.35_0.08_40_/_0.3)_0%,transparent_70%)]"
+        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
       />
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">

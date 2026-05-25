@@ -3,12 +3,40 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
+
+// Directly set the kcal on a quick-add food row. Used by the kcal-only
+// edit UI in MealCard (when food.grams === 0).
+export async function updateFoodKcal(id: number, kcal: number) {
+  if (!Number.isFinite(kcal) || kcal <= 0 || kcal > 10000) {
+    throw new Error("Invalid kcal");
+  }
+  const userId = await requireUserId();
+
+  // Ownership check via parent meal.
+  const food = await db.food.findFirst({
+    where: { id, meal: { userId } },
+    select: { id: true },
+  });
+  if (!food) return;
+
+  await db.food.update({
+    where: { id },
+    data: { kcal: round1(kcal) },
+  });
+  revalidatePath("/");
+}
 
 export async function updateFoodGrams(id: number, grams: number) {
   if (!Number.isFinite(grams) || grams <= 0 || grams > 5000) {
     throw new Error("Invalid serving size");
   }
-  const food = await db.food.findUnique({ where: { id } });
+  const userId = await requireUserId();
+
+  // Ownership check via the parent meal.
+  const food = await db.food.findFirst({
+    where: { id, meal: { userId } },
+  });
   if (!food) return;
 
   const factor = grams / food.grams;
@@ -26,7 +54,8 @@ export async function updateFoodGrams(id: number, grams: number) {
 }
 
 export async function deleteFood(id: number) {
-  await db.food.delete({ where: { id } });
+  const userId = await requireUserId();
+  await db.food.deleteMany({ where: { id, meal: { userId } } });
   revalidatePath("/");
 }
 

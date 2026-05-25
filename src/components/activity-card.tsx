@@ -58,7 +58,7 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
 
   return (
     <>
-      <Card className="rounded-3xl border-border/60 p-6 shadow-sm">
+      <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground" />
@@ -70,7 +70,7 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90"
+              className="inline-flex h-7 items-center gap-0.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
             >
               {logged ? (
                 <>
@@ -84,7 +84,7 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
                 </>
               )}
             </button>
-            {logged && (
+            {logged ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label="Activity options"
@@ -97,16 +97,21 @@ export function ActivityCard({ today, defaults }: ActivityCardProps) {
                   className="w-44 rounded-xl p-1.5"
                 >
                   <DropdownMenuItem
+                    variant="destructive"
                     onClick={async () => {
                       await deleteTodayActivity();
                     }}
-                    className="cursor-pointer rounded-lg text-sm text-destructive"
+                    className="cursor-pointer rounded-lg text-sm"
                   >
                     <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
                     Clear today's log
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : (
+              // Reserve the spot the dropdown would take so the Log button
+              // keeps the same right-offset whether or not it's present.
+              <div aria-hidden className="h-7 w-7" />
             )}
           </div>
         </div>

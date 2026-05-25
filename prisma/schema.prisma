@@ -1,4 +1,4 @@
-// Single-user local app — no auth, one profile row.
+// Multi-user app — Google sign-in only.
 // See https://pris.ly/d/prisma-schema
 
 generator client {
@@ -10,15 +10,92 @@ datasource db {
   provider = "postgresql"
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// Auth.js v5 models (https://authjs.dev/getting-started/adapters/prisma)
+// ───────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+
+  // App relations
+  profile      Profile?
+  weightLogs   WeightLog[]
+  activityLogs ActivityLog[]
+  meals        Meal[]
+
+  // Friends — canonical: every friendship is stored as one row with
+  // userAId < userBId, so each user shows up on either side.
+  friendshipsA    Friendship[]   @relation("FriendshipUserA")
+  friendshipsB    Friendship[]   @relation("FriendshipUserB")
+  invitesSent     FriendInvite[] @relation("InvitesSent")
+  invitesAccepted FriendInvite[] @relation("InvitesAccepted")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// App models — each row belongs to a User
+// ───────────────────────────────────────────────────────────────────────
+
 model Profile {
-  id         Int      @id @default(autoincrement())
+  id     Int    @id @default(autoincrement())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   age        Int
-  sex        String   // "male" | "female"
+  sex        String // "male" | "female"
   heightCm   Float
   weightKg   Float
   bodyFatPct Float?
-  units      String   @default("metric") // "metric" | "imperial"
-  timezone   String   @default("UTC") // IANA timezone, e.g. "America/New_York" — drives all date/time math in the app
+  units      String @default("metric") // "metric" | "imperial"
+  timezone   String @default("UTC") // IANA timezone, e.g. "America/New_York" — drives all date/time math in the app
 
   // Activity — for TDEE / maintenance-calorie calculation
   activityMode             String @default("estimate") // "estimate" | "override"
@@ -29,59 +106,76 @@ model Profile {
   cardioMinutesPerSession  Int? // avg duration; defaults to 30 if null
   activeKcalOverride       Int? // wearable-tracker number (override mode)
 
+  // Home dashboard widget state — "expanded" | "minimized" | "hidden"
+  widgetMaintenance String @default("expanded")
+  widgetWeight      String @default("expanded")
+  // Calorie ring display — "remaining" (default) shows what's left to eat;
+  // "consumed" shows what's been eaten so far.
+  calorieDisplay    String @default("remaining")
+  // JSON array of widget IDs in display order. NULL = default order.
+  // Currently only the middle section is reorderable: maintenance, activity, weight.
+  widgetOrder       String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // A single daily weight measurement. We always store kg internally.
 model WeightLog {
-  id        Int      @id @default(autoincrement())
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   weightKg  Float
   loggedAt  DateTime @default(now())
   createdAt DateTime @default(now())
 
-  @@index([loggedAt])
+  @@index([userId, loggedAt])
 }
 
-// One row per day in the user's timezone. The user's profile activity fields
-// remain as "typical day" fallback / pre-fill; this table is the source of
-// truth for a specific day when present.
+// One row per day in the user's timezone.
 model ActivityLog {
-  id            Int      @id @default(autoincrement())
-  // YYYY-MM-DD in the user's timezone at the moment the log was created.
-  // Acts as the per-day key and lets us upsert without timezone math at read time.
-  dayKey        String   @unique
-  mode          String // "estimate" | "override"
-  steps         Int? // estimate mode
-  liftingMin    Int? // estimate mode — minutes that day
-  cardioMin     Int? // estimate mode — minutes that day
-  wearableKcal  Int? // override mode — total active kcal from wearable
-  loggedAt      DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([loggedAt])
+  // YYYY-MM-DD in the user's timezone at the moment the log was created.
+  dayKey       String
+  mode         String // "estimate" | "override"
+  steps        Int? // estimate mode
+  liftingMin   Int? // estimate mode — minutes that day
+  cardioMin    Int? // estimate mode — minutes that day
+  wearableKcal Int? // override mode — total active kcal from wearable
+  loggedAt     DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, dayKey])
+  @@index([userId, loggedAt])
 }
 
-// A Meal is a container for one or more Foods eaten together
-// (e.g. "Breakfast", "Lunch"). New foods auto-join the most recent
-// meal within a short window, or open a new one.
+// A Meal is a container for one or more Foods eaten together.
 model Meal {
-  id        Int      @id @default(autoincrement())
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   name      String? // "Breakfast", "Lunch", "Dinner", "Snack" — optional
   loggedAt  DateTime @default(now())
   createdAt DateTime @default(now())
-  foods     Food[]
 
-  @@index([loggedAt])
+  foods Food[]
+
+  @@index([userId, loggedAt])
 }
 
 // A single logged food item inside a meal. Nutrients are stored
 // as logged (i.e. already scaled to the user's portion), not per 100g.
 model Food {
-  id        Int      @id @default(autoincrement())
-  mealId    Int
-  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  id     Int  @id @default(autoincrement())
+  mealId Int
+  meal   Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
   fdcId     Int? // USDA FoodData Central id (null for manual entries)
   name      String
   brand     String?
@@ -95,4 +189,46 @@ model Food {
 
   @@index([mealId])
   @@index([loggedAt])
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Friends — read-only sharing of daily stats between users.
+// ───────────────────────────────────────────────────────────────────────
+
+// One row per friendship. To make uniqueness and lookup trivial, we always
+// store with userAId < userBId (canonical ordering) and check both sides
+// at query time.
+model Friendship {
+  id      Int    @id @default(autoincrement())
+  userAId String
+  userBId String
+  userA   User   @relation("FriendshipUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB   User   @relation("FriendshipUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+}
+
+// A pending invite. `token` is always set (used in the shareable URL).
+// `email` is optional — when set, only that address may accept (and the
+// invite is also surfaced as a banner to the matching signed-in user).
+model FriendInvite {
+  id        Int    @id @default(autoincrement())
+  token     String @unique
+  inviterId String
+  inviter   User   @relation("InvitesSent", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  email String?
+
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?     @relation("InvitesAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([inviterId])
+  @@index([email])
 }

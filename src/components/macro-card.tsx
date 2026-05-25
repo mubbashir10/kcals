@@ -11,7 +11,7 @@ type Props = {
 export function MacroCard({ label, value, goal, unit = "g", accent }: Props) {
   const pct = Math.min((value / goal) * 100, 100);
   return (
-    <Card className="gap-0 rounded-2xl border-border/60 p-5 shadow-none transition-colors hover:bg-accent/30">
+    <Card className="gap-0 rounded-2xl border-border/60 p-5 shadow-card transition-colors hover:bg-accent/30">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span

@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   Download,
+  EyeOff,
   FileText,
   Minus,
   MoreHorizontal,
@@ -36,24 +39,82 @@ import { Label } from "@/components/ui/label";
 import { kgToLb, lbToKg } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
+import { setWidgetState, type WidgetState } from "@/app/actions/widgets";
 
 export type WeightCardProps = {
   latest: { weightKg: number; loggedAt: string } | null;
   delta7dKg: number | null;
   units: "metric" | "imperial";
   timezone: string;
+  state: Exclude<WidgetState, "hidden">;
 };
 
-export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardProps) {
+export function WeightCard({ latest, delta7dKg, units, timezone, state }: WeightCardProps) {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [, startStateTransition] = useTransition();
 
   const display = latest ? formatWeight(latest.weightKg, units) : null;
   const deltaDisplay = delta7dKg != null ? formatDelta(delta7dKg, units) : null;
 
+  function changeState(next: WidgetState) {
+    startStateTransition(async () => {
+      await setWidgetState("weight", next);
+    });
+  }
+
+  if (state === "minimized") {
+    return (
+      <>
+        <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
+          <Link
+            href="/weight"
+            aria-label="View weight history"
+            className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          />
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Scale className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                Weight
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {display ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-base font-semibold leading-none tabular-nums">
+                    {display.value}
+                    <span className="ml-0.5 text-[10px] font-normal text-muted-foreground">
+                      {display.unit}
+                    </span>
+                  </span>
+                  {deltaDisplay && deltaDisplay.direction !== "flat" && (
+                    <span
+                      className={
+                        "text-[10px] font-medium tabular-nums " +
+                        (deltaDisplay.direction === "down"
+                          ? "text-emerald-500"
+                          : "text-rose-500")
+                      }
+                    >
+                      {deltaDisplay.label.replace(" · 7d", "")}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+              <StateMenu current="minimized" onChange={changeState} />
+            </div>
+          </div>
+        </Card>
+      </>
+    );
+  }
+
   return (
     <>
-      <Card className="group relative rounded-3xl border-border/60 p-6 shadow-sm transition-colors hover:bg-accent/20">
+      <Card className="group relative rounded-3xl border-border/60 p-6 shadow-card-lg transition-colors hover:bg-accent/20">
         <Link
           href="/weight"
           aria-label="View weight history"
@@ -70,7 +131,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-full bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90"
+              className="inline-flex h-7 items-center gap-0.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
             >
               <Plus className="h-3 w-3" />
               Log
@@ -86,6 +147,24 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
                 align="end"
                 className="w-48 rounded-xl p-1.5"
               >
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => changeState("minimized")}
+                    className="cursor-pointer rounded-lg text-sm"
+                  >
+                    <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
+                    Minimize
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => changeState("hidden")}
+                    className="cursor-pointer rounded-lg text-sm"
+                  >
+                    <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
+                    Hide
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem
                     onClick={() => setImportOpen(true)}
@@ -511,6 +590,46 @@ function parseWeightCsv(
   }
 
   return { rows, invalidCount };
+}
+
+function StateMenu({
+  current,
+  onChange,
+}: {
+  current: WidgetState;
+  onChange: (next: WidgetState) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Weight options"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+      >
+        <MoreHorizontal className="h-3.5 w-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
+        <DropdownMenuGroup>
+          {current !== "expanded" && (
+            <DropdownMenuItem
+              className="cursor-pointer rounded-lg text-sm"
+              onClick={() => onChange("expanded")}
+            >
+              <ChevronDown className="mr-2 h-3.5 w-3.5 opacity-70" />
+              Expand
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            variant="destructive"
+            className="cursor-pointer rounded-lg text-sm"
+            onClick={() => onChange("hidden")}
+          >
+            <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />
+            Hide
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function round1(n: number) {

@@ -1,9 +1,11 @@
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   const unit = profile?.units === "imperial" ? "lb" : "kg";
 
   // Three example rows ending today, in the user's preferred unit.

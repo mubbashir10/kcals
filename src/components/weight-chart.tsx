@@ -66,7 +66,7 @@ export function WeightChart({ points, units, timezone }: Props) {
   const dateFmt = (iso: string) => formatShortDateInTz(iso, timezone);
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
         <span>{dateFmt(sorted[0].date)}</span>
         <span>{points.length} weigh-ins</span>

@@ -109,7 +109,7 @@ export DATABASE_URL="$DATABASE_URL_UNPOOLED"
 
 if [ ! -d "$ROOT/prisma/migrations" ] || [ -z "$(ls -A "$ROOT/prisma/migrations" 2>/dev/null)" ]; then
   yellow "No migrations yet — creating 'init' against Neon."
-  pnpm exec prisma migrate dev --name init --skip-seed
+  pnpm exec prisma migrate dev --name init
 else
   green "Applying existing migrations."
   pnpm exec prisma migrate deploy
@@ -129,14 +129,12 @@ else
   green "Already linked to Vercel project."
 fi
 
-# Helper to set/replace an env var in all three Vercel envs.
+# Set an env var on production (Vercel CLI 54.x has a bug where preview
+# env adds require interactive confirmation even with --yes --force).
+# Add preview/development later via the dashboard if needed.
 set_vercel_env() {
   local key="$1" value="$2"
-  for env in production preview development; do
-    # Remove silently if exists, then add — ensures we overwrite cleanly.
-    vercel env rm "$key" "$env" --yes >/dev/null 2>&1 || true
-    printf "%s" "$value" | vercel env add "$key" "$env" >/dev/null
-  done
+  vercel env add "$key" production --value "$value" --force --yes >/dev/null
 }
 
 yellow "Setting DATABASE_URL (pooled) on Vercel"
@@ -145,17 +143,43 @@ set_vercel_env "DATABASE_URL" "$DATABASE_URL"
 yellow "Setting DATABASE_URL_UNPOOLED on Vercel (for migrations)"
 set_vercel_env "DATABASE_URL_UNPOOLED" "$DATABASE_URL_UNPOOLED"
 
-# USDA key — read from env or prompt
-USDA_API_KEY="${USDA_API_KEY:-}"
-if [ -z "$USDA_API_KEY" ]; then
-  if [ -f "$ROOT/.env.local" ] && grep -q "^USDA_API_KEY=" "$ROOT/.env.local"; then
-    USDA_API_KEY="$(grep "^USDA_API_KEY=" "$ROOT/.env.local" | head -1 | cut -d= -f2-)"
-    yellow "Using USDA_API_KEY from .env.local"
-  else
-    read -r -p "USDA_API_KEY: " USDA_API_KEY
+# Resolve a value from env, then .env.local, then prompt.
+resolve_env() {
+  local var="$1"
+  local current="${!var:-}"
+  if [ -n "$current" ]; then
+    echo "$current"
+    return
   fi
-fi
+  if [ -f "$ROOT/.env.local" ] && grep -q "^${var}=" "$ROOT/.env.local"; then
+    yellow "Using $var from .env.local" >&2
+    grep "^${var}=" "$ROOT/.env.local" | head -1 | cut -d= -f2-
+    return
+  fi
+  read -r -p "$var: " value </dev/tty
+  echo "$value"
+}
+
+USDA_API_KEY="$(resolve_env USDA_API_KEY)"
 set_vercel_env "USDA_API_KEY" "$USDA_API_KEY"
+
+# Auth.js — generate AUTH_SECRET if not already set.
+AUTH_SECRET="${AUTH_SECRET:-}"
+if [ -z "$AUTH_SECRET" ] && [ -f "$ROOT/.env.local" ] && grep -q "^AUTH_SECRET=" "$ROOT/.env.local"; then
+  AUTH_SECRET="$(grep "^AUTH_SECRET=" "$ROOT/.env.local" | head -1 | cut -d= -f2-)"
+  yellow "Using AUTH_SECRET from .env.local"
+fi
+if [ -z "$AUTH_SECRET" ]; then
+  yellow "Generating new AUTH_SECRET"
+  AUTH_SECRET="$(openssl rand -base64 32)"
+fi
+set_vercel_env "AUTH_SECRET" "$AUTH_SECRET"
+
+AUTH_GOOGLE_ID="$(resolve_env AUTH_GOOGLE_ID)"
+set_vercel_env "AUTH_GOOGLE_ID" "$AUTH_GOOGLE_ID"
+
+AUTH_GOOGLE_SECRET="$(resolve_env AUTH_GOOGLE_SECRET)"
+set_vercel_env "AUTH_GOOGLE_SECRET" "$AUTH_GOOGLE_SECRET"
 
 # ──────────────────────────────────────────────────────────────────────
 # 5. Deploy

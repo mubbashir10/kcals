@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 import { AddFoodClient, type MealOption } from "./add-food-client";
 import { autoMealNameInTz, startOfDayInTz } from "@/lib/clock";
 
@@ -13,7 +14,8 @@ export default async function AddPage({
 }: {
   searchParams: Promise<{ meal?: string }>;
 }) {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) redirect("/setup");
 
   const tz = profile.timezone || "UTC";
@@ -23,7 +25,7 @@ export default async function AddPage({
   const requestedMealId = sp.meal ? parseInt(sp.meal, 10) : null;
 
   const meals = await db.meal.findMany({
-    where: { loggedAt: { gte: startOfDayInTz(tz, now) } },
+    where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
     orderBy: { loggedAt: "desc" },
     include: { foods: { select: { kcal: true } } },
   });
@@ -51,7 +53,7 @@ export default async function AddPage({
     <div className="relative flex flex-1 flex-col">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.92_0.06_70_/_0.5)_0%,transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.35_0.08_40_/_0.3)_0%,transparent_70%)]"
+        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
       />
       <AddFoodClient
         meals={mealOptions}

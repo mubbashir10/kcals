@@ -2,12 +2,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { db } from "@/lib/db";
+import { requireUserId } from "@/lib/session";
 import { SetupForm, type InitialProfile } from "./setup-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
-  const existing = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const existing = await db.profile.findUnique({ where: { userId } });
   const initial: InitialProfile = existing
     ? {
         sex: existing.sex as "male" | "female",
@@ -31,7 +33,7 @@ export default async function SetupPage() {
     <div className="relative flex flex-1 flex-col">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.92_0.06_70_/_0.6)_0%,transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,oklch(0.35_0.08_40_/_0.4)_0%,transparent_70%)]"
+        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
       />
 
       {existing && (
@@ -51,14 +53,16 @@ export default async function SetupPage() {
         </header>
       )}
 
-      <main className="mx-auto w-full max-w-md flex-1 px-6 py-16">
-        <div className="mb-10">
+      <main className="mx-auto w-full max-w-md flex-1 px-6 py-12">
+        <div className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight">
-            {existing ? "Edit your profile" : "Tell us about you"}
+            {existing ? "Profile" : "Tell us about you"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            We'll use this to calculate your daily calorie needs.
-          </p>
+          {!existing && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              We'll use this to calculate your daily calorie needs.
+            </p>
+          )}
         </div>
 
         <SetupForm initial={initial} />

@@ -49,7 +49,8 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  /* Subtle cream-warm bg so pure-white cards stand out. */
+  --background: oklch(0.985 0.005 95);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -57,15 +58,16 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.965 0.005 95);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted: oklch(0.965 0.005 95);
+  --muted-foreground: oklch(0.5 0.01 95);
+  --accent: oklch(0.96 0.01 95);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  /* Slightly warmer + a touch more contrast than zinc default. */
+  --border: oklch(0.91 0.01 95);
+  --input: oklch(0.91 0.01 95);
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -126,5 +128,63 @@
   }
   html {
     @apply font-sans;
+    /* Bumps the rem unit ~25% — every spacing/size value in the app
+       scales together (text, padding, gaps), as if everything is set
+       to 125% zoom. Default is 16px. */
+    font-size: 20px;
+  }
+}
+
+/* Custom shadow utilities — light mode gets a subtle warm tint;
+   dark mode stays neutral. Used on Cards to add depth. */
+@layer utilities {
+  .shadow-card {
+    box-shadow:
+      0 1px 2px 0 oklch(0.5 0.03 70 / 0.04),
+      0 4px 12px -2px oklch(0.5 0.03 70 / 0.06);
+  }
+  .dark .shadow-card {
+    box-shadow:
+      0 1px 2px 0 rgb(0 0 0 / 0.25),
+      0 4px 12px -2px rgb(0 0 0 / 0.35);
+  }
+  .shadow-card-lg {
+    box-shadow:
+      0 2px 4px 0 oklch(0.5 0.03 70 / 0.05),
+      0 12px 28px -6px oklch(0.5 0.03 70 / 0.1);
+  }
+  .dark .shadow-card-lg {
+    box-shadow:
+      0 2px 4px 0 rgb(0 0 0 / 0.3),
+      0 12px 28px -6px rgb(0 0 0 / 0.45);
+  }
+
+  /* Ambient page background — two soft blobs (warm amber + brand-green)
+     bleed down from the top. Used on the home / settings / weight pages. */
+  .ambient {
+    background:
+      radial-gradient(
+        55% 55% at 20% 0%,
+        oklch(0.92 0.12 80 / 0.55) 0%,
+        transparent 65%
+      ),
+      radial-gradient(
+        45% 45% at 85% 5%,
+        oklch(0.9 0.14 145 / 0.4) 0%,
+        transparent 65%
+      );
+  }
+  .dark .ambient {
+    background:
+      radial-gradient(
+        55% 55% at 20% 0%,
+        oklch(0.4 0.1 70 / 0.35) 0%,
+        transparent 65%
+      ),
+      radial-gradient(
+        45% 45% at 85% 5%,
+        oklch(0.4 0.1 150 / 0.22) 0%,
+        transparent 65%
+      );
   }
 }

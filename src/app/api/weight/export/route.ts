@@ -1,20 +1,22 @@
 import { db } from "@/lib/db";
 import { kgToLb } from "@/lib/bmr";
+import { requireUserId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const profile = await db.profile.findFirst();
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
   const unit = profile?.units === "imperial" ? "lb" : "kg";
 
   const logs = await db.weightLog.findMany({
+    where: { userId },
     orderBy: { loggedAt: "desc" },
   });
 
   const rows = logs.map((l) => {
     const date = l.loggedAt.toISOString().slice(0, 10);
-    const weight =
-      unit === "lb" ? kgToLb(l.weightKg) : l.weightKg;
+    const weight = unit === "lb" ? kgToLb(l.weightKg) : l.weightKg;
     return `${date},${round1(weight)},${unit}`;
   });
 

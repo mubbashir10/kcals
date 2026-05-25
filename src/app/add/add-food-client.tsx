@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, Loader2, Plus, Search, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Search, Sparkles, X, Zap } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,8 @@ export function AddFoodClient({
       ? { kind: "existing", mealId: autoTargetId }
       : { kind: "new", name: suggestedNewMealName }
   );
+
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const reqId = useRef(0);
 
@@ -151,6 +153,17 @@ export function AddFoodClient({
           )}
         </div>
 
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setQuickOpen(true)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-4 text-xs font-medium text-muted-foreground transition-all hover:border-foreground/40 hover:bg-accent/40 hover:text-foreground"
+          >
+            <Zap className="h-3 w-3" />
+            Just add calories
+          </button>
+        </div>
+
         <div className="mt-6">
           {loading && (
             <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
@@ -164,9 +177,17 @@ export function AddFoodClient({
           )}
 
           {!loading && !searchError && query.trim().length >= 2 && results.length === 0 && (
-            <p className="px-1 text-sm text-muted-foreground">
-              No matches. Try another term.
-            </p>
+            <div className="px-1 text-sm">
+              <p className="text-muted-foreground">No matches for “{query.trim()}”.</p>
+              <button
+                type="button"
+                onClick={() => setQuickOpen(true)}
+                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                <Zap className="h-3 w-3" />
+                Just log the calories
+              </button>
+            </div>
           )}
 
           {!loading && results.length > 0 && (() => {
@@ -202,6 +223,12 @@ export function AddFoodClient({
         food={selected}
         target={target}
         onClose={() => setSelected(null)}
+      />
+
+      <QuickAddDialog
+        open={quickOpen}
+        target={target}
+        onClose={() => setQuickOpen(false)}
       />
     </>
   );
@@ -524,6 +551,218 @@ function PortionDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function QuickAddDialog({
+  open,
+  target,
+  onClose,
+}: {
+  open: boolean;
+  target: Target;
+  onClose: () => void;
+}) {
+  const [kcal, setKcal] = useState("");
+  const [label, setLabel] = useState("");
+  const [protein, setProtein] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [fat, setFat] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const k = parseFloat(kcal);
+  const validKcal = Number.isFinite(k) && k > 0 && k < 10000;
+
+  function reset() {
+    setKcal("");
+    setLabel("");
+    setProtein("");
+    setCarbs("");
+    setFat("");
+  }
+
+  function onOpenChange(next: boolean) {
+    if (!next) {
+      onClose();
+      reset();
+    }
+  }
+
+  function submit() {
+    if (!validKcal) return;
+    const trimmedLabel = label.trim();
+    startTransition(async () => {
+      try {
+        await logFood(
+          {
+            fdcId: null,
+            // Save with name = label if given, otherwise the generic
+            // "Quick add" so the meal-card row reads cleanly.
+            name: trimmedLabel.length > 0 ? trimmedLabel : "Quick add",
+            brand: null,
+            grams: 0, // sentinel: "kcal-only, no portion"
+            kcal: round1(k),
+            proteinG: parseMacro(protein),
+            carbsG: parseMacro(carbs),
+            fatG: parseMacro(fat),
+          },
+          target.kind === "existing"
+            ? { mealId: target.mealId }
+            : { newMealName: target.name }
+        );
+      } catch (err) {
+        if (err instanceof Error && !err.message.includes("NEXT_REDIRECT")) {
+          console.error(err);
+        }
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogTitle className="text-base font-semibold">
+          Quick add calories
+        </DialogTitle>
+        <DialogDescription className="text-xs text-muted-foreground">
+          For when you know roughly how many calories but not the food. Macros
+          are optional.
+        </DialogDescription>
+
+        <div className="mt-4 space-y-5">
+          <div className="space-y-2">
+            <Label
+              htmlFor="qa-kcal"
+              className="text-xs uppercase tracking-wider text-muted-foreground"
+            >
+              Calories
+            </Label>
+            <div className="relative">
+              <Input
+                id="qa-kcal"
+                inputMode="numeric"
+                autoFocus
+                value={kcal}
+                onChange={(e) => setKcal(e.target.value)}
+                placeholder="350"
+                className="pr-14 text-lg"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && validKcal) {
+                    e.preventDefault();
+                    submit();
+                  }
+                }}
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                kcal
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="qa-label"
+              className="text-xs uppercase tracking-wider text-muted-foreground"
+            >
+              Label
+              <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+                (optional)
+              </span>
+            </Label>
+            <Input
+              id="qa-label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Coffee, restaurant meal, …"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Macros
+              <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+                (optional)
+              </span>
+            </Label>
+            <div className="grid grid-cols-3 gap-2">
+              <MacroInput
+                id="qa-protein"
+                label="P"
+                value={protein}
+                onChange={setProtein}
+              />
+              <MacroInput
+                id="qa-carbs"
+                label="C"
+                value={carbs}
+                onChange={setCarbs}
+              />
+              <MacroInput
+                id="qa-fat"
+                label="F"
+                value={fat}
+                onChange={setFat}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <DialogClose
+              render={
+                <Button variant="ghost" className="flex-1 rounded-full" />
+              }
+            >
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={submit}
+              disabled={!validKcal || pending}
+              className="flex-1 rounded-full"
+            >
+              {pending ? "Adding…" : "Add"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MacroInput({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        className="pl-7 pr-8 tabular-nums"
+      />
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+        g
+      </span>
+    </div>
+  );
+}
+
+// Optional macros: blank → 0, otherwise clamp/round to a sane value.
+function parseMacro(s: string): number {
+  const n = parseFloat(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return round1(Math.min(n, 1000));
 }
 
 function Stat({
