@@ -51,7 +51,7 @@ function MinimizedView({ tdee }: { tdee: number }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Flame className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Maintenance
           </span>
         </div>
@@ -86,7 +86,7 @@ function ExpandedView({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Flame className="h-3.5 w-3.5 text-amber-500" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Maintenance calories
           </span>
         </div>
@@ -171,7 +171,7 @@ function BreakdownItem({
     <div>
       <div className="flex items-center gap-1.5">
         <Icon className={cn("h-3 w-3", accent)} />
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </div>
       </div>

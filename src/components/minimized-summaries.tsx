@@ -17,7 +17,7 @@ export function MinimizedMealsSummary({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <UtensilsCrossed className="h-3.5 w-3.5 shrink-0 text-foreground/70" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Meals
           </span>
         </div>
@@ -45,7 +45,7 @@ export function MinimizedFriendsSummary({ count }: { count: number }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Friends
           </span>
         </div>

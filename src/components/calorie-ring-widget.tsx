@@ -1,13 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeftRight, Flame } from "lucide-react";
+import {
+  Activity,
+  ArrowLeftRight,
+  Flame,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
 import { WidgetMenu } from "@/components/widget-menu";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import type { WidgetState } from "@/lib/widget-order";
+import type { GoalType } from "@/lib/goal";
+
+const GOAL_CHIP: Record<
+  GoalType,
+  { label: string; icon: LucideIcon; tone: string }
+> = {
+  loss: { label: "Lose", icon: TrendingDown, tone: "text-rose-400" },
+  maintain: { label: "Maintain", icon: Minus, tone: "text-sky-400" },
+  gain: { label: "Gain", icon: TrendingUp, tone: "text-emerald-400" },
+  track: { label: "Tracking", icon: Activity, tone: "text-muted-foreground" },
+};
 
 export function CalorieRingWidget({
   consumed,
@@ -15,6 +34,8 @@ export function CalorieRingWidget({
   initialMode,
   bmrKcal,
   activeKcal,
+  goalType,
+  kcalOffset,
   state,
 }: {
   consumed: number;
@@ -23,6 +44,9 @@ export function CalorieRingWidget({
   /** Optional — when both are present, shows a tiny breakdown row below the ring. */
   bmrKcal?: number;
   activeKcal?: number;
+  goalType: GoalType;
+  /** Signed kcal offset applied to TDEE for the effective target (negative = deficit). */
+  kcalOffset: number;
   state: Exclude<WidgetState, "hidden">;
 }) {
   const [mode, setMode] = useState<CalorieDisplayMode>(initialMode);
@@ -46,7 +70,7 @@ export function CalorieRingWidget({
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Flame className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Calories
             </span>
           </div>
@@ -79,13 +103,14 @@ export function CalorieRingWidget({
             ? "Switch to showing consumed"
             : "Switch to showing remaining"
         }
-        className="absolute left-4 top-4 inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="absolute left-4 top-4 inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <ArrowLeftRight className="h-3 w-3" />
         {mode === "remaining" ? "Remaining" : "Consumed"}
       </button>
 
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <GoalChip type={goalType} offset={kcalOffset} />
         <WidgetMenu
           widgetId="calorie"
           current="expanded"
@@ -97,7 +122,7 @@ export function CalorieRingWidget({
         <CalorieRing consumed={consumed} goal={goal} mode={mode} />
 
         {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
-          <div className="mt-6 flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             <span className="tabular-nums">
               BMR{" "}
               <span className="font-semibold text-foreground/80">
@@ -113,14 +138,52 @@ export function CalorieRingWidget({
             </span>
             <span className="text-muted-foreground/40">=</span>
             <span className="tabular-nums">
-              Total{" "}
-              <span className="font-semibold text-foreground">
+              TDEE{" "}
+              <span className="font-semibold text-foreground/80">
                 {Math.round(bmrKcal + activeKcal).toLocaleString()}
               </span>
             </span>
+            {kcalOffset !== 0 && (
+              <>
+                <span className="text-muted-foreground/40">
+                  {kcalOffset < 0 ? "−" : "+"}
+                </span>
+                <span className="tabular-nums">
+                  Goal{" "}
+                  <span className="font-semibold text-foreground/80">
+                    {Math.abs(kcalOffset).toLocaleString()}
+                  </span>
+                </span>
+                <span className="text-muted-foreground/40">=</span>
+                <span className="tabular-nums">
+                  Target{" "}
+                  <span className="font-semibold text-foreground">
+                    {goal.toLocaleString()}
+                  </span>
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
     </Card>
+  );
+}
+
+function GoalChip({ type, offset }: { type: GoalType; offset: number }) {
+  const meta = GOAL_CHIP[type];
+  const Icon = meta.icon;
+  return (
+    <span
+      className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+      title={
+        offset === 0
+          ? meta.label
+          : `${meta.label}: ${offset < 0 ? "−" : "+"}${Math.abs(offset)} kcal/day`
+      }
+    >
+      <Icon className={`h-3 w-3 ${meta.tone}`} />
+      {meta.label}
+    </span>
   );
 }

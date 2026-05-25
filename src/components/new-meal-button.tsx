@@ -57,7 +57,7 @@ export function NewMealButton({ suggestedName }: { suggestedName: string }) {
             <div className="space-y-2">
               <Label
                 htmlFor="new-meal-name"
-                className="text-xs uppercase tracking-wider text-muted-foreground"
+                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
               >
                 Name
               </Label>

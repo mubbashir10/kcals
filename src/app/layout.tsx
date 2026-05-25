@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {
   THEME_BOOT_SCRIPT,
   ThemeProvider,
 } from "@/components/theme-provider";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
@@ -100,7 +102,24 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ViewTransition
+            enter={{
+              "nav-forward": "nav-forward",
+              "nav-back": "nav-back",
+              default: "fade",
+            }}
+            exit={{
+              "nav-forward": "nav-forward",
+              "nav-back": "nav-back",
+              default: "fade",
+            }}
+            default="none"
+          >
+            {children}
+          </ViewTransition>
+        </ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

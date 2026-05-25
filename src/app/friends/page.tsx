@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, UserPlus } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { FriendsList } from "@/components/friends-list";
 import { InviteForm } from "@/components/invite-form";
 import { PendingInviteRow } from "@/components/pending-invite-row";
@@ -42,13 +42,14 @@ export default async function FriendsPage() {
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-6">
-          <Link
+          <AppLink
             href="/"
+            direction="back"
             aria-label="Back"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </AppLink>
           <span className="text-sm font-semibold tracking-tight">Friends</span>
         </div>
       </header>

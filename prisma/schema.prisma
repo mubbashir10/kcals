@@ -99,6 +99,25 @@ model Profile {
   units      String @default("metric") // "metric" | "imperial"
   timezone   String @default("UTC") // IANA timezone, e.g. "America/New_York" — drives all date/time math in the app
 
+  // Goal — drives the "effective calorie target" used by the ring + macros.
+  //   "loss"     → eat below TDEE by goalPace's deficit
+  //   "gain"     → eat above TDEE by goalPace's surplus
+  //   "maintain" → effective target = TDEE
+  //   "track"    → no goal; effective target = TDEE, UI labels it "tracking"
+  goalType String  @default("maintain") // "loss" | "maintain" | "gain" | "track"
+  goalPace String? // "mild" | "moderate" | "aggressive" — only set when goalType is loss/gain
+
+  // Macro goals — three modes per macro:
+  //   "auto"   → derived from calorie target × default split (30/40/30 P/C/F)
+  //   "custom" → use the corresponding *GoalG column (in grams)
+  //   "off"    → not tracked; UI shows ∞ and skips the progress bar
+  proteinGoalMode String @default("auto")
+  proteinGoalG    Int?
+  carbsGoalMode   String @default("auto")
+  carbsGoalG      Int?
+  fatGoalMode     String @default("auto")
+  fatGoalG        Int?
+
   // Activity — for TDEE / maintenance-calorie calculation
   activityMode             String @default("estimate") // "estimate" | "override"
   stepsPerDay              Int? // avg daily steps (estimate mode)

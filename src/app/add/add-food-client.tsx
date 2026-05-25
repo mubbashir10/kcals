@@ -11,8 +11,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import Link from "next/link";
-
+import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -123,13 +122,14 @@ export function AddFoodClient({
     <>
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
-          <Link
+          <AppLink
             href="/"
+            direction="back"
             aria-label="Back"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </AppLink>
           <span className="text-sm font-semibold tracking-tight">
             Add food
           </span>
@@ -427,7 +427,7 @@ function ResultRow({
             <div className="text-sm font-semibold tabular-nums">
               {Math.round(f.per100g.kcal)}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               kcal/100g
             </div>
           </div>
@@ -562,7 +562,7 @@ function PortionDialog({
                 <div className="flex items-baseline justify-between">
                   <Label
                     htmlFor="grams"
-                    className="text-xs uppercase tracking-wider text-muted-foreground"
+                    className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                   >
                     Serving
                   </Label>
@@ -741,7 +741,7 @@ function QuickAddDialog({
           <div className="space-y-2">
             <Label
               htmlFor="qa-kcal"
-              className="text-xs uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
             >
               Calories
             </Label>
@@ -770,7 +770,7 @@ function QuickAddDialog({
           <div className="space-y-2">
             <Label
               htmlFor="qa-label"
-              className="text-xs uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
             >
               Label
               <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
@@ -786,7 +786,7 @@ function QuickAddDialog({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Macros
               <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
                 (optional)
@@ -857,7 +857,7 @@ function MacroInput({
         placeholder="0"
         className="pl-7 pr-8 tabular-nums"
       />
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </span>
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
@@ -900,7 +900,7 @@ function Stat({
           </span>
         )}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
     </div>

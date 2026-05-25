@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Flame, Scale } from "lucide-react";
+
+import { AppLink } from "@/components/app-link";
 
 import {
   Avatar,
@@ -61,13 +62,14 @@ export default async function FriendViewPage({
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
-          <Link
+          <AppLink
             href="/friends"
+            direction="back"
             aria-label="Back"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </AppLink>
           <span className="text-sm font-semibold tracking-tight truncate">
             {displayName}
           </span>
@@ -172,7 +174,7 @@ function FriendDayView({
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2 text-muted-foreground">
             <Flame className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-[10px] font-medium uppercase tracking-wider">
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em]">
               Maintenance
             </span>
           </div>
@@ -190,7 +192,7 @@ function FriendDayView({
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2 text-muted-foreground">
             <Scale className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-medium uppercase tracking-wider">
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em]">
               Weight
             </span>
           </div>

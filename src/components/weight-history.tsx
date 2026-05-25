@@ -249,7 +249,7 @@ function EditWeightDialog({
               <div className="space-y-2">
                 <Label
                   htmlFor="edit-weight"
-                  className="text-xs uppercase tracking-wider text-muted-foreground"
+                  className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                 >
                   Weight
                 </Label>

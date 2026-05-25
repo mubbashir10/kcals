@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { ActivityCard } from "@/components/activity-card";
 import { CalorieRingWidget } from "@/components/calorie-ring-widget";
@@ -56,6 +56,8 @@ export default async function Home() {
     active,
     tdee,
     calorieGoal,
+    goalType,
+    kcalOffset,
     todayActivity,
     meals,
     latestWeight,
@@ -143,6 +145,8 @@ export default async function Home() {
                   goal={calorieGoal}
                   bmrKcal={bmr.kcal}
                   activeKcal={active.kcal}
+                  goalType={goalType}
+                  kcalOffset={kcalOffset}
                   state={calorieState}
                   initialMode={
                     (profile.calorieDisplay as "remaining" | "consumed") ??
@@ -276,13 +280,13 @@ export default async function Home() {
                         <p className="text-sm text-muted-foreground">
                           No meals logged yet.
                         </p>
-                        <Link
+                        <AppLink
                           href="/add"
                           className="mt-4 inline-flex h-9 items-center justify-center gap-1 rounded-full bg-foreground px-5 text-xs font-medium text-background transition-opacity hover:opacity-90"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add food
-                        </Link>
+                        </AppLink>
                       </Card>
                     ) : (
                       <>

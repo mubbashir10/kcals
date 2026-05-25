@@ -130,7 +130,7 @@ export function InviteForm() {
 
       {linkUrl && (
         <div className="rounded-xl bg-muted/60 p-3">
-          <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <div className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Share this link
           </div>
           <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, X } from "lucide-react";
+
+import { AppLink } from "@/components/app-link";
 
 import {
   Avatar,
@@ -126,13 +127,14 @@ export default async function AcceptInvitePage({
             }}
             className="mt-6 flex gap-2"
           >
-            <Link
+            <AppLink
               href="/"
+              direction="back"
               className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
             >
               <X className="h-3.5 w-3.5" />
               Not now
-            </Link>
+            </AppLink>
             <Button
               type="submit"
               className="h-9 flex-1 rounded-full bg-emerald-500 text-white hover:bg-emerald-500/90"
@@ -158,12 +160,13 @@ function Message({ title, body }: { title: string; body: string }) {
         <Card className="w-full rounded-2xl border-border/60 p-6 text-center shadow-card">
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-          <Link
+          <AppLink
             href="/"
+            direction="back"
             className="mt-6 inline-flex h-9 items-center justify-center rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90"
           >
             Go home
-          </Link>
+          </AppLink>
         </Card>
       </main>
     </div>

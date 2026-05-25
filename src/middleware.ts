@@ -32,6 +32,6 @@ export const config = {
   // (manifest + icons must be fetchable from the signin page itself so the
   // browser can show the install prompt before the user logs in).
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };

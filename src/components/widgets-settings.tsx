@@ -103,7 +103,7 @@ function CalorieDisplayToggle({ current }: { current: CalorieDisplayMode }) {
   return (
     <div className="mt-3 border-t border-border/60 pt-3">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Display
         </span>
       </div>

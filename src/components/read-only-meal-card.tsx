@@ -68,7 +68,7 @@ export function ReadOnlyMealCard({
                 <div className="text-base font-semibold tabular-nums">
                   {Math.round(f.kcal)}
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                   kcal
                 </div>
               </div>

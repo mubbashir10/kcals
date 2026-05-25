@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
 import { ChevronRight, UserMinus } from "lucide-react";
 
@@ -9,6 +8,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { removeFriend } from "@/app/actions/friends";
@@ -58,7 +58,7 @@ function FriendRow({ friend }: { friend: FriendSummary }) {
   }
 
   return (
-    <Link
+    <AppLink
       href={`/friends/${friend.id}`}
       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/30"
     >
@@ -89,6 +89,6 @@ function FriendRow({ friend }: { friend: FriendSummary }) {
         <UserMinus className="h-3.5 w-3.5" />
       </Button>
       <ChevronRight className="h-4 w-4 text-muted-foreground" />
-    </Link>
+    </AppLink>
   );
 }

@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import type { GoalPace, GoalType } from "@/lib/goal";
+import type { MacroMode } from "@/lib/macros";
 
 export type SaveProfileInput = {
   sex: "male" | "female";
@@ -14,6 +16,14 @@ export type SaveProfileInput = {
   bodyFatPct: number | null;
   units: "metric" | "imperial";
   timezone: string;
+  goalType: GoalType;
+  goalPace: GoalPace | null;
+  proteinGoalMode: MacroMode;
+  proteinGoalG: number | null;
+  carbsGoalMode: MacroMode;
+  carbsGoalG: number | null;
+  fatGoalMode: MacroMode;
+  fatGoalG: number | null;
   activityMode: "estimate" | "override";
   stepsPerDay: number | null;
   liftingSessionsPerWeek: number | null;

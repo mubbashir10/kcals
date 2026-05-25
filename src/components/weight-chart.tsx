@@ -67,7 +67,7 @@ export function WeightChart({ points, units, timezone }: Props) {
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="mb-3 flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         <span>{dateFmt(sorted[0].date)}</span>
         <span>{points.length} weigh-ins</span>
         <span>{dateFmt(sorted[sorted.length - 1].date)}</span>

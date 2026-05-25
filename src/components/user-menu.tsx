@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Check,
   LogOut,
@@ -13,6 +12,7 @@ import {
 
 import { signOutAction } from "@/app/actions/auth";
 import { getSession } from "@/lib/session";
+import { AppLink } from "@/components/app-link";
 import {
   Avatar,
   AvatarFallback,
@@ -85,7 +85,7 @@ export async function UserMenu() {
         <DropdownMenuGroup>
           <DropdownMenuItem
             render={
-              <Link
+              <AppLink
                 href="/setup"
                 className="cursor-pointer rounded-lg text-sm"
               />
@@ -96,7 +96,7 @@ export async function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem
             render={
-              <Link
+              <AppLink
                 href="/friends"
                 className="cursor-pointer rounded-lg text-sm"
               />
@@ -107,7 +107,7 @@ export async function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem
             render={
-              <Link
+              <AppLink
                 href="/settings"
                 className="cursor-pointer rounded-lg text-sm"
               />
@@ -122,7 +122,7 @@ export async function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="px-2 pb-1 pt-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <DropdownMenuLabel className="px-2 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Theme
           </DropdownMenuLabel>
           <ThemeMenuGroup />

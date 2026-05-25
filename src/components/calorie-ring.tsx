@@ -145,7 +145,7 @@ export function CalorieRing({
         <div className="text-5xl font-semibold leading-none tracking-tight tabular-nums">
           {primary.toLocaleString()}
         </div>
-        <div className="mt-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="mt-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           {primaryHint}
         </div>
         <div className="mt-3 truncate text-[11px] font-medium text-muted-foreground tabular-nums">

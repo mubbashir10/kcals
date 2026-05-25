@@ -1,8 +1,10 @@
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { isGoalPace, isGoalType } from "@/lib/goal";
+import { isMacroMode } from "@/lib/macros";
 import { SetupForm, type InitialProfile } from "./setup-form";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,14 @@ export default async function SetupPage() {
         bodyFatPct: existing.bodyFatPct,
         units: existing.units as "metric" | "imperial",
         timezone: existing.timezone,
+        goalType: isGoalType(existing.goalType) ? existing.goalType : "maintain",
+        goalPace: isGoalPace(existing.goalPace) ? existing.goalPace : null,
+        proteinGoalMode: isMacroMode(existing.proteinGoalMode) ? existing.proteinGoalMode : "auto",
+        proteinGoalG: existing.proteinGoalG,
+        carbsGoalMode: isMacroMode(existing.carbsGoalMode) ? existing.carbsGoalMode : "auto",
+        carbsGoalG: existing.carbsGoalG,
+        fatGoalMode: isMacroMode(existing.fatGoalMode) ? existing.fatGoalMode : "auto",
+        fatGoalG: existing.fatGoalG,
         activityMode: existing.activityMode as "estimate" | "override",
         stepsPerDay: existing.stepsPerDay,
         liftingSessionsPerWeek: existing.liftingSessionsPerWeek,
@@ -39,13 +49,14 @@ export default async function SetupPage() {
       {existing && (
         <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
           <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-6">
-            <Link
+            <AppLink
               href="/"
+              direction="back"
               aria-label="Back"
               className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
-            </Link>
+            </AppLink>
             <span className="text-sm font-semibold tracking-tight">
               Profile
             </span>

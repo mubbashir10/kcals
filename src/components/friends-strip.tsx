@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Plus } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import {
   Avatar,
   AvatarFallback,
@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
-import { cn } from "@/lib/utils";
 import type { FriendSummary } from "@/lib/friends";
 
-// Horizontally-scrolling strip of friend mini-cards shown under the
-// activity/weight widgets on the home page. The "+" tile always shows
-// so users have an obvious path to invite someone.
+// Vertical list of friend rows shown on the home page. Each row has the
+// friend's progress bar inline so the user can scan everyone's day without
+// horizontal scrolling — important on narrow screens where a carousel of
+// cards eats too much vertical space and only shows one or two friends.
 export function FriendsStrip({ friends }: { friends: FriendSummary[] }) {
   return (
     <section>
@@ -21,157 +21,92 @@ export function FriendsStrip({ friends }: { friends: FriendSummary[] }) {
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold tracking-tight">Friends</h2>
           {friends.length > 0 && (
-            <Link
+            <AppLink
               href="/friends"
               className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
               Manage
-            </Link>
+            </AppLink>
           )}
         </div>
         <SectionWidgetMenu widgetId="friends" label="Friends" />
       </div>
 
-      <div className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-2 [&::-webkit-scrollbar]:hidden">
+      <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-border/60 p-0 shadow-card">
         {friends.map((f) => (
-          <FriendCard key={f.id} friend={f} />
+          <FriendRow key={f.id} friend={f} />
         ))}
-
-        <InviteTile compact={friends.length > 0} />
-      </div>
+        <InviteRow />
+      </Card>
     </section>
   );
 }
 
-function FriendCard({ friend }: { friend: FriendSummary }) {
+function FriendRow({ friend }: { friend: FriendSummary }) {
   const initial =
     friend.name?.trim()[0]?.toUpperCase() ??
     friend.email.trim()[0]?.toUpperCase() ??
     "?";
+  const displayName = friend.name ?? friend.email.split("@")[0];
 
-  // Soft progress ring — uses the same gradient as the main calorie ring.
+  // Cap visual fill at 100%; >100% is real but the bar can't show it.
   const pct = friend.goalKcal
-    ? Math.min(friend.consumedKcal / friend.goalKcal, 1.2)
+    ? Math.min((friend.consumedKcal / friend.goalKcal) * 100, 100)
     : 0;
 
   return (
-    <Link
+    <AppLink
       href={`/friends/${friend.id}`}
-      className="group shrink-0 snap-start"
+      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/30"
     >
-      <Card className="flex h-full w-40 flex-col items-center gap-3 rounded-2xl border-border/60 px-4 py-5 shadow-card transition-colors hover:bg-accent/30">
-        <MiniRing size={64} strokeWidth={6} progress={pct}>
-          <Avatar className="h-12 w-12">
-            {friend.image && (
-              <AvatarImage src={friend.image} referrerPolicy="no-referrer" />
-            )}
-            <AvatarFallback className="bg-muted text-sm font-semibold">
-              {initial}
-            </AvatarFallback>
-          </Avatar>
-        </MiniRing>
-        <div className="w-full text-center">
-          <div className="truncate text-xs font-medium">
-            {friend.name ?? friend.email.split("@")[0]}
-          </div>
-          <div className="mt-0.5 truncate text-[10px] text-muted-foreground tabular-nums">
+      <Avatar className="h-10 w-10 shrink-0">
+        {friend.image && (
+          <AvatarImage src={friend.image} referrerPolicy="no-referrer" />
+        )}
+        <AvatarFallback className="bg-muted text-sm font-semibold">
+          {initial}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-sm font-medium">{displayName}</span>
+          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
             {friend.hasProfile && friend.goalKcal
-              ? `${friend.consumedKcal} / ${friend.goalKcal}`
+              ? `${friend.consumedKcal.toLocaleString()} / ${friend.goalKcal.toLocaleString()}`
               : friend.hasProfile
-                ? `${friend.consumedKcal} kcal`
+                ? `${friend.consumedKcal.toLocaleString()} kcal`
                 : "—"}
-          </div>
+          </span>
         </div>
-      </Card>
-    </Link>
+        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+          {friend.goalKcal && (
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-lime-400 to-emerald-500 transition-[width] duration-700 ease-out"
+              style={{ width: `${pct}%` }}
+            />
+          )}
+        </div>
+      </div>
+    </AppLink>
   );
 }
 
-function InviteTile({ compact }: { compact: boolean }) {
+function InviteRow() {
   return (
-    <Link
+    <AppLink
       href="/friends"
-      className={cn(
-        "group shrink-0 snap-start",
-        compact ? "" : "flex-1"
-      )}
+      className="flex items-center gap-3 px-4 py-3 text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground"
     >
-      <Card
-        className={cn(
-          "flex h-full flex-col items-center justify-center gap-2 rounded-2xl border-dashed border-border/60 bg-card/40 px-4 py-5 text-muted-foreground shadow-none transition-colors hover:bg-accent/30 hover:text-foreground",
-          compact ? "w-40" : "w-full"
-        )}
-      >
-        <div className="grid h-12 w-12 place-items-center rounded-full bg-muted/60">
-          <Plus className="h-4 w-4" />
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted/60">
+        <Plus className="h-4 w-4" />
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-medium">Invite a friend</div>
+        <div className="text-[11px] text-muted-foreground/80">
+          See each other's daily stats
         </div>
-        <div className="text-center">
-          <div className="text-xs font-medium">
-            {compact ? "Invite" : "Invite a friend"}
-          </div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground/80">
-            {compact ? "Share stats" : "See each other's daily stats"}
-          </div>
-        </div>
-      </Card>
-    </Link>
-  );
-}
-
-function MiniRing({
-  size,
-  strokeWidth,
-  progress,
-  children,
-}: {
-  size: number;
-  strokeWidth: number;
-  progress: number;
-  children: React.ReactNode;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dash = circumference * Math.min(progress, 1);
-
-  return (
-    <div
-      className="relative"
-      style={{ width: size, height: size }}
-    >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
-      >
-        <defs>
-          <linearGradient id="friendRing" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="oklch(0.85 0.16 80)" />
-            <stop offset="100%" stopColor="oklch(0.65 0.22 25)" />
-          </linearGradient>
-        </defs>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--muted)"
-          strokeWidth={strokeWidth}
-        />
-        {progress > 0 && (
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="url(#friendRing)"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={`${dash} ${circumference}`}
-          />
-        )}
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">{children}</div>
-    </div>
+      </div>
+    </AppLink>
   );
 }

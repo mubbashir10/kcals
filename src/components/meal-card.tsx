@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -123,13 +123,13 @@ export function MealCard({
       {meal.foods.length === 0 && (
         <div className="px-5 py-8 text-center">
           <p className="mb-3 text-xs text-muted-foreground">No food yet</p>
-          <Link
+          <AppLink
             href={`/add?meal=${meal.id}`}
             className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90"
           >
             <Plus className="h-3 w-3" />
             Add food
-          </Link>
+          </AppLink>
         </div>
       )}
 
@@ -144,13 +144,13 @@ export function MealCard({
       </ul>
 
       {meal.foods.length > 0 && (
-        <Link
+        <AppLink
           href={`/add?meal=${meal.id}`}
           className="flex items-center justify-center gap-1.5 border-t border-border/60 px-5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
         >
           <Plus className="h-3 w-3" />
           Add food
-        </Link>
+        </AppLink>
       )}
 
       <EditMealDialog
@@ -225,7 +225,7 @@ function FoodRow({
           <div className="text-base font-semibold tabular-nums">
             {Math.round(f.kcal)}
           </div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             kcal
           </div>
         </div>
@@ -304,7 +304,7 @@ function EditMealDialog({
           <div className="space-y-2">
             <Label
               htmlFor="meal-name"
-              className="text-xs uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
             >
               Name
             </Label>
@@ -326,7 +326,7 @@ function EditMealDialog({
           <div className="space-y-2">
             <Label
               htmlFor="meal-time"
-              className="text-xs uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
             >
               Time
             </Label>
@@ -514,7 +514,7 @@ function FoodEditDialog({
                   <div className="space-y-2">
                     <Label
                       htmlFor="edit-kcal"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                      className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                     >
                       Calories
                     </Label>
@@ -540,7 +540,7 @@ function FoodEditDialog({
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Macros
                       <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
                         (optional)
@@ -573,7 +573,7 @@ function FoodEditDialog({
                   <div className="space-y-2">
                     <Label
                       htmlFor="edit-grams"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                      className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                     >
                       Serving
                     </Label>
@@ -678,7 +678,7 @@ function FoodStat({
           </span>
         )}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>
     </div>
@@ -722,7 +722,7 @@ function MacroEditInput({
         placeholder="0"
         className="pl-7 pr-8 tabular-nums"
       />
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </span>
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">

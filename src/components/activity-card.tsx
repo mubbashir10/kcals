@@ -68,7 +68,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Activity
             </span>
           </div>
@@ -101,7 +101,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Today's activity
             </span>
           </div>
@@ -400,7 +400,7 @@ function LogActivityDialog({
 
         <div className="mt-4 space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Source
             </Label>
             <div className="inline-flex w-full rounded-full bg-muted p-1">
@@ -515,7 +515,7 @@ function NumberField({
     <div className="space-y-2">
       <Label
         htmlFor={id}
-        className="text-xs uppercase tracking-wider text-muted-foreground"
+        className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
       >
         {label}
       </Label>

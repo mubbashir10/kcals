@@ -188,3 +188,82 @@
       );
   }
 }
+
+/* ─── View Transitions ──────────────────────────────────────────────────
+   Native-feeling page transitions via React's <ViewTransition>. Three modes:
+
+     • fade        — default for any navigation that wasn't tagged
+     • nav-forward — pushing deeper (home → add, settings → goal). Slides L.
+     • nav-back    — popping up (Back link in headers). Slides R.
+
+   See src/app/layout.tsx for the wrapper. Tagged on individual <Link>
+   via `transitionTypes={['nav-forward']}` / `['nav-back']`.             */
+::view-transition-old(.fade) {
+  animation: 120ms ease-out both vt-fade-out;
+}
+::view-transition-new(.fade) {
+  animation: 180ms ease-in 80ms both vt-fade-in;
+}
+
+::view-transition-old(.nav-forward) {
+  --vt-offset: -40px;
+  animation:
+    120ms ease-in both vt-fade-out,
+    280ms ease-in-out both vt-slide reverse;
+}
+::view-transition-new(.nav-forward) {
+  --vt-offset: 40px;
+  animation:
+    180ms ease-out 80ms both vt-fade-in,
+    280ms ease-out both vt-slide;
+}
+
+::view-transition-old(.nav-back) {
+  --vt-offset: 40px;
+  animation:
+    120ms ease-in both vt-fade-out,
+    280ms ease-in-out both vt-slide reverse;
+}
+::view-transition-new(.nav-back) {
+  --vt-offset: -40px;
+  animation:
+    180ms ease-out 80ms both vt-fade-in,
+    280ms ease-out both vt-slide;
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vt-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--vt-offset);
+  }
+  to {
+    translate: 0;
+  }
+}
+
+/* Honour reduced-motion: shorten and drop translation, keep crossfade so
+   the user still gets visual continuity but no positional movement. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.nav-forward),
+  ::view-transition-new(.nav-forward),
+  ::view-transition-old(.nav-back),
+  ::view-transition-new(.nav-back) {
+    animation-duration: 100ms !important;
+    translate: 0 !important;
+  }
+}

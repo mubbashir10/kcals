@@ -11,14 +11,15 @@ import {
 } from "@/lib/tdee";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
-
-// Same split as the home page. If this ever becomes per-user, move into Profile.
-const MACRO_TARGETS = {
-  proteinPct: 0.3,
-  carbsPct: 0.4,
-  fatPct: 0.3,
-} as const;
-const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
+import {
+  computeEffectiveTarget,
+  computeKcalOffset,
+  isGoalPace,
+  isGoalType,
+  type GoalPace,
+  type GoalType,
+} from "@/lib/goal";
+import { computeMacroGoals } from "@/lib/macros";
 
 export type DailyStats = Awaited<ReturnType<typeof loadDailyStats>>;
 
@@ -130,7 +131,24 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
     todayActivity?.tdeeKcal != null
       ? todayActivity.tdeeKcal
       : calculateTdee(bmr.kcal, active);
-  const calorieGoal = Math.round(tdee);
+
+  // Goal-aware target. Goal lives on Profile and changes apply forward —
+  // we deliberately don't snapshot it per-day yet (would let historical
+  // days "freeze" old goals but adds storage churn for a feature we just
+  // shipped). Revisit if users start comparing days across goal changes.
+  const goalType: GoalType = isGoalType(profile.goalType)
+    ? profile.goalType
+    : "maintain";
+  const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
+    ? profile.goalPace
+    : null;
+  const kcalOffset = computeKcalOffset(goalType, goalPace);
+  const calorieGoal = computeEffectiveTarget(
+    tdee,
+    bmr.kcal,
+    goalType,
+    goalPace
+  );
 
   const meals = await db.meal.findMany({
     where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
@@ -162,15 +180,7 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
     fat: sum(allFoods, "fatG"),
   };
 
-  const macroGoals = {
-    protein: Math.round(
-      (calorieGoal * MACRO_TARGETS.proteinPct) / KCAL_PER_G.protein
-    ),
-    carbs: Math.round(
-      (calorieGoal * MACRO_TARGETS.carbsPct) / KCAL_PER_G.carbs
-    ),
-    fat: Math.round((calorieGoal * MACRO_TARGETS.fatPct) / KCAL_PER_G.fat),
-  };
+  const macroGoals = computeMacroGoals(calorieGoal, profile);
 
   return {
     profile,
@@ -179,6 +189,9 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
     active,
     tdee,
     calorieGoal,
+    goalType,
+    goalPace,
+    kcalOffset,
     todayActivity,
     meals,
     latestWeight,

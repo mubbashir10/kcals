@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import {
   ChevronUp,
@@ -16,6 +15,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -68,7 +68,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
     return (
       <>
         <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
-          <Link
+          <AppLink
             href="/weight"
             aria-label="View weight history"
             className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -76,7 +76,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
           <div className="relative flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <Scale className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 Weight
               </span>
             </div>
@@ -121,7 +121,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
   return (
     <>
       <Card className="group relative rounded-3xl border-border/60 p-6 shadow-card-lg transition-colors hover:bg-accent/20">
-        <Link
+        <AppLink
           href="/weight"
           aria-label="View weight history"
           className="absolute inset-0 rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -129,7 +129,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Scale className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>
           </div>
@@ -340,7 +340,7 @@ function LogWeightDialog({
           <div className="space-y-2">
             <Label
               htmlFor="weight-input"
-              className="text-xs uppercase tracking-wider text-muted-foreground"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
             >
               Weight
             </Label>

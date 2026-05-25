@@ -14,6 +14,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb } from "@/lib/bmr";
+import {
+  GOAL_PACES,
+  GOAL_TYPES,
+  PACE_KCAL_PER_DAY,
+  PACE_KG_PER_WEEK,
+  type GoalPace,
+  type GoalType,
+} from "@/lib/goal";
+import { MACROS, type Macro, type MacroMode } from "@/lib/macros";
 import { saveProfile } from "./actions";
 
 type Sex = "male" | "female";
@@ -28,6 +37,14 @@ export type InitialProfile = {
   bodyFatPct: number | null;
   units: Units;
   timezone: string;
+  goalType: GoalType;
+  goalPace: GoalPace | null;
+  proteinGoalMode: MacroMode;
+  proteinGoalG: number | null;
+  carbsGoalMode: MacroMode;
+  carbsGoalG: number | null;
+  fatGoalMode: MacroMode;
+  fatGoalG: number | null;
   activityMode: ActivityMode;
   stepsPerDay: number | null;
   liftingSessionsPerWeek: number | null;
@@ -85,6 +102,35 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
   const [bodyFat, setBodyFat] = useState<string>(
     initial?.bodyFatPct != null ? String(initial.bodyFatPct) : ""
   );
+
+  const [goalType, setGoalType] = useState<GoalType>(
+    initial?.goalType ?? "maintain"
+  );
+  const [goalPace, setGoalPace] = useState<GoalPace | null>(
+    initial?.goalPace ?? null
+  );
+
+  function onGoalTypeChange(next: GoalType) {
+    setGoalType(next);
+    // Default to moderate when switching into loss/gain so the user always
+    // has a valid pace selected; clear it for maintain/track.
+    if (next === "loss" || next === "gain") {
+      setGoalPace(goalPace ?? "moderate");
+    } else {
+      setGoalPace(null);
+    }
+  }
+
+  const [macroModes, setMacroModes] = useState<Record<Macro, MacroMode>>({
+    protein: initial?.proteinGoalMode ?? "auto",
+    carbs: initial?.carbsGoalMode ?? "auto",
+    fat: initial?.fatGoalMode ?? "auto",
+  });
+  const [macroGrams, setMacroGrams] = useState<Record<Macro, string>>({
+    protein: initial?.proteinGoalG != null ? String(initial.proteinGoalG) : "",
+    carbs: initial?.carbsGoalG != null ? String(initial.carbsGoalG) : "",
+    fat: initial?.fatGoalG != null ? String(initial.fatGoalG) : "",
+  });
 
   const [activityMode, setActivityMode] = useState<ActivityMode>(
     initial?.activityMode ?? "estimate"
@@ -232,6 +278,15 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       activeOverride = a;
     }
 
+    // Macros — for "custom" mode, parse the user's number; for auto/off
+    // we always send null and let the server ignore stale grams.
+    function customG(macro: Macro): number | null {
+      if (macroModes[macro] !== "custom") return null;
+      const n = parseInt(macroGrams[macro], 10);
+      if (!Number.isFinite(n) || n < 0 || n >= 2000) return null;
+      return n;
+    }
+
     startTransition(async () => {
       try {
         await saveProfile({
@@ -242,6 +297,14 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           bodyFatPct: bf,
           units,
           timezone,
+          goalType,
+          goalPace,
+          proteinGoalMode: macroModes.protein,
+          proteinGoalG: customG("protein"),
+          carbsGoalMode: macroModes.carbs,
+          carbsGoalG: customG("carbs"),
+          fatGoalMode: macroModes.fat,
+          fatGoalG: customG("fat"),
           activityMode,
           stepsPerDay: steps,
           liftingSessionsPerWeek: lifting,
@@ -266,7 +329,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     <form onSubmit={onSubmit} className="space-y-8">
       {/* Units */}
       <div className="flex items-center justify-between">
-        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Units
         </Label>
         <SegmentedToggle<Units>
@@ -281,7 +344,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
       {/* Timezone — drives "today" cutoffs, greeting, meal-time display */}
       <div className="space-y-2">
-        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Timezone
         </Label>
         <TimezonePicker value={timezone} onChange={setTimezone} />
@@ -292,7 +355,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
       {/* Sex */}
       <div className="space-y-2">
-        <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Sex
         </Label>
         <SegmentedToggle<Sex>
@@ -335,7 +398,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         <div className="space-y-2">
           <Label
             htmlFor="height-ft"
-            className="text-xs uppercase tracking-wider text-muted-foreground"
+            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
           >
             Height
           </Label>
@@ -393,6 +456,154 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         />
       </Field>
 
+      {/* Goal — applies a kcal offset on top of TDEE for the ring + macros */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Goal
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {GOAL_TYPES.map((t) => {
+            const active = t === goalType;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => onGoalTypeChange(t)}
+                className={cn(
+                  "rounded-xl border px-2 py-3 text-center text-[11px] font-medium transition-all",
+                  active
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border/60 bg-card text-foreground/80 hover:border-border hover:text-foreground"
+                )}
+              >
+                {goalTypeButtonLabel(t)}
+              </button>
+            );
+          })}
+        </div>
+
+        {(goalType === "loss" || goalType === "gain") && (
+          <div className="space-y-1.5 rounded-2xl border border-border/60 bg-card p-3">
+            {GOAL_PACES.map((p) => {
+              const active = p === goalPace;
+              const kcal = PACE_KCAL_PER_DAY[p];
+              const kg = PACE_KG_PER_WEEK[p];
+              const perWeek =
+                units === "metric"
+                  ? `${kg} kg/wk`
+                  : `${(kg * 2.2046226218).toFixed(2)} lb/wk`;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setGoalPace(p)}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-all",
+                    active
+                      ? "bg-foreground text-background"
+                      : "text-foreground/80 hover:bg-accent/40 hover:text-foreground"
+                  )}
+                >
+                  <div>
+                    <div className="text-sm font-medium capitalize">{p}</div>
+                    <div
+                      className={cn(
+                        "text-[11px]",
+                        active ? "text-background/70" : "text-muted-foreground"
+                      )}
+                    >
+                      ~{perWeek}
+                    </div>
+                  </div>
+                  <div className="text-right tabular-nums">
+                    <div className="text-sm font-semibold">
+                      {goalType === "gain" ? "+" : "−"}
+                      {kcal}
+                    </div>
+                    <div
+                      className={cn(
+                        "text-[10px] font-medium uppercase tracking-[0.16em]",
+                        active ? "text-background/70" : "text-muted-foreground"
+                      )}
+                    >
+                      kcal/day
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Macros — per-macro mode (auto/custom/off). Defaults to all-auto. */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Macros
+          </span>
+          <div className="h-px flex-1 bg-border/60" />
+        </div>
+        <p className="text-[11px] text-muted-foreground/80">
+          Auto = derived from your calorie target. Custom = set your own
+          grams. Off = don't track this one.
+        </p>
+        <div className="space-y-2 rounded-2xl border border-border/60 bg-card p-3">
+          {MACROS.map((m) => (
+            <div key={m} className="space-y-1.5 px-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium capitalize">{m}</span>
+                <div className="inline-flex rounded-full bg-muted/60 p-0.5">
+                  {(["auto", "custom", "off"] as MacroMode[]).map((opt) => {
+                    const active = macroModes[m] === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() =>
+                          setMacroModes((prev) => ({ ...prev, [m]: opt }))
+                        }
+                        className={cn(
+                          "rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-all",
+                          active
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {macroModes[m] === "custom" && (
+                <div className="relative">
+                  <Input
+                    inputMode="numeric"
+                    placeholder="grams"
+                    value={macroGrams[m]}
+                    onChange={(e) =>
+                      setMacroGrams((prev) => ({
+                        ...prev,
+                        [m]: e.target.value,
+                      }))
+                    }
+                    className="h-9 pr-9 text-sm tabular-nums"
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                    g
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Activity — used for maintenance-calorie (TDEE) calculation */}
       <div className="space-y-5 pt-2">
         <div className="flex items-center gap-3">
@@ -403,7 +614,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Source
           </Label>
           <SegmentedToggle<ActivityMode>
@@ -525,11 +736,11 @@ function SessionGroup({
       <div className="flex items-baseline justify-between">
         <Label
           htmlFor={freqId}
-          className="text-xs uppercase tracking-wider text-muted-foreground"
+          className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
         >
           {label}
         </Label>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
           Optional
         </span>
       </div>
@@ -543,7 +754,7 @@ function SessionGroup({
             onChange={(e) => onFreqChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             × / week
           </span>
         </div>
@@ -556,7 +767,7 @@ function SessionGroup({
             onChange={(e) => onDurChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             min
           </span>
         </div>
@@ -583,12 +794,12 @@ function Field({
       <div className="flex items-baseline justify-between">
         <Label
           htmlFor={htmlFor}
-          className="text-xs uppercase tracking-wider text-muted-foreground"
+          className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
         >
           {label}
         </Label>
         {optional && (
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
             Optional
           </span>
         )}
@@ -764,6 +975,19 @@ function TimezonePicker({
       </Dialog>
     </>
   );
+}
+
+function goalTypeButtonLabel(t: GoalType): string {
+  switch (t) {
+    case "loss":
+      return "Lose";
+    case "maintain":
+      return "Maintain";
+    case "gain":
+      return "Gain";
+    case "track":
+      return "Just track";
+  }
 }
 
 function formatTzOffset(tz: string): string {
