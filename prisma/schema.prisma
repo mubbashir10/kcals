@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Profile {
@@ -39,6 +39,26 @@ model WeightLog {
   weightKg  Float
   loggedAt  DateTime @default(now())
   createdAt DateTime @default(now())
+
+  @@index([loggedAt])
+}
+
+// One row per day in the user's timezone. The user's profile activity fields
+// remain as "typical day" fallback / pre-fill; this table is the source of
+// truth for a specific day when present.
+model ActivityLog {
+  id            Int      @id @default(autoincrement())
+  // YYYY-MM-DD in the user's timezone at the moment the log was created.
+  // Acts as the per-day key and lets us upsert without timezone math at read time.
+  dayKey        String   @unique
+  mode          String // "estimate" | "override"
+  steps         Int? // estimate mode
+  liftingMin    Int? // estimate mode — minutes that day
+  cardioMin     Int? // estimate mode — minutes that day
+  wearableKcal  Int? // override mode — total active kcal from wearable
+  loggedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([loggedAt])
 }

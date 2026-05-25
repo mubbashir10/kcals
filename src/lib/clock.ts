@@ -20,6 +20,13 @@ export function hourInTz(date: Date, tz: string): number {
   return getDateParts(date, tz).hour;
 }
 
+// "YYYY-MM-DD" for the calendar day that contains `date` in `tz`. Used as a
+// stable per-day key (unique in ActivityLog).
+export function dayKeyInTz(tz: string, ref: Date = new Date()): string {
+  const { year, month, day } = getDateParts(ref, tz);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function formatTimeInTz(date: Date | string, tz: string): string {
   return new Date(date).toLocaleTimeString("en-US", {
     timeZone: tz,
@@ -50,6 +57,30 @@ export function greetingInTz(tz: string, ref: Date = new Date()): string {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
+}
+
+// Return "HH:mm" (24-hour) for `date` rendered in `tz` — suitable for an
+// <input type="time"> value.
+export function timeInputValueInTz(date: Date | string, tz: string): string {
+  const { hour, minute } = getDateParts(new Date(date), tz);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+// Given a reference date (whose calendar day in `tz` we want to keep) and an
+// "HH:mm" string, return the UTC Date that lands on that local day at that
+// local time.
+export function setTimeOnDateInTz(
+  ref: Date | string,
+  tz: string,
+  hhmm: string
+): Date {
+  const [hStr, mStr] = hhmm.split(":");
+  const hour = Math.max(0, Math.min(23, parseInt(hStr ?? "0", 10) || 0));
+  const minute = Math.max(0, Math.min(59, parseInt(mStr ?? "0", 10) || 0));
+  const { year, month, day } = getDateParts(new Date(ref), tz);
+  const asUtc = Date.UTC(year, month - 1, day, hour, minute);
+  const offset = tzOffsetMs(new Date(asUtc), tz);
+  return new Date(asUtc - offset);
 }
 
 export function autoMealNameInTz(d: Date, tz: string): string {

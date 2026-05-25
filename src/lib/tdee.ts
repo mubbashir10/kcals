@@ -96,3 +96,59 @@ export function activeKcal(input: ActivityInput): ActiveResult {
 export function calculateTdee(bmrKcal: number, active: ActiveResult): number {
   return bmrKcal + active.kcal;
 }
+
+// Daily variant: takes actual values logged for a single day rather than
+// weekly averages. Used when an ActivityLog row exists for today.
+export type DailyActivityInput = {
+  weightKg: number;
+  mode: ActivityMode;
+  steps?: number | null;
+  liftingMin?: number | null;
+  cardioMin?: number | null;
+  wearableKcal?: number | null;
+};
+
+export function activeKcalDaily(input: DailyActivityInput): ActiveResult {
+  if (
+    input.mode === "override" &&
+    typeof input.wearableKcal === "number" &&
+    input.wearableKcal >= 0
+  ) {
+    return {
+      kcal: input.wearableKcal,
+      fromSteps: 0,
+      fromLifting: 0,
+      fromCardio: 0,
+      override: input.wearableKcal,
+      source: "override",
+    };
+  }
+
+  const steps = input.steps ?? 0;
+  const liftMin = input.liftingMin ?? 0;
+  const cardioMin = input.cardioMin ?? 0;
+
+  if (steps <= 0 && liftMin <= 0 && cardioMin <= 0) {
+    return {
+      kcal: 0,
+      fromSteps: 0,
+      fromLifting: 0,
+      fromCardio: 0,
+      override: null,
+      source: "none",
+    };
+  }
+
+  const fromSteps = steps * input.weightKg * KCAL_PER_STEP_PER_KG;
+  const fromLifting = liftMin * input.weightKg * LIFTING_KCAL_PER_MIN_PER_KG;
+  const fromCardio = cardioMin * input.weightKg * CARDIO_KCAL_PER_MIN_PER_KG;
+
+  return {
+    kcal: fromSteps + fromLifting + fromCardio,
+    fromSteps,
+    fromLifting,
+    fromCardio,
+    override: null,
+    source: "estimate",
+  };
+}

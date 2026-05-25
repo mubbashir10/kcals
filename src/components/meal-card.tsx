@@ -23,8 +23,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { formatTimeInTz } from "@/lib/clock";
-import { renameMeal, deleteMeal } from "@/app/actions/meals";
+import {
+  formatTimeInTz,
+  setTimeOnDateInTz,
+  timeInputValueInTz,
+} from "@/lib/clock";
+import { updateMeal, deleteMeal } from "@/app/actions/meals";
 import { deleteFood, updateFoodGrams } from "@/app/actions/foods";
 
 export type MealCardFood = {
@@ -97,7 +101,7 @@ export function MealCard({
                   onClick={() => setRenameOpen(true)}
                 >
                   <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Rename
+                  Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer rounded-lg text-sm text-destructive focus:text-destructive"
@@ -145,10 +149,11 @@ export function MealCard({
         </Link>
       )}
 
-      <RenameDialog
+      <EditMealDialog
         open={renameOpen}
         onOpenChange={setRenameOpen}
         meal={meal}
+        timezone={timezone}
       />
       <DeleteDialog
         open={deleteOpen}
@@ -209,26 +214,6 @@ function FoodRow({
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={handleEditClick}
-            aria-label="Edit food"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deletePending}
-            aria-label="Delete food"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive disabled:pointer-events-none"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-
         <div className="min-w-[44px] text-right">
           <div className="text-base font-semibold tabular-nums">
             {Math.round(f.kcal)}
@@ -237,32 +222,65 @@ function FoodRow({
             kcal
           </div>
         </div>
+
+        <div className="flex flex-col items-center gap-0.5">
+          <button
+            type="button"
+            onClick={handleEditClick}
+            aria-label="Edit food"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Pencil className="h-2.5 w-2.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deletePending}
+            aria-label="Delete food"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/15 disabled:pointer-events-none"
+          >
+            <Trash2 className="h-2.5 w-2.5" />
+          </button>
+        </div>
       </div>
     </li>
   );
 }
 
-function RenameDialog({
+function EditMealDialog({
   open,
   onOpenChange,
   meal,
+  timezone,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   meal: MealCardData;
+  timezone: string;
 }) {
   const [name, setName] = useState(meal.name ?? "");
+  const [time, setTime] = useState(() =>
+    timeInputValueInTz(meal.loggedAt, timezone)
+  );
   const [pending, startTransition] = useTransition();
 
-  // reset to current meal name whenever the dialog opens
+  // reset to current meal values whenever the dialog opens
   function onOpen(next: boolean) {
-    if (next) setName(meal.name ?? "");
+    if (next) {
+      setName(meal.name ?? "");
+      setTime(timeInputValueInTz(meal.loggedAt, timezone));
+    }
     onOpenChange(next);
   }
 
   function onSave() {
     startTransition(async () => {
-      await renameMeal(meal.id, name);
+      const original = timeInputValueInTz(meal.loggedAt, timezone);
+      const loggedAt =
+        time && time !== original
+          ? setTimeOnDateInTz(meal.loggedAt, timezone, time)
+          : undefined;
+      await updateMeal(meal.id, { name, loggedAt });
       onOpenChange(false);
     });
   }
@@ -270,11 +288,9 @@ function RenameDialog({
   return (
     <Dialog open={open} onOpenChange={onOpen}>
       <DialogContent className="rounded-2xl sm:max-w-sm">
-        <DialogTitle className="text-base font-semibold">
-          Rename meal
-        </DialogTitle>
+        <DialogTitle className="text-base font-semibold">Edit meal</DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
-          Leave empty to use the default label.
+          Leave the name empty to use the default label.
         </DialogDescription>
 
         <div className="mt-4 space-y-4">
@@ -297,6 +313,22 @@ function RenameDialog({
                   onSave();
                 }
               }}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="meal-time"
+              className="text-xs uppercase tracking-wider text-muted-foreground"
+            >
+              Time
+            </Label>
+            <Input
+              id="meal-time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="tabular-nums"
             />
           </div>
 

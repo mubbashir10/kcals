@@ -6,13 +6,14 @@ import {
   Footprints,
   Heart,
   Plus,
-  UtensilsCrossed,
   Watch,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { ActivityCard } from "@/components/activity-card";
 import { CalorieRing } from "@/components/calorie-ring";
+import { Logo } from "@/components/logo";
 import { MacroCard } from "@/components/macro-card";
 import { MealCard } from "@/components/meal-card";
 import { NewMealButton } from "@/components/new-meal-button";
@@ -20,9 +21,10 @@ import { UserMenu } from "@/components/user-menu";
 import { WeightCard } from "@/components/weight-card";
 import { db } from "@/lib/db";
 import { calculateBmr } from "@/lib/bmr";
-import { activeKcal, calculateTdee } from "@/lib/tdee";
+import { activeKcal, activeKcalDaily, calculateTdee } from "@/lib/tdee";
 import {
   autoMealNameInTz,
+  dayKeyInTz,
   formatLongDateInTz,
   greetingInTz,
   startOfDayInTz,
@@ -54,16 +56,30 @@ export default async function Home() {
     bodyFatPct: profile.bodyFatPct,
   });
 
-  const active = activeKcal({
-    weightKg: profile.weightKg,
-    mode: profile.activityMode as "estimate" | "override",
-    stepsPerDay: profile.stepsPerDay,
-    liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
-    liftingMinutesPerSession: profile.liftingMinutesPerSession,
-    cardioSessionsPerWeek: profile.cardioSessionsPerWeek,
-    cardioMinutesPerSession: profile.cardioMinutesPerSession,
-    activeKcalOverride: profile.activeKcalOverride,
+  const todayKey = dayKeyInTz(tz, now);
+  const todayActivity = await db.activityLog.findUnique({
+    where: { dayKey: todayKey },
   });
+
+  const active = todayActivity
+    ? activeKcalDaily({
+        weightKg: profile.weightKg,
+        mode: todayActivity.mode as "estimate" | "override",
+        steps: todayActivity.steps,
+        liftingMin: todayActivity.liftingMin,
+        cardioMin: todayActivity.cardioMin,
+        wearableKcal: todayActivity.wearableKcal,
+      })
+    : activeKcal({
+        weightKg: profile.weightKg,
+        mode: profile.activityMode as "estimate" | "override",
+        stepsPerDay: profile.stepsPerDay,
+        liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
+        liftingMinutesPerSession: profile.liftingMinutesPerSession,
+        cardioSessionsPerWeek: profile.cardioSessionsPerWeek,
+        cardioMinutesPerSession: profile.cardioMinutesPerSession,
+        activeKcalOverride: profile.activeKcalOverride,
+      });
 
   const tdee = calculateTdee(bmr.kcal, active);
   const calorieGoal = Math.round(tdee);
@@ -123,9 +139,7 @@ export default async function Home() {
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-6">
           <div className="flex items-center gap-2.5">
-            <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-sm">
-              <UtensilsCrossed className="h-3.5 w-3.5" />
-            </div>
+            <Logo className="h-7 w-7" />
             <span className="text-sm font-semibold tracking-tight">
               kcals
             </span>
@@ -198,9 +212,11 @@ export default async function Home() {
                   label="NEAT"
                   value={Math.round(active.fromSteps)}
                   hint={
-                    profile.stepsPerDay && profile.stepsPerDay > 0
-                      ? `${profile.stepsPerDay.toLocaleString()} steps/day`
-                      : "Add steps in profile"
+                    todayActivity?.steps && todayActivity.steps > 0
+                      ? `${todayActivity.steps.toLocaleString()} steps today`
+                      : profile.stepsPerDay && profile.stepsPerDay > 0
+                      ? `${profile.stepsPerDay.toLocaleString()} steps/day avg`
+                      : "Log steps for today"
                   }
                 />
                 <Breakdown
@@ -209,18 +225,45 @@ export default async function Home() {
                   label="EAT"
                   value={Math.round(active.fromLifting + active.fromCardio)}
                   hint={
-                    [
-                      active.fromLifting > 0 && "lifting",
-                      active.fromCardio > 0 && "cardio",
-                    ]
-                      .filter(Boolean)
-                      .join(" + ") || "Add sessions in profile"
+                    todayActivity
+                      ? eatHintForDailyLog(
+                          todayActivity.liftingMin,
+                          todayActivity.cardioMin
+                        )
+                      : [
+                          active.fromLifting > 0 && "lifting",
+                          active.fromCardio > 0 && "cardio",
+                        ]
+                          .filter(Boolean)
+                          .join(" + ") || "Log workout for today"
                   }
                 />
               </>
             )}
           </div>
         </Card>
+
+        <div className="mb-4">
+          <ActivityCard
+            today={
+              todayActivity
+                ? {
+                    mode: todayActivity.mode as "estimate" | "override",
+                    steps: todayActivity.steps,
+                    liftingMin: todayActivity.liftingMin,
+                    cardioMin: todayActivity.cardioMin,
+                    wearableKcal: todayActivity.wearableKcal,
+                  }
+                : null
+            }
+            defaults={{
+              stepsPerDay: profile.stepsPerDay,
+              liftingMinutesPerSession: profile.liftingMinutesPerSession,
+              cardioMinutesPerSession: profile.cardioMinutesPerSession,
+              activeKcalOverride: profile.activeKcalOverride,
+            }}
+          />
+        </div>
 
         <div className="mb-4">
           <WeightCard
@@ -310,6 +353,16 @@ export default async function Home() {
       </main>
     </div>
   );
+}
+
+function eatHintForDailyLog(
+  liftingMin: number | null,
+  cardioMin: number | null
+): string {
+  const parts: string[] = [];
+  if (liftingMin && liftingMin > 0) parts.push(`${liftingMin}m lift`);
+  if (cardioMin && cardioMin > 0) parts.push(`${cardioMin}m cardio`);
+  return parts.join(" + ") || "Rest day";
 }
 
 function sum<K extends "kcal" | "proteinG" | "carbsG" | "fatG">(
