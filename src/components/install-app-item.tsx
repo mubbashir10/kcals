@@ -99,7 +99,11 @@ export function InstallAppItem() {
       return;
     }
     if (surface === "ios") {
-      setIosHintOpen(true);
+      // The DropdownMenuItem click closes the dropdown, which steals focus
+      // back to its trigger and races with Radix Dialog's focus trap on
+      // iOS Safari (the dialog flashes and never mounts). Defer one tick
+      // so the dropdown unmounts first.
+      setTimeout(() => setIosHintOpen(true), 0);
     }
   }
 
