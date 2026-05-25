@@ -1,0 +1,78 @@
+// Single-user local app — no auth, one profile row.
+// See https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Profile {
+  id         Int      @id @default(autoincrement())
+  age        Int
+  sex        String   // "male" | "female"
+  heightCm   Float
+  weightKg   Float
+  bodyFatPct Float?
+  units      String   @default("metric") // "metric" | "imperial"
+  timezone   String   @default("UTC") // IANA timezone, e.g. "America/New_York" — drives all date/time math in the app
+
+  // Activity — for TDEE / maintenance-calorie calculation
+  activityMode             String @default("estimate") // "estimate" | "override"
+  stepsPerDay              Int? // avg daily steps (estimate mode)
+  liftingSessionsPerWeek   Int? // strength training freq (estimate mode)
+  liftingMinutesPerSession Int? // avg duration; defaults to 60 if null
+  cardioSessionsPerWeek    Int? // cardio freq (estimate mode)
+  cardioMinutesPerSession  Int? // avg duration; defaults to 30 if null
+  activeKcalOverride       Int? // wearable-tracker number (override mode)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A single daily weight measurement. We always store kg internally.
+model WeightLog {
+  id        Int      @id @default(autoincrement())
+  weightKg  Float
+  loggedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([loggedAt])
+}
+
+// A Meal is a container for one or more Foods eaten together
+// (e.g. "Breakfast", "Lunch"). New foods auto-join the most recent
+// meal within a short window, or open a new one.
+model Meal {
+  id        Int      @id @default(autoincrement())
+  name      String? // "Breakfast", "Lunch", "Dinner", "Snack" — optional
+  loggedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  foods     Food[]
+
+  @@index([loggedAt])
+}
+
+// A single logged food item inside a meal. Nutrients are stored
+// as logged (i.e. already scaled to the user's portion), not per 100g.
+model Food {
+  id        Int      @id @default(autoincrement())
+  mealId    Int
+  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  fdcId     Int? // USDA FoodData Central id (null for manual entries)
+  name      String
+  brand     String?
+  grams     Float // serving size logged
+  kcal      Float
+  proteinG  Float    @default(0)
+  carbsG    Float    @default(0)
+  fatG      Float    @default(0)
+  loggedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([mealId])
+  @@index([loggedAt])
+}
