@@ -444,10 +444,10 @@ function EmptyState() {
   return (
     <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-12 text-center shadow-none">
       <p className="text-sm text-muted-foreground">
-        Search USDA's food database
+        Search foods
       </p>
       <p className="mt-1 text-xs text-muted-foreground/70">
-        Whole foods (Foundation, SR Legacy) and branded products.
+        USDA, Open Food Facts, and community-added foods.
       </p>
     </Card>
   );
