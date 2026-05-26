@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
 import { WidgetMenu } from "@/components/widget-menu";
@@ -66,8 +67,13 @@ export function CalorieRingWidget({
     const value = mode === "remaining" ? goal - consumed : consumed;
     const label = mode === "remaining" ? "left" : "eaten";
     return (
-      <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-2">
+      <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
+        <AppLink
+          href="/calories"
+          aria-label="View calorie history"
+          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        />
+        <div className="relative flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Flame className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -81,7 +87,7 @@ export function CalorieRingWidget({
             size="sm"
           />
         </div>
-        <div className="mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
+        <div className="relative mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
           {Math.round(value).toLocaleString()}
           <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
             {label}
@@ -92,8 +98,13 @@ export function CalorieRingWidget({
   }
 
   return (
-    <Card className="rounded-3xl border-border/60 px-5 pb-8 pt-4 shadow-card-lg sm:px-6 sm:pb-10 sm:pt-5">
-      <div className="flex items-center justify-between gap-2">
+    <Card className="group relative rounded-3xl border-border/60 px-5 pb-8 pt-4 shadow-card-lg transition-colors hover:bg-accent/20 sm:px-6 sm:pb-10 sm:pt-5">
+      <AppLink
+        href="/calories"
+        aria-label="View calorie history"
+        className="absolute inset-0 rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      />
+      <div className="relative flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={toggle}
@@ -118,7 +129,7 @@ export function CalorieRingWidget({
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col items-center sm:mt-10">
+      <div className="relative mt-8 flex flex-col items-center sm:mt-10">
         <CalorieRing consumed={consumed} goal={goal} mode={mode} />
 
         {typeof bmrKcal === "number" && typeof activeKcal === "number" && (

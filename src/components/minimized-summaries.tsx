@@ -1,5 +1,6 @@
 import { UtensilsCrossed, Users } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { WidgetMenu } from "@/components/widget-menu";
 
@@ -20,8 +21,13 @@ export function MinimizedMealsSummary({
         } · ${kcal.toLocaleString()} kcal`;
 
   return (
-    <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-      <div className="flex items-center justify-between gap-2">
+    <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
+      <AppLink
+        href="/diary"
+        aria-label="View food diary"
+        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      />
+      <div className="relative flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <UtensilsCrossed className="h-3.5 w-3.5 shrink-0 text-foreground/70" />
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -35,7 +41,7 @@ export function MinimizedMealsSummary({
           size="sm"
         />
       </div>
-      <div className="mt-1 truncate text-sm text-foreground/80 tabular-nums">
+      <div className="relative mt-1 truncate text-sm text-foreground/80 tabular-nums">
         {metric}
       </div>
     </Card>

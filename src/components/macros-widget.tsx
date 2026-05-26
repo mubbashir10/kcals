@@ -1,5 +1,6 @@
 import { Infinity as InfinityIcon } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MacroCard } from "@/components/macro-card";
 import { WidgetMenu } from "@/components/widget-menu";
@@ -28,8 +29,13 @@ export function MacrosWidget({
 }) {
   if (state === "minimized") {
     return (
-      <Card className="rounded-2xl border-border/60 px-4 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-2">
+      <Card className="group relative rounded-2xl border-border/60 px-4 py-3 shadow-card transition-colors hover:bg-accent/20">
+        <AppLink
+          href="/calories"
+          aria-label="View macros history"
+          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        />
+        <div className="relative flex items-center justify-between gap-2">
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Macros
           </span>
@@ -40,7 +46,7 @@ export function MacrosWidget({
             size="sm"
           />
         </div>
-        <div className="mt-1 grid grid-cols-3 gap-2">
+        <div className="relative mt-1 grid grid-cols-3 gap-2">
           <MiniMacro
             label="P"
             accent={ACCENTS.protein}
@@ -67,9 +73,15 @@ export function MacrosWidget({
   return (
     <section>
       <div className="mb-2 flex items-center justify-between px-1">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Macros
-        </h2>
+        <AppLink
+          href="/calories"
+          aria-label="View macros history"
+          className="group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        >
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground">
+            Macros
+          </h2>
+        </AppLink>
         <WidgetMenu
           widgetId="macros"
           current="expanded"

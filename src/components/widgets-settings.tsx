@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  CalendarDays,
   Circle,
   EyeOff,
   Flame,
@@ -55,6 +56,7 @@ const WIDGETS: {
   { id: "maintenance", label: "Maintenance calories", icon: Flame, accent: "text-amber-500" },
   { id: "activity", label: "Today's activity", icon: Zap, accent: "text-sky-500" },
   { id: "weight", label: "Weight", icon: Scale, accent: "text-violet-500" },
+  { id: "calendar", label: "Calendar", icon: CalendarDays, accent: "text-emerald-500" },
   { id: "meals", label: "Today's meals", icon: UtensilsCrossed, accent: "text-orange-500" },
   { id: "friends", label: "Friends", icon: Users, accent: "text-fuchsia-500" },
 ];

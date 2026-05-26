@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { ActivityCard } from "@/components/activity-card";
+import { CalendarWidget } from "@/components/calendar-widget";
 import { CalorieRingWidget } from "@/components/calorie-ring-widget";
 import { FriendsStrip } from "@/components/friends-strip";
 import { IncomingInviteBanner } from "@/components/incoming-invite-banner";
@@ -31,8 +32,11 @@ import {
 import { listFriendSummaries, pendingInvitesForUser } from "@/lib/friends";
 import { getSession } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
+import { loadDayMarkers } from "@/lib/calendar-data";
+import { shiftDayKey } from "@/lib/calendar-build";
 import {
   autoMealNameInTz,
+  dayKeyInTz,
   formatLongDateInTz,
   greetingInTz,
 } from "@/lib/clock";
@@ -73,12 +77,45 @@ export default async function Home() {
   const maintenanceState = getWidgetState(widgetStates, "maintenance");
   const activityState = getWidgetState(widgetStates, "activity");
   const weightState = getWidgetState(widgetStates, "weight");
+  const calendarState = getWidgetState(widgetStates, "calendar");
   const mealsState = getWidgetState(widgetStates, "meals");
   const friendsState = getWidgetState(widgetStates, "friends");
 
-  const [friendSummaries, incomingInvites] = await Promise.all([
+  // Calendar widget data — only fetched when the widget is visible. Pulls
+  // markers for the 6×7 grid containing today's month.
+  const todayKey = dayKeyInTz(tz, now);
+  const monthKey = todayKey.slice(0, 7);
+  const monthPrefix = `${monthKey}-`;
+  const calendarPromise =
+    calendarState === "hidden"
+      ? Promise.resolve(null)
+      : (async () => {
+          const firstKey = `${monthKey}-01`;
+          const startKey = shiftDayKey(firstKey, -7);
+          const endKey = shiftDayKey(firstKey, 37);
+          const markersMap = await loadDayMarkers(userId, startKey, endKey, tz);
+          const markers = Array.from(markersMap.values()).map((m) => ({
+            dayKey: m.dayKey,
+            hasFood: m.hasFood,
+            hasWeight: m.hasWeight,
+            hasActivity: m.hasActivity,
+          }));
+          let loggedCount = 0;
+          for (const v of markersMap.values()) {
+            if (
+              v.dayKey.startsWith(monthPrefix) &&
+              (v.hasFood || v.hasWeight || v.hasActivity)
+            ) {
+              loggedCount += 1;
+            }
+          }
+          return { markers, loggedCount };
+        })();
+
+  const [friendSummaries, incomingInvites, calendarData] = await Promise.all([
     listFriendSummaries(userId, now),
     userEmail ? pendingInvitesForUser(userEmail) : Promise.resolve([]),
+    calendarPromise,
   ]);
 
   const dateStr = formatLongDateInTz(now, tz);
@@ -113,7 +150,7 @@ export default async function Home() {
             {greetingInTz(tz, now)}.
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Here's where you stand today.
+            Here&apos;s where you stand today.
           </p>
         </div>
 
@@ -250,6 +287,18 @@ export default async function Home() {
                 />
               ),
             },
+            calendarState !== "hidden" && calendarData && {
+              id: "calendar" as const,
+              node: (
+                <CalendarWidget
+                  monthKey={monthKey}
+                  markers={calendarData.markers}
+                  timezone={tz}
+                  state={calendarState}
+                  loggedCount={calendarData.loggedCount}
+                />
+              ),
+            },
             mealsState !== "hidden" && {
               id: "meals" as const,
               node:
@@ -263,9 +312,15 @@ export default async function Home() {
                   <section>
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <h2 className="text-sm font-semibold tracking-tight">
-                          Today's meals
-                        </h2>
+                        <AppLink
+                          href="/diary"
+                          aria-label="View food diary"
+                          className="group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                        >
+                          <h2 className="text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground/80">
+                            Today&apos;s meals
+                          </h2>
+                        </AppLink>
                         <span className="text-xs text-muted-foreground tabular-nums">
                           {meals.length === 0
                             ? "nothing yet"
