@@ -82,7 +82,7 @@ function gramsFromServing(
   return null;
 }
 
-async function fdcSearch(
+async function fdcSearchOne(
   query: string,
   pageSize: number,
   apiKey: string
@@ -102,6 +102,57 @@ async function fdcSearch(
     throw new Error(`USDA search error ${res.status}: ${await res.text()}`);
   }
   return res.json();
+}
+
+/**
+ * Wrap `fdcSearchOne` with adjacent-pair join variants so compound-word
+ * canonical entries surface. USDA's Foundation/SR Legacy rows use joined
+ * forms ("Milk, lowfat, fluid", "Apples, Honeycrisp, With Skin, Raw"),
+ * while users naturally type the spaced form ("low fat milk", "honey
+ * crisp apple"). With requireAllWords=true on the strict query, those
+ * canonical rows would never be in the pool — the search would return
+ * only branded entries that literally have the spaced form.
+ *
+ * For an N-token query we fire 1 strict + (N-1) variants in parallel,
+ * each joining one adjacent token pair. Dedupe by fdcId, preserving the
+ * first occurrence so the strict-match results lead before the
+ * compound-form ones (a tiebreaker that's later mostly irrelevant since
+ * scoreResult re-ranks the merged pool anyway).
+ */
+async function fdcSearchMulti(
+  query: string,
+  pageSize: number,
+  apiKey: string
+): Promise<FdcSearchFood[]> {
+  const tokens = query.split(/\s+/).filter((t) => t.length > 0);
+  const queries: string[] = [query];
+  if (tokens.length >= 2) {
+    for (let i = 0; i < tokens.length - 1; i++) {
+      queries.push(
+        [
+          ...tokens.slice(0, i),
+          tokens[i] + tokens[i + 1],
+          ...tokens.slice(i + 2),
+        ].join(" ")
+      );
+    }
+  }
+
+  const responses = await Promise.all(
+    queries.map((q) => fdcSearchOne(q, pageSize, apiKey))
+  );
+
+  const seen = new Set<number>();
+  const merged: FdcSearchFood[] = [];
+  for (const r of responses) {
+    for (const f of r.foods) {
+      if (!seen.has(f.fdcId)) {
+        seen.add(f.fdcId);
+        merged.push(f);
+      }
+    }
+  }
+  return merged;
 }
 
 async function fdcAbridged(
@@ -196,6 +247,28 @@ function scoreResult(
   if (food.dataType === "Foundation") score += 10;
   else if (food.dataType === "SR Legacy") score += 4;
 
+  // Canonical "Noun, modifier, modifier" USDA Foundation/SR Legacy match.
+  // Without this, 20 branded products literally named "Low Fat Milk"
+  // would each score ~85 (exact-name + every token), crushing the
+  // Foundation row "Milk, lowfat, fluid" which scores ~25 (substring
+  // tokens + Foundation bonus). Bumping canonical matches by a large
+  // amount restores the older "canonical first" behavior the user
+  // remembered. Only fires for multi-token queries — single-token
+  // queries already get the +100 first-word bonus above.
+  const isCanonicalDataType =
+    food.dataType === "Foundation" || food.dataType === "SR Legacy";
+  if (
+    isCanonicalDataType &&
+    qTokens.length >= 2 &&
+    qTokens.some(
+      (t) =>
+        firstToken === t || firstToken === t + "s" || firstToken + "s" === t
+    ) &&
+    qTokens.every((t) => name.includes(t))
+  ) {
+    score += 90;
+  }
+
   // Shorter = more canonical
   score -= Math.min(name.length / 10, 8);
 
@@ -214,13 +287,16 @@ export async function searchFoods(
   if (!query.trim()) return [];
 
   // Pull a wider pool so the local re-rank has something to work with.
+  // fdcSearchMulti also runs adjacent-pair join variants in parallel so
+  // canonical Foundation rows (e.g. "Milk, lowfat, fluid") show up for
+  // spaced queries ("low fat milk") despite USDA's strict tokenization.
   const POOL_SIZE = 50;
-  const search = await fdcSearch(query, POOL_SIZE, apiKey);
-  if (search.foods.length === 0) return [];
+  const pool = await fdcSearchMulti(query, POOL_SIZE, apiKey);
+  if (pool.length === 0) return [];
 
   // Local re-rank against the user's query, then take the top N.
   const qTokens = query.toLowerCase().trim().split(/\s+/);
-  const ranked = search.foods
+  const ranked = pool
     .map((f, i) => ({ food: f, score: scoreResult(qTokens, f, i) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, pageSize)
