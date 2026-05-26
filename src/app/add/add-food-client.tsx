@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
-import { logFood } from "./actions";
+import { approveAiFood, logFood } from "./actions";
 
 type Food = {
   fdcId: number;
@@ -38,6 +38,12 @@ type Food = {
   servingLabel: string | null;
   /** Only set for community-contributed custom foods. */
   createdAtIso?: string;
+  // AI-only fields, present when dataType === "AI" and the row is still
+  // an unsaved preview from /api/foods/search/ai. After approval we
+  // hand the user a fresh Food without these set.
+  aiModel?: string;
+  aiSources?: string[];
+  aiConfidence?: "low" | "medium" | "high";
 };
 
 export type MealOption = {
@@ -78,12 +84,60 @@ export function AddFoodClient({
   const [quickOpen, setQuickOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
 
+  // Second-stage AI search. We only fire it when the conventional
+  // search returns empty, so most queries never pay the AI latency.
+  // `aiLoading` drives a distinct "Searching the web with AI…" message
+  // separate from the regular `loading` spinner.
+  const [aiResult, setAiResult] = useState<Food | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  // Which AI preview is mid-approval — keeps a spinner on just that row
+  // while we persist it to CustomFood.
+  const [approvingAiId, setApprovingAiId] = useState<number | null>(null);
+
   const reqId = useRef(0);
+  const aiReqId = useRef(0);
+
+  async function onResultSelect(food: Food) {
+    if (food.dataType !== "AI" || food.aiModel == null) {
+      setSelected(food);
+      return;
+    }
+    // Approve = persist to CustomFood (source='AI'), then drive the
+    // portion dialog against the real DB row. Logging or canceling
+    // afterwards is independent — the entry is saved either way.
+    setApprovingAiId(food.fdcId);
+    try {
+      const newId = await approveAiFood({
+        name: food.name,
+        kcal: food.per100g.kcal,
+        proteinG: food.per100g.proteinG,
+        carbsG: food.per100g.carbsG,
+        fatG: food.per100g.fatG,
+        servingSizeG: food.servingSizeG,
+        servingLabel: food.servingLabel,
+        aiModel: food.aiModel,
+        aiSources: food.aiSources ?? [],
+      });
+      setSelected({
+        ...food,
+        fdcId: -newId,
+        // Keep the AI badge in the portion dialog so the user is still
+        // reminded these are estimates as they pick a serving.
+        dataType: "AI",
+      });
+    } catch (err) {
+      console.error("AI approval failed", err);
+    } finally {
+      setApprovingAiId(null);
+    }
+  }
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
+      setAiResult(null);
+      setAiLoading(false);
       setLoading(false);
       setSearchError(null);
       return;
@@ -91,6 +145,10 @@ export function AddFoodClient({
 
     setLoading(true);
     setSearchError(null);
+    // Reset AI state when the query changes — stale AI results from a
+    // previous typed-then-deleted query would otherwise stick around.
+    setAiResult(null);
+    setAiLoading(false);
 
     const myId = ++reqId.current;
     const t = setTimeout(async () => {
@@ -103,8 +161,29 @@ export function AddFoodClient({
         if (!res.ok) {
           setSearchError(json.error ?? "Search failed");
           setResults([]);
-        } else {
-          setResults(json.foods ?? []);
+          return;
+        }
+        const foods: Food[] = json.foods ?? [];
+        setResults(foods);
+
+        // Conventional sources covered it — skip the AI call.
+        if (foods.length > 0) return;
+
+        // Empty result. Kick off the AI fallback and let the UI show
+        // "Searching the web with AI…" while it runs.
+        setAiLoading(true);
+        const aiMyId = ++aiReqId.current;
+        try {
+          const aiRes = await fetch(
+            `/api/foods/search/ai?q=${encodeURIComponent(q)}`
+          );
+          const aiJson = await aiRes.json();
+          if (aiMyId !== aiReqId.current) return;
+          setAiResult(aiRes.ok ? aiJson.food ?? null : null);
+        } catch {
+          if (aiMyId === aiReqId.current) setAiResult(null);
+        } finally {
+          if (aiMyId === aiReqId.current) setAiLoading(false);
         }
       } catch {
         if (myId !== reqId.current) return;
@@ -198,17 +277,14 @@ export function AddFoodClient({
           )}
 
           {!loading && !searchError && query.trim().length >= 2 && results.length === 0 && (
-            <div className="px-1 text-sm">
-              <p className="text-muted-foreground">No matches for “{query.trim()}”.</p>
-              <button
-                type="button"
-                onClick={() => setQuickOpen(true)}
-                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
-              >
-                <Zap className="h-3 w-3" />
-                Just log the calories
-              </button>
-            </div>
+            <NoMatchesBlock
+              query={query.trim()}
+              aiLoading={aiLoading}
+              aiResult={aiResult}
+              approvingAiId={approvingAiId}
+              onSelectAi={onResultSelect}
+              onQuickAdd={() => setQuickOpen(true)}
+            />
           )}
 
           {!loading && results.length > 0 && (() => {
@@ -220,10 +296,13 @@ export function AddFoodClient({
               (f) =>
                 f.dataType !== "Custom" &&
                 f.dataType !== "Branded" &&
-                f.dataType !== "OpenFoodFacts"
+                f.dataType !== "OpenFoodFacts" &&
+                f.dataType !== "AI"
             );
+            const aiCommunity = results.filter((f) => f.dataType === "AI");
             // Show group labels whenever more than one group has results.
             const groupCount =
+              (aiCommunity.length > 0 ? 1 : 0) +
               (custom.length > 0 ? 1 : 0) +
               (whole.length > 0 ? 1 : 0) +
               (branded.length > 0 ? 1 : 0);
@@ -231,25 +310,32 @@ export function AddFoodClient({
 
             return (
               <div className="space-y-6">
+                {aiCommunity.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "AI-added" : null}
+                    foods={aiCommunity}
+                    onSelect={onResultSelect}
+                  />
+                )}
                 {custom.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Community" : null}
                     foods={custom}
-                    onSelect={setSelected}
+                    onSelect={onResultSelect}
                   />
                 )}
                 {whole.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Whole foods" : null}
                     foods={whole}
-                    onSelect={setSelected}
+                    onSelect={onResultSelect}
                   />
                 )}
                 {branded.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Branded" : null}
                     foods={branded}
-                    onSelect={setSelected}
+                    onSelect={onResultSelect}
                   />
                 )}
               </div>
@@ -405,6 +491,7 @@ function ResultRow({
   food: Food;
   onSelect: (f: Food) => void;
 }) {
+  const isAi = f.dataType === "AI";
   return (
     <li>
       <button
@@ -413,11 +500,16 @@ function ResultRow({
         className="group flex w-full items-center justify-between rounded-2xl border border-border/60 bg-card p-4 text-left transition-all hover:border-border hover:shadow-sm"
       >
         <div className="min-w-0 flex-1 pr-4">
-          <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
+          <div className="flex items-center gap-1.5">
+            {isAi && (
+              <Sparkles className="h-3 w-3 shrink-0 text-foreground/60" />
+            )}
+            <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
+          </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {f.brand ? `${f.brand} · ` : ""}
             {dataTypeLabel(f.dataType)}
-            {f.createdAtIso && f.dataType === "Custom" && (
+            {f.createdAtIso && (f.dataType === "Custom" || f.dataType === "AI") && (
               <> · added {formatAddedAt(f.createdAtIso)}</>
             )}
           </p>
@@ -437,6 +529,130 @@ function ResultRow({
         </div>
       </button>
     </li>
+  );
+}
+
+function NoMatchesBlock({
+  query,
+  aiLoading,
+  aiResult,
+  approvingAiId,
+  onSelectAi,
+  onQuickAdd,
+}: {
+  query: string;
+  aiLoading: boolean;
+  aiResult: Food | null;
+  approvingAiId: number | null;
+  onSelectAi: (f: Food) => void;
+  onQuickAdd: () => void;
+}) {
+  // Three branches: AI still working, AI returned a result, or AI gave
+  // up too. The "Just log calories" escape hatch is always available
+  // once we've exhausted the search options.
+  return (
+    <div className="space-y-3 px-1 text-sm">
+      <p className="text-muted-foreground">
+        No matches for “{query}” in our databases.
+      </p>
+
+      {aiLoading && (
+        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-foreground/30 bg-card/40 p-4">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-foreground/60" />
+          <div className="min-w-0">
+            <p className="text-xs font-medium">Searching the web with AI…</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Asking Gemini to estimate nutrition from public sources.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!aiLoading && aiResult && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Sparkles className="h-3 w-3 text-foreground/60" />
+            <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              AI estimate
+            </span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+          <AiResultRow
+            food={aiResult}
+            pending={approvingAiId === aiResult.fdcId}
+            onSelect={onSelectAi}
+          />
+          <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/70">
+            Generated from web search. Tap to save to the community library and
+            log a portion — double-check the numbers before relying on them.
+          </p>
+        </div>
+      )}
+
+      {!aiLoading && !aiResult && (
+        <button
+          type="button"
+          onClick={onQuickAdd}
+          className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          <Zap className="h-3 w-3" />
+          Just log the calories
+        </button>
+      )}
+    </div>
+  );
+}
+
+function AiResultRow({
+  food: f,
+  pending,
+  onSelect,
+}: {
+  food: Food;
+  pending: boolean;
+  onSelect: (f: Food) => void;
+}) {
+  const confidence = f.aiConfidence;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(f)}
+      disabled={pending}
+      className="group flex w-full items-center justify-between rounded-2xl border border-dashed border-foreground/30 bg-card p-4 text-left transition-all hover:border-foreground/60 hover:shadow-sm disabled:cursor-wait disabled:opacity-70"
+    >
+      <div className="min-w-0 flex-1 pr-4">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="h-3 w-3 shrink-0 text-foreground/60" />
+          <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          AI estimate
+          {confidence && confidence !== "high" && (
+            <> · {confidence} confidence</>
+          )}
+          {f.aiSources && f.aiSources.length > 0 && (
+            <> · {f.aiSources.length} source{f.aiSources.length === 1 ? "" : "s"}</>
+          )}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="text-right">
+          <div className="text-sm font-semibold tabular-nums">
+            {Math.round(f.per100g.kcal)}
+          </div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            kcal/100g
+          </div>
+        </div>
+        <div className="grid h-7 w-7 place-items-center rounded-full bg-muted transition-colors group-hover:bg-foreground group-hover:text-background">
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
+        </div>
+      </div>
+    </button>
   );
 }
 
@@ -551,10 +767,17 @@ function PortionDialog({
             <DialogTitle className="pr-6 text-base font-semibold leading-tight">
               {titleCase(food.name)}
             </DialogTitle>
-            {food.brand && (
-              <DialogDescription className="text-xs text-muted-foreground">
-                {food.brand}
+            {food.dataType === "AI" ? (
+              <DialogDescription className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3 w-3" />
+                AI estimate — verify before relying on it
               </DialogDescription>
+            ) : (
+              food.brand && (
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {food.brand}
+                </DialogDescription>
+              )
             )}
 
             <div className="mt-4 space-y-5">
@@ -921,6 +1144,7 @@ function dataTypeLabel(t: string) {
   if (t === "Foundation") return "Whole food";
   if (t === "SR Legacy") return "Reference";
   if (t === "Custom") return "Community";
+  if (t === "AI") return "AI estimate";
   return t;
 }
 

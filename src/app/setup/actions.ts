@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import type { GoalPace, GoalType } from "@/lib/goal";
 import type { MacroMode } from "@/lib/macros";
 
+// Profile setup covers body data, timezone, macros, and activity. Goal
+// type/pace are not collected here — new profiles get the schema default
+// (maintain). The dedicated /goals page is where users set their goal.
 export type SaveProfileInput = {
   sex: "male" | "female";
   age: number;
@@ -16,8 +18,6 @@ export type SaveProfileInput = {
   bodyFatPct: number | null;
   units: "metric" | "imperial";
   timezone: string;
-  goalType: GoalType;
-  goalPace: GoalPace | null;
   proteinGoalMode: MacroMode;
   proteinGoalG: number | null;
   carbsGoalMode: MacroMode;

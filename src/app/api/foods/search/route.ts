@@ -15,9 +15,12 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Custom foods (community-contributed) + USDA + Open Food Facts in parallel.
-    // OFF fills the gap for regional packaged brands (e.g. Dawn, Olper's) that
-    // USDA doesn't carry.
+    // Custom foods (community-contributed) + USDA + Open Food Facts in
+    // parallel. OFF fills the gap for regional packaged brands (e.g.
+    // Dawn, Olper's) that USDA doesn't carry. The AI fallback is its
+    // own endpoint (/api/foods/search/ai) so the client can show a
+    // distinct "searching the web with AI…" indicator after this
+    // returns empty.
     const [usdaFoods, customFoods, offFoods] = await Promise.all([
       searchFoods(q, { pageSize: 20 }),
       db.customFood.findMany({
@@ -30,12 +33,14 @@ export async function GET(req: Request) {
 
     // Map custom foods into the same shape as a USDA result so the UI
     // renders them with a single rowtype. We use negative fdcId so they
-    // never collide with real USDA ids.
+    // never collide with real USDA ids. AI-sourced community rows
+    // surface as "AI" so the sparkles badge persists for everyone, not
+    // just the original approver.
     const customAsResults: UsdaFood[] = customFoods.map((c) => ({
       fdcId: -c.id,
       name: c.name,
       brand: c.brand,
-      dataType: "Custom",
+      dataType: c.source === "AI" ? "AI" : "Custom",
       per100g: {
         kcal: c.kcal,
         proteinG: c.proteinG ?? 0,

@@ -14,14 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb } from "@/lib/bmr";
-import {
-  GOAL_PACES,
-  GOAL_TYPES,
-  PACE_KCAL_PER_DAY,
-  PACE_KG_PER_WEEK,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
 import { MACROS, type Macro, type MacroMode } from "@/lib/macros";
 import { saveProfile } from "./actions";
 
@@ -37,8 +29,6 @@ export type InitialProfile = {
   bodyFatPct: number | null;
   units: Units;
   timezone: string;
-  goalType: GoalType;
-  goalPace: GoalPace | null;
   proteinGoalMode: MacroMode;
   proteinGoalG: number | null;
   carbsGoalMode: MacroMode;
@@ -102,24 +92,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
   const [bodyFat, setBodyFat] = useState<string>(
     initial?.bodyFatPct != null ? String(initial.bodyFatPct) : ""
   );
-
-  const [goalType, setGoalType] = useState<GoalType>(
-    initial?.goalType ?? "maintain"
-  );
-  const [goalPace, setGoalPace] = useState<GoalPace | null>(
-    initial?.goalPace ?? null
-  );
-
-  function onGoalTypeChange(next: GoalType) {
-    setGoalType(next);
-    // Default to moderate when switching into loss/gain so the user always
-    // has a valid pace selected; clear it for maintain/track.
-    if (next === "loss" || next === "gain") {
-      setGoalPace(goalPace ?? "moderate");
-    } else {
-      setGoalPace(null);
-    }
-  }
 
   const [macroModes, setMacroModes] = useState<Record<Macro, MacroMode>>({
     protein: initial?.proteinGoalMode ?? "auto",
@@ -297,8 +269,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           bodyFatPct: bf,
           units,
           timezone,
-          goalType,
-          goalPace,
           proteinGoalMode: macroModes.protein,
           proteinGoalG: customG("protein"),
           carbsGoalMode: macroModes.carbs,
@@ -455,90 +425,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           onChange={(e) => setBodyFat(e.target.value)}
         />
       </Field>
-
-      {/* Goal — applies a kcal offset on top of TDEE for the ring + macros */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Goal
-          </span>
-          <div className="h-px flex-1 bg-border/60" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {GOAL_TYPES.map((t) => {
-            const active = t === goalType;
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => onGoalTypeChange(t)}
-                className={cn(
-                  "rounded-xl border px-2 py-3 text-center text-[11px] font-medium transition-all",
-                  active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border/60 bg-card text-foreground/80 hover:border-border hover:text-foreground"
-                )}
-              >
-                {goalTypeButtonLabel(t)}
-              </button>
-            );
-          })}
-        </div>
-
-        {(goalType === "loss" || goalType === "gain") && (
-          <div className="space-y-1.5 rounded-2xl border border-border/60 bg-card p-3">
-            {GOAL_PACES.map((p) => {
-              const active = p === goalPace;
-              const kcal = PACE_KCAL_PER_DAY[p];
-              const kg = PACE_KG_PER_WEEK[p];
-              const perWeek =
-                units === "metric"
-                  ? `${kg} kg/wk`
-                  : `${(kg * 2.2046226218).toFixed(2)} lb/wk`;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setGoalPace(p)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left transition-all",
-                    active
-                      ? "bg-foreground text-background"
-                      : "text-foreground/80 hover:bg-accent/40 hover:text-foreground"
-                  )}
-                >
-                  <div>
-                    <div className="text-sm font-medium capitalize">{p}</div>
-                    <div
-                      className={cn(
-                        "text-[11px]",
-                        active ? "text-background/70" : "text-muted-foreground"
-                      )}
-                    >
-                      ~{perWeek}
-                    </div>
-                  </div>
-                  <div className="text-right tabular-nums">
-                    <div className="text-sm font-semibold">
-                      {goalType === "gain" ? "+" : "−"}
-                      {kcal}
-                    </div>
-                    <div
-                      className={cn(
-                        "text-[10px] font-medium uppercase tracking-[0.16em]",
-                        active ? "text-background/70" : "text-muted-foreground"
-                      )}
-                    >
-                      kcal/day
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
       {/* Macros — per-macro mode (auto/custom/off). Defaults to all-auto. */}
       <div className="space-y-3 pt-2">
@@ -977,18 +863,6 @@ function TimezonePicker({
   );
 }
 
-function goalTypeButtonLabel(t: GoalType): string {
-  switch (t) {
-    case "loss":
-      return "Lose";
-    case "maintain":
-      return "Maintain";
-    case "gain":
-      return "Gain";
-    case "track":
-      return "Just track";
-  }
-}
 
 function formatTzOffset(tz: string): string {
   try {

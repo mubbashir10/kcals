@@ -86,3 +86,73 @@ export async function logFood(
   revalidatePath("/");
   redirect("/");
 }
+
+export type ApproveAiFoodInput = {
+  name: string;
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  servingSizeG: number | null;
+  servingLabel: string | null;
+  aiModel: string;
+  aiSources: string[];
+};
+
+/**
+ * Persists an AI-generated food estimate as a CustomFood with
+ * source='AI'. Called when the user taps an AI search result — the tap
+ * itself is the approval gate. Returns the new row's id so the client
+ * can immediately drive the portion dialog against a real DB record.
+ *
+ * Whether the user actually logs the food after this is their call; the
+ * approval is "yes, this lives in our shared library now."
+ */
+export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> {
+  const userId = await requireUserId();
+
+  const name = input.name.trim();
+  if (name.length === 0 || name.length > 120) {
+    throw new Error("Invalid name");
+  }
+  if (
+    !Number.isFinite(input.kcal) ||
+    input.kcal <= 0 ||
+    input.kcal > 900
+  ) {
+    throw new Error("Implausible kcal");
+  }
+
+  const food = await db.customFood.create({
+    data: {
+      createdById: userId,
+      name,
+      brand: null,
+      kcal: round1(input.kcal),
+      proteinG: clamp01(input.proteinG, 100),
+      carbsG: clamp01(input.carbsG, 100),
+      fatG: clamp01(input.fatG, 100),
+      servingSizeG:
+        input.servingSizeG != null && input.servingSizeG > 0
+          ? round1(Math.min(input.servingSizeG, 5000))
+          : null,
+      servingLabel: input.servingLabel?.trim() || null,
+      source: "AI",
+      aiModel: input.aiModel,
+      // De-dup + cap so a chatty model can't bloat the row.
+      aiSources: Array.from(new Set(input.aiSources)).slice(0, 10),
+    },
+  });
+
+  revalidatePath("/add");
+  return food.id;
+}
+
+function clamp01(n: number, max: number): number {
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return round1(Math.min(n, max));
+}
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
+}

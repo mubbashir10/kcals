@@ -128,10 +128,6 @@
   }
   html {
     @apply font-sans;
-    /* Bumps the rem unit ~25% — every spacing/size value in the app
-       scales together (text, padding, gaps), as if everything is set
-       to 125% zoom. Default is 16px. */
-    font-size: 20px;
   }
 }
 

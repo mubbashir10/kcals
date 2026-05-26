@@ -3,7 +3,6 @@ import { ArrowLeft } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import { isGoalPace, isGoalType } from "@/lib/goal";
 import { isMacroMode } from "@/lib/macros";
 import { SetupForm, type InitialProfile } from "./setup-form";
 
@@ -21,8 +20,6 @@ export default async function SetupPage() {
         bodyFatPct: existing.bodyFatPct,
         units: existing.units as "metric" | "imperial",
         timezone: existing.timezone,
-        goalType: isGoalType(existing.goalType) ? existing.goalType : "maintain",
-        goalPace: isGoalPace(existing.goalPace) ? existing.goalPace : null,
         proteinGoalMode: isMacroMode(existing.proteinGoalMode) ? existing.proteinGoalMode : "auto",
         proteinGoalG: existing.proteinGoalG,
         carbsGoalMode: isMacroMode(existing.carbsGoalMode) ? existing.carbsGoalMode : "auto",
