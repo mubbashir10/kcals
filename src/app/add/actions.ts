@@ -12,6 +12,8 @@ const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export type LogFoodInput = {
   fdcId: number | null;
+  /** Set when this row was logged via a Recipe — links the diary back. */
+  recipeId?: number | null;
   name: string;
   brand: string | null;
   grams: number;

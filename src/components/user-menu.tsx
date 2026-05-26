@@ -1,4 +1,5 @@
 import {
+  ChefHat,
   Check,
   LogOut,
   Monitor,
@@ -114,6 +115,17 @@ export async function UserMenu() {
           <DropdownMenuItem
             render={
               <AppLink
+                href="/recipes"
+                className="cursor-pointer rounded-lg text-sm"
+              />
+            }
+          >
+            <ChefHat className="mr-2 h-3.5 w-3.5 opacity-70" />
+            Recipes
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            render={
+              <AppLink
                 href="/friends"
                 className="cursor-pointer rounded-lg text-sm"
               />
@@ -152,6 +164,10 @@ export async function UserMenu() {
               <form action={signOutAction}>
                 <DropdownMenuItem
                   variant="destructive"
+                  // The render target is a real <button type="submit"> so
+                  // the form action fires — tell Base UI to skip its own
+                  // button behavior layering.
+                  nativeButton
                   render={
                     <button
                       type="submit"

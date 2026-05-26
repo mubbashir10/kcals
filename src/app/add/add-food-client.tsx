@@ -38,6 +38,9 @@ type Food = {
   servingLabel: string | null;
   /** Only set for community-contributed custom foods. */
   createdAtIso?: string;
+  // Recipes carry the real recipeId here. fdcId on recipe rows is a
+  // synthetic display-only key (see /api/foods/search/route.ts).
+  recipeId?: number;
   // AI-only fields, present when dataType === "AI" and the row is still
   // an unsaved preview from /api/foods/search/ai. After approval we
   // hand the user a fresh Food without these set.
@@ -151,10 +154,15 @@ export function AddFoodClient({
     setAiLoading(false);
 
     const myId = ++reqId.current;
+    // AbortController cancels both the debounced search and the AI
+    // follow-up when the query changes or the component unmounts, so
+    // in-flight requests don't stack while the user keeps typing.
+    const controller = new AbortController();
     const t = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/foods/search?q=${encodeURIComponent(q)}`
+          `/api/foods/search?q=${encodeURIComponent(q)}`,
+          { signal: controller.signal }
         );
         const json = await res.json();
         if (myId !== reqId.current) return;
@@ -175,17 +183,21 @@ export function AddFoodClient({
         const aiMyId = ++aiReqId.current;
         try {
           const aiRes = await fetch(
-            `/api/foods/search/ai?q=${encodeURIComponent(q)}`
+            `/api/foods/search/ai?q=${encodeURIComponent(q)}`,
+            { signal: controller.signal }
           );
           const aiJson = await aiRes.json();
           if (aiMyId !== aiReqId.current) return;
           setAiResult(aiRes.ok ? aiJson.food ?? null : null);
-        } catch {
+        } catch (err) {
+          if ((err as Error)?.name === "AbortError") return;
           if (aiMyId === aiReqId.current) setAiResult(null);
         } finally {
           if (aiMyId === aiReqId.current) setAiLoading(false);
         }
-      } catch {
+      } catch (err) {
+        // Aborts are expected when typing continues — silently ignore.
+        if ((err as Error)?.name === "AbortError") return;
         if (myId !== reqId.current) return;
         setSearchError("Couldn't reach the server");
         setResults([]);
@@ -194,7 +206,10 @@ export function AddFoodClient({
       }
     }, 300);
 
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [query]);
 
   return (
@@ -288,12 +303,14 @@ export function AddFoodClient({
           )}
 
           {!loading && results.length > 0 && (() => {
+            const recipes = results.filter((f) => f.dataType === "Recipe");
             const custom = results.filter((f) => f.dataType === "Custom");
             const branded = results.filter(
               (f) => f.dataType === "Branded" || f.dataType === "OpenFoodFacts"
             );
             const whole = results.filter(
               (f) =>
+                f.dataType !== "Recipe" &&
                 f.dataType !== "Custom" &&
                 f.dataType !== "Branded" &&
                 f.dataType !== "OpenFoodFacts" &&
@@ -302,6 +319,7 @@ export function AddFoodClient({
             const aiCommunity = results.filter((f) => f.dataType === "AI");
             // Show group labels whenever more than one group has results.
             const groupCount =
+              (recipes.length > 0 ? 1 : 0) +
               (aiCommunity.length > 0 ? 1 : 0) +
               (custom.length > 0 ? 1 : 0) +
               (whole.length > 0 ? 1 : 0) +
@@ -310,6 +328,13 @@ export function AddFoodClient({
 
             return (
               <div className="space-y-6">
+                {recipes.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "My recipes" : null}
+                    foods={recipes}
+                    onSelect={onResultSelect}
+                  />
+                )}
                 {aiCommunity.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "AI-added" : null}
@@ -504,7 +529,9 @@ function ResultRow({
             {isAi && (
               <Sparkles className="h-3 w-3 shrink-0 text-foreground/60" />
             )}
-            <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
+            <p className="truncate text-sm font-medium">
+              {f.dataType === "Recipe" ? f.name : titleCase(f.name)}
+            </p>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {f.brand ? `${f.brand} · ` : ""}
@@ -552,17 +579,19 @@ function NoMatchesBlock({
   // once we've exhausted the search options.
   return (
     <div className="space-y-3 px-1 text-sm">
-      <p className="text-muted-foreground">
-        No matches for “{query}” in our databases.
-      </p>
-
       {aiLoading && (
-        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-foreground/30 bg-card/40 p-4">
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-foreground/60" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium">Searching the web with AI…</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Asking Gemini to estimate nutrition from public sources.
+        // Combined "not in DB → trying web AI" indicator. One block so
+        // the user reads it as a single narrative — "not in our stuff,
+        // checking the web" — rather than two separate failures.
+        <div className="flex items-start gap-3 rounded-2xl border border-dashed border-foreground/30 bg-card/40 p-4">
+          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-foreground/60" />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium">
+              Not in our databases — searching the web with AI…
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Asking Gemini to estimate nutrition for &ldquo;{query}&rdquo;
+              from public sources.
             </p>
           </div>
         </div>
@@ -590,14 +619,20 @@ function NoMatchesBlock({
       )}
 
       {!aiLoading && !aiResult && (
-        <button
-          type="button"
-          onClick={onQuickAdd}
-          className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          <Zap className="h-3 w-3" />
-          Just log the calories
-        </button>
+        <div className="space-y-2">
+          <p className="text-muted-foreground">
+            Couldn&rsquo;t find &ldquo;{query}&rdquo; in our databases or via
+            web search.
+          </p>
+          <button
+            type="button"
+            onClick={onQuickAdd}
+            className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            <Zap className="h-3 w-3" />
+            Just log the calories
+          </button>
+        </div>
       )}
     </div>
   );
@@ -734,12 +769,18 @@ function PortionDialog({
 
   function onLog() {
     if (!food || !valid || !computed) return;
+    const isRecipe = food.dataType === "Recipe";
     startTransition(async () => {
       try {
         await logFood(
           {
-            fdcId: food.fdcId,
-            name: titleCase(food.name),
+            // Recipes use a synthetic display-only fdcId; the real link
+            // back is the separate recipeId field.
+            fdcId: isRecipe ? null : food.fdcId,
+            recipeId: isRecipe ? food.recipeId ?? null : null,
+            // Preserve the user's recipe name verbatim — titleCase mangles
+            // brand-y or stylized capitalization the user typed in.
+            name: isRecipe ? food.name : titleCase(food.name),
             brand: food.brand,
             grams: round1(g),
             kcal: round1(computed.kcal),
@@ -765,7 +806,7 @@ function PortionDialog({
         {food && (
           <>
             <DialogTitle className="pr-6 text-base font-semibold leading-tight">
-              {titleCase(food.name)}
+              {food.dataType === "Recipe" ? food.name : titleCase(food.name)}
             </DialogTitle>
             {food.dataType === "AI" ? (
               <DialogDescription className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -1145,6 +1186,7 @@ function dataTypeLabel(t: string) {
   if (t === "SR Legacy") return "Reference";
   if (t === "Custom") return "Community";
   if (t === "AI") return "AI estimate";
+  if (t === "Recipe") return "Recipe";
   return t;
 }
 

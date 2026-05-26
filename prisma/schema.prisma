@@ -29,6 +29,7 @@ model User {
   weightLogs   WeightLog[]
   activityLogs ActivityLog[]
   meals        Meal[]
+  recipes      Recipe[]
   // Custom foods this user contributed to the shared library.
   createdCustomFoods CustomFood[] @relation("CustomFoodCreatedBy")
 
@@ -280,6 +281,11 @@ model Food {
   meal   Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
 
   fdcId     Int? // USDA FoodData Central id (null for manual entries)
+  // When this row came from logging a Recipe, the source recipe id.
+  // SetNull on delete so a deleted recipe doesn't nuke the diary row —
+  // the nutrient snapshot still tells the historical story.
+  recipeId  Int?
+  recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   name      String
   brand     String?
   grams     Float // serving size logged
@@ -292,6 +298,68 @@ model Food {
 
   @@index([mealId])
   @@index([loggedAt])
+  @@index([recipeId])
+}
+
+// A user's private recipe — a composition of ingredient foods. Stored
+// per-user (not shared), with a snapshot per ingredient so changes to the
+// upstream USDA/CustomFood row don't silently re-derive an old recipe.
+//
+// totalWeightG is user-set (cooked weight), NOT a sum of ingredient
+// grams — cooking changes weight (reduction, added water, etc.). All
+// per-portion math derives from total nutrients / totalWeightG.
+model Recipe {
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  // Final cooked weight of the whole recipe. Optional: when null, we
+  // derive it as the sum of ingredient grams. Set it explicitly when
+  // cooking changes the weight (reduction, added liquid, etc.).
+  totalWeightG Float?
+  servings     Float? // optional: "makes N servings". 1 serving = effectiveTotalWeight / servings.
+
+  ingredients RecipeIngredient[]
+  // Diary rows that were created by logging this recipe.
+  foods       Food[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+// One ingredient inside a Recipe. We store both the source pointer
+// (fdcId, positive = USDA, negative = CustomFood — matches the same
+// convention Food and the search API already use) AND a snapshot of the
+// nutrient profile at the moment it was added. That way, edits or
+// deletions upstream don't quietly change an old recipe's macros.
+model RecipeIngredient {
+  id       Int    @id @default(autoincrement())
+  recipeId Int
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  // Source pointer — positive = USDA fdcId, negative = -customFoodId.
+  // Null for ingredients added entirely manually (kcal-only quick adds).
+  fdcId Int?
+
+  // Snapshot of the ingredient as it was when added.
+  name         String
+  brand        String?
+  per100Kcal     Float
+  per100ProteinG Float @default(0)
+  per100CarbsG   Float @default(0)
+  per100FatG     Float @default(0)
+
+  // How much of this ingredient went into the recipe.
+  grams    Float
+  // Stable display order in the builder.
+  position Int   @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([recipeId])
 }
 
 // ───────────────────────────────────────────────────────────────────────

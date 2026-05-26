@@ -1,0 +1,102 @@
+import { redirect } from "next/navigation";
+import { ArrowLeft, ChefHat, Plus } from "lucide-react";
+
+import { AppLink } from "@/components/app-link";
+import { Card } from "@/components/ui/card";
+import { RecipeListItem } from "@/components/recipe-list-item";
+import { createBlankRecipe } from "@/app/actions/recipes";
+import { db } from "@/lib/db";
+import { computeRecipeTotals } from "@/lib/recipe-totals";
+import { requireUserId } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
+
+export default async function RecipesPage() {
+  const userId = await requireUserId();
+  const profile = await db.profile.findUnique({ where: { userId } });
+  if (!profile) redirect("/setup");
+
+  const recipes = await db.recipe.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: { ingredients: true },
+  });
+
+  // Pre-compute totals for the list view. Recipes whose totalWeightG is
+  // null fall back to summing ingredient grams.
+  const rows = recipes.map((r) => {
+    const totals = computeRecipeTotals(r);
+    return {
+      id: r.id,
+      name: r.name,
+      ingredientCount: r.ingredients.length,
+      effectiveTotalWeightG: totals.effectiveTotalWeightG,
+      weightIsDerived: totals.weightIsDerived,
+      servings: r.servings,
+      per100Kcal: totals.per100Kcal,
+    };
+  });
+
+  return (
+    <div className="relative flex flex-1 flex-col">
+      <div
+        aria-hidden
+        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
+      />
+
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
+          <AppLink
+            href="/"
+            direction="back"
+            aria-label="Back"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </AppLink>
+          <span className="text-sm font-semibold tracking-tight">Recipes</span>
+          <form action={createBlankRecipe} className="ml-auto">
+            <button
+              type="submit"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
+            >
+              <Plus className="h-3 w-3" />
+              New recipe
+            </button>
+          </form>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
+        {rows.length === 0 ? (
+          <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-16 text-center shadow-none">
+            <ChefHat className="mx-auto h-6 w-6 text-muted-foreground/50" />
+            <p className="mt-4 text-sm text-muted-foreground">
+              No recipes yet.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Build one from individual foods — kheer, chicken tikka, your
+              go-to breakfast bowl — and log a portion of it whenever you eat
+              it.
+            </p>
+            <form action={createBlankRecipe} className="mt-5">
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-xs font-medium text-background"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New recipe
+              </button>
+            </form>
+          </Card>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((r) => (
+              <RecipeListItem key={r.id} recipe={r} />
+            ))}
+          </ul>
+        )}
+      </main>
+    </div>
+  );
+}
