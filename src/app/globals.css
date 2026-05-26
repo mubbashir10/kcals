@@ -125,9 +125,29 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Pad the bottom so scrollable content clears the iPhone home
+       indicator in standalone PWA mode. `env(...)` resolves to 0 on
+       browsers without a safe area, so this is a no-op everywhere
+       else. */
+    padding-bottom: env(safe-area-inset-bottom);
   }
   html {
     @apply font-sans;
+  }
+  /* iOS PWA fix: when installed to the home screen, the app extends
+     behind the status bar (statusBarStyle: 'black-translucent' +
+     viewportFit: 'cover' — set in layout.tsx so the ambient gradient
+     can bleed into the status bar). Without this rule, the sticky page
+     header's content (logo, back button) collides with the time and
+     signal icons.
+
+     The padding goes on the <header> itself rather than the inner
+     fixed-height row, so the header's blurred backdrop and bottom
+     border extend UP into the safe-area zone — that's the iOS-native
+     "translucent bar under the status bar" look. The inner h-14 row
+     stays the same height; only its position shifts down. */
+  header.sticky {
+    padding-top: env(safe-area-inset-top);
   }
 }
 

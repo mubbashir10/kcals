@@ -280,12 +280,7 @@ export function AddFoodClient({
         </div>
 
         <div className="mt-6">
-          {loading && (
-            <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Searching…
-            </div>
-          )}
+          {loading && <SourceLadder />}
 
           {!loading && searchError && (
             <p className="px-1 text-sm text-destructive">{searchError}</p>
@@ -317,14 +312,10 @@ export function AddFoodClient({
                 f.dataType !== "AI"
             );
             const aiCommunity = results.filter((f) => f.dataType === "AI");
-            // Show group labels whenever more than one group has results.
-            const groupCount =
-              (recipes.length > 0 ? 1 : 0) +
-              (aiCommunity.length > 0 ? 1 : 0) +
-              (custom.length > 0 ? 1 : 0) +
-              (whole.length > 0 ? 1 : 0) +
-              (branded.length > 0 ? 1 : 0);
-            const showLabels = groupCount > 1;
+            // Always show group labels so the source of every hit is
+            // visible — the user explicitly asked to see which DB each
+            // result came from, even when only one group matched.
+            const showLabels = true;
 
             return (
               <div className="space-y-6">
@@ -688,6 +679,35 @@ function AiResultRow({
         </div>
       </div>
     </button>
+  );
+}
+
+/**
+ * Visible source ladder shown while the local search is in flight.
+ * Surfaces the order we check: user recipes → community library → USDA
+ * → Open Food Facts. The AI fallback gets its own block (NoMatchesBlock)
+ * because it only runs after these four return empty, and it's the only
+ * tier with non-local latency worth a distinct UX.
+ */
+function SourceLadder() {
+  const sources = ["My recipes", "Community", "USDA", "Open Food Facts"];
+  return (
+    <div className="space-y-2 px-1">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Searching
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {sources.map((s) => (
+          <span
+            key={s}
+            className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

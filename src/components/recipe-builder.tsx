@@ -538,9 +538,24 @@ function IngredientSearch({
 
       <div className="mt-4">
         {loading && (
-          <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Searching…
+          // Source ladder for the ingredient search. Same idea as /add,
+          // minus "My recipes" — Recipe rows are filtered out below so a
+          // recipe can't be an ingredient of another recipe.
+          <div className="space-y-2 px-1">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Searching
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {["Community", "USDA", "Open Food Facts"].map((s) => (
+                <span
+                  key={s}
+                  className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

@@ -27,6 +27,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ foods: [] });
   }
 
+  // Split the query on whitespace and AND-match each token against the
+  // name. A plain `contains: q` was too rigid for local rows — "haleem
+  // oat" would never match a recipe named "Oat Haleem" (USDA/OFF tolerate
+  // word order because they're real search engines; Postgres `contains`
+  // is just a substring match). All tokens must appear, in any order.
+  const tokens = q.split(/\s+/).filter((t) => t.length > 0);
+  const nameTokensAnd = tokens.map((t) => ({
+    name: { contains: t, mode: "insensitive" as const },
+  }));
+
   try {
     // User recipes (private) + Custom foods (community) + USDA + Open
     // Food Facts in parallel. OFF fills the gap for regional packaged
@@ -37,13 +47,13 @@ export async function GET(req: Request) {
     const [usdaFoods, customFoods, offFoods, recipes] = await Promise.all([
       searchFoods(q, { pageSize: 20 }),
       db.customFood.findMany({
-        where: { name: { contains: q, mode: "insensitive" } },
+        where: { AND: nameTokensAnd },
         orderBy: { createdAt: "desc" },
         take: 20,
       }),
       searchOpenFoodFacts(q, { pageSize: 15 }),
       db.recipe.findMany({
-        where: { userId, name: { contains: q, mode: "insensitive" } },
+        where: { userId, AND: nameTokensAnd },
         orderBy: { createdAt: "desc" },
         take: 20,
         include: { ingredients: true },
@@ -56,6 +66,12 @@ export async function GET(req: Request) {
     // just show 0 — the UI handles that gracefully.
     const recipeAsResults: RecipeResult[] = recipes.map((r) => {
       const totals = computeRecipeTotals(r);
+      // Default a recipe with no explicit `servings` to "1 serving = whole
+      // recipe" so logging it from /add lands one diary row of the full
+      // composed weight, instead of falling back to a 100g portion.
+      const defaultServingG =
+        totals.servingG ??
+        (totals.effectiveTotalWeightG > 0 ? totals.effectiveTotalWeightG : null);
       return {
         fdcId: RECIPE_FDC_OFFSET - r.id,
         recipeId: r.id,
@@ -68,10 +84,8 @@ export async function GET(req: Request) {
           carbsG: totals.per100CarbsG,
           fatG: totals.per100FatG,
         },
-        // When servings is set, expose "1 serving = effectiveWeight / N"
-        // so the existing dual-input portion dialog kicks in.
-        servingSizeG: totals.servingG,
-        servingLabel: totals.servingG != null ? "1 serving" : null,
+        servingSizeG: defaultServingG,
+        servingLabel: defaultServingG != null ? "1 serving" : null,
         createdAtIso: r.createdAt.toISOString(),
       };
     });
