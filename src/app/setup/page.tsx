@@ -3,7 +3,6 @@ import { ArrowLeft } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import { isMacroMode } from "@/lib/macros";
 import { SetupForm, type InitialProfile } from "./setup-form";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +19,6 @@ export default async function SetupPage() {
         bodyFatPct: existing.bodyFatPct,
         units: existing.units as "metric" | "imperial",
         timezone: existing.timezone,
-        proteinGoalMode: isMacroMode(existing.proteinGoalMode) ? existing.proteinGoalMode : "auto",
-        proteinGoalG: existing.proteinGoalG,
-        carbsGoalMode: isMacroMode(existing.carbsGoalMode) ? existing.carbsGoalMode : "auto",
-        carbsGoalG: existing.carbsGoalG,
-        fatGoalMode: isMacroMode(existing.fatGoalMode) ? existing.fatGoalMode : "auto",
-        fatGoalG: existing.fatGoalG,
         activityMode: existing.activityMode as "estimate" | "override",
         stepsPerDay: existing.stepsPerDay,
         liftingSessionsPerWeek: existing.liftingSessionsPerWeek,

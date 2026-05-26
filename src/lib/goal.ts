@@ -49,14 +49,23 @@ export function computeKcalOffset(
   return 0;
 }
 
-// Effective calorie target = TDEE + offset, floored at BMR so an aggressive
-// deficit never asks someone to eat below their resting requirements.
+// Effective calorie target. For loss/gain/maintain, TDEE + offset floored at
+// BMR so an aggressive deficit never asks someone to eat below their resting
+// requirements. For track, the user picks a number directly — we respect it
+// verbatim (no BMR floor; if they set it, they own it). Falls back to TDEE
+// when track is selected but no number is set yet.
 export function computeEffectiveTarget(
   tdee: number,
   bmr: number,
   type: GoalType,
-  pace: GoalPace | null
+  pace: GoalPace | null,
+  trackKcal: number | null = null
 ): number {
+  if (type === "track") {
+    return trackKcal != null && trackKcal > 0
+      ? Math.round(trackKcal)
+      : Math.round(tdee);
+  }
   const target = tdee + computeKcalOffset(type, pace);
   return Math.max(Math.round(bmr), Math.round(target));
 }

@@ -103,9 +103,10 @@ model Profile {
   //   "loss"     → eat below TDEE by goalPace's deficit
   //   "gain"     → eat above TDEE by goalPace's surplus
   //   "maintain" → effective target = TDEE
-  //   "track"    → no goal; effective target = TDEE, UI labels it "tracking"
-  goalType String  @default("maintain") // "loss" | "maintain" | "gain" | "track"
-  goalPace String? // "mild" | "moderate" | "aggressive" — only set when goalType is loss/gain
+  //   "track"    → user-set target via trackKcal; falls back to TDEE if null
+  goalType  String  @default("maintain") // "loss" | "maintain" | "gain" | "track"
+  goalPace  String? // "mild" | "moderate" | "aggressive" — only set when goalType is loss/gain
+  trackKcal Int? // user-chosen daily kcal target; only read when goalType is "track"
 
   // Macro goals — three modes per macro:
   //   "auto"   → derived from calorie target × default split (30/40/30 P/C/F)

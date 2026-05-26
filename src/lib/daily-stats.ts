@@ -147,7 +147,8 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
     tdee,
     bmr.kcal,
     goalType,
-    goalPace
+    goalPace,
+    profile.trackKcal
   );
 
   const meals = await db.meal.findMany({

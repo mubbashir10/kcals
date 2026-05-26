@@ -63,6 +63,21 @@ export async function setUnits(units: UnitsPreference) {
   revalidatePath("/settings");
 }
 
+export async function setTimezone(tz: string) {
+  // IANA tz names are 1..64 chars of [A-Za-z0-9_+-/]; validate cheaply so
+  // we don't write garbage into the field that drives every date cutoff.
+  if (typeof tz !== "string" || tz.length === 0 || tz.length > 64 || !/^[A-Za-z0-9_+\-/]+$/.test(tz)) {
+    throw new Error(`Invalid timezone: ${tz}`);
+  }
+  const userId = await requireUserId();
+  await db.profile.updateMany({
+    where: { userId },
+    data: { timezone: tz },
+  });
+  revalidatePath("/");
+  revalidatePath("/settings");
+}
+
 export async function setGoal(type: GoalType, pace: GoalPace | null) {
   if (!isGoalType(type)) {
     throw new Error(`Unknown goal type: ${type}`);
@@ -79,7 +94,28 @@ export async function setGoal(type: GoalType, pace: GoalPace | null) {
     data: { goalType: type, goalPace: normalizedPace },
   });
   revalidatePath("/");
+  revalidatePath("/goal");
   revalidatePath("/settings");
+}
+
+export async function setTrackKcal(kcal: number | null) {
+  // Sanity range: anything outside 800–8000 is almost certainly a typo or
+  // bad client state. We don't enforce that macros add to this number —
+  // that's a soft warning in the UI.
+  let value: number | null = null;
+  if (kcal != null) {
+    if (!Number.isFinite(kcal) || kcal < 800 || kcal > 8000) {
+      throw new Error(`Invalid track kcal target: ${kcal}`);
+    }
+    value = Math.round(kcal);
+  }
+  const userId = await requireUserId();
+  await db.profile.updateMany({
+    where: { userId },
+    data: { trackKcal: value },
+  });
+  revalidatePath("/");
+  revalidatePath("/goal");
 }
 
 const MACRO_FIELDS: Record<

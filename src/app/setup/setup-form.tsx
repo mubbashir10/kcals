@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb } from "@/lib/bmr";
-import { MACROS, type Macro, type MacroMode } from "@/lib/macros";
 import { saveProfile } from "./actions";
 
 type Sex = "male" | "female";
@@ -29,12 +21,6 @@ export type InitialProfile = {
   bodyFatPct: number | null;
   units: Units;
   timezone: string;
-  proteinGoalMode: MacroMode;
-  proteinGoalG: number | null;
-  carbsGoalMode: MacroMode;
-  carbsGoalG: number | null;
-  fatGoalMode: MacroMode;
-  fatGoalG: number | null;
   activityMode: ActivityMode;
   stepsPerDay: number | null;
   liftingSessionsPerWeek: number | null;
@@ -92,17 +78,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
   const [bodyFat, setBodyFat] = useState<string>(
     initial?.bodyFatPct != null ? String(initial.bodyFatPct) : ""
   );
-
-  const [macroModes, setMacroModes] = useState<Record<Macro, MacroMode>>({
-    protein: initial?.proteinGoalMode ?? "auto",
-    carbs: initial?.carbsGoalMode ?? "auto",
-    fat: initial?.fatGoalMode ?? "auto",
-  });
-  const [macroGrams, setMacroGrams] = useState<Record<Macro, string>>({
-    protein: initial?.proteinGoalG != null ? String(initial.proteinGoalG) : "",
-    carbs: initial?.carbsGoalG != null ? String(initial.carbsGoalG) : "",
-    fat: initial?.fatGoalG != null ? String(initial.fatGoalG) : "",
-  });
 
   const [activityMode, setActivityMode] = useState<ActivityMode>(
     initial?.activityMode ?? "estimate"
@@ -250,15 +225,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       activeOverride = a;
     }
 
-    // Macros — for "custom" mode, parse the user's number; for auto/off
-    // we always send null and let the server ignore stale grams.
-    function customG(macro: Macro): number | null {
-      if (macroModes[macro] !== "custom") return null;
-      const n = parseInt(macroGrams[macro], 10);
-      if (!Number.isFinite(n) || n < 0 || n >= 2000) return null;
-      return n;
-    }
-
     startTransition(async () => {
       try {
         await saveProfile({
@@ -269,12 +235,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           bodyFatPct: bf,
           units,
           timezone,
-          proteinGoalMode: macroModes.protein,
-          proteinGoalG: customG("protein"),
-          carbsGoalMode: macroModes.carbs,
-          carbsGoalG: customG("carbs"),
-          fatGoalMode: macroModes.fat,
-          fatGoalG: customG("fat"),
           activityMode,
           stepsPerDay: steps,
           liftingSessionsPerWeek: lifting,
@@ -310,17 +270,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
             { value: "imperial", label: "Imperial" },
           ]}
         />
-      </div>
-
-      {/* Timezone — drives "today" cutoffs, greeting, meal-time display */}
-      <div className="space-y-2">
-        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Timezone
-        </Label>
-        <TimezonePicker value={timezone} onChange={setTimezone} />
-        <p className="text-[11px] text-muted-foreground/70">
-          Every &ldquo;today&rdquo; in the app — meals, greeting, time stamps — runs on this clock.
-        </p>
       </div>
 
       {/* Sex */}
@@ -425,70 +374,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           onChange={(e) => setBodyFat(e.target.value)}
         />
       </Field>
-
-      {/* Macros — per-macro mode (auto/custom/off). Defaults to all-auto. */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Macros
-          </span>
-          <div className="h-px flex-1 bg-border/60" />
-        </div>
-        <p className="text-[11px] text-muted-foreground/80">
-          Auto = derived from your calorie target. Custom = set your own
-          grams. Off = don't track this one.
-        </p>
-        <div className="space-y-2 rounded-2xl border border-border/60 bg-card p-3">
-          {MACROS.map((m) => (
-            <div key={m} className="space-y-1.5 px-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium capitalize">{m}</span>
-                <div className="inline-flex rounded-full bg-muted/60 p-0.5">
-                  {(["auto", "custom", "off"] as MacroMode[]).map((opt) => {
-                    const active = macroModes[m] === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          setMacroModes((prev) => ({ ...prev, [m]: opt }))
-                        }
-                        className={cn(
-                          "rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-all",
-                          active
-                            ? "bg-foreground text-background"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {macroModes[m] === "custom" && (
-                <div className="relative">
-                  <Input
-                    inputMode="numeric"
-                    placeholder="grams"
-                    value={macroGrams[m]}
-                    onChange={(e) =>
-                      setMacroGrams((prev) => ({
-                        ...prev,
-                        [m]: e.target.value,
-                      }))
-                    }
-                    className="h-9 pr-9 text-sm tabular-nums"
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-                    g
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Activity — used for maintenance-calorie (TDEE) calculation */}
       <div className="space-y-5 pt-2">
@@ -750,129 +635,3 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
-function TimezonePicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (tz: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const zones = useMemo(() => {
-    type WithSupportedValuesOf = {
-      supportedValuesOf?: (k: "timeZone") => string[];
-    };
-    const intlAny = Intl as unknown as WithSupportedValuesOf;
-    const list = intlAny.supportedValuesOf?.("timeZone") ?? [];
-    // Ensure the current value is in the list even if the runtime doesn't list it.
-    if (value && !list.includes(value)) return [value, ...list];
-    return list;
-  }, [value]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return zones;
-    return zones.filter((z) => z.toLowerCase().includes(q));
-  }, [zones, query]);
-
-  function pick(tz: string) {
-    onChange(tz);
-    setOpen(false);
-    setQuery("");
-  }
-
-  const offsetLabel = useMemo(() => formatTzOffset(value), [value]);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/40"
-      >
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate">{value || "Select timezone"}</span>
-          {offsetLabel && (
-            <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-              {offsetLabel}
-            </span>
-          )}
-        </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-2xl p-0 sm:max-w-sm">
-          <div className="px-4 pt-4">
-            <DialogTitle className="text-base font-semibold">
-              Choose timezone
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              We&rsquo;ll use this clock for everything time-related.
-            </DialogDescription>
-          </div>
-
-          <div className="px-4 pt-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                autoFocus
-                placeholder="Search…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          <ul className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-2">
-            {filtered.length === 0 && (
-              <li className="px-3 py-6 text-center text-xs text-muted-foreground">
-                No matches.
-              </li>
-            )}
-            {filtered.map((tz) => {
-              const selected = tz === value;
-              return (
-                <li key={tz}>
-                  <button
-                    type="button"
-                    onClick={() => pick(tz)}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent/60",
-                      selected && "bg-accent/40"
-                    )}
-                  >
-                    <span className="truncate">{tz}</span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground tabular-nums">
-                        {formatTzOffset(tz)}
-                      </span>
-                      {selected && <Check className="h-3.5 w-3.5" />}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-
-function formatTzOffset(tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      timeZoneName: "shortOffset",
-    }).formatToParts(new Date());
-    const name = parts.find((p) => p.type === "timeZoneName")?.value;
-    return name ?? "";
-  } catch {
-    return "";
-  }
-}

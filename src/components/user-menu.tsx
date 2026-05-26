@@ -5,6 +5,7 @@ import {
   Moon,
   Settings,
   Sun,
+  Target,
   User,
   UserCircle,
   Users,
@@ -98,6 +99,17 @@ export async function UserMenu() {
           >
             <UserCircle className="mr-2 h-3.5 w-3.5 opacity-70" />
             Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            render={
+              <AppLink
+                href="/goal"
+                className="cursor-pointer rounded-lg text-sm"
+              />
+            }
+          >
+            <Target className="mr-2 h-3.5 w-3.5 opacity-70" />
+            Goal
           </DropdownMenuItem>
           <DropdownMenuItem
             render={

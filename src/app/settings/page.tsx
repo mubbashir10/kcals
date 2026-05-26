@@ -5,11 +5,7 @@ import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { parseWidgetStates } from "@/lib/widget-order";
-import { isGoalPace, isGoalType } from "@/lib/goal";
-import { isMacroMode } from "@/lib/macros";
-import { loadDailyStats } from "@/lib/daily-stats";
-import { GoalSettings } from "@/components/goal-settings";
-import { MacrosSettings } from "@/components/macros-settings";
+import { TimezoneSettings } from "@/components/timezone-settings";
 import { UnitsSettings } from "@/components/units-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
 
@@ -20,11 +16,6 @@ export default async function SettingsPage() {
   const profile = await db.profile.findUnique({ where: { userId } });
   // Onboarding must finish first.
   if (!profile) redirect("/setup");
-
-  // Need the live calorieGoal so MacrosSettings can seed Custom defaults
-  // from the same number the dashboard uses.
-  const stats = await loadDailyStats(userId);
-  const calorieGoal = stats?.calorieGoal ?? 2000;
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -57,47 +48,12 @@ export default async function SettingsPage() {
 
         <section className="mb-8 space-y-3">
           <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Goal
-          </h2>
-          <GoalSettings
-            initial={{
-              type: isGoalType(profile.goalType) ? profile.goalType : "maintain",
-              pace: isGoalPace(profile.goalPace) ? profile.goalPace : null,
-            }}
-            unitsLabel={profile.units === "imperial" ? "lb" : "kg"}
-          />
-        </section>
-
-        <section className="mb-8 space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Macros
-          </h2>
-          <MacrosSettings
-            calorieGoal={calorieGoal}
-            initial={{
-              protein: {
-                mode: isMacroMode(profile.proteinGoalMode) ? profile.proteinGoalMode : "auto",
-                g: profile.proteinGoalG,
-              },
-              carbs: {
-                mode: isMacroMode(profile.carbsGoalMode) ? profile.carbsGoalMode : "auto",
-                g: profile.carbsGoalG,
-              },
-              fat: {
-                mode: isMacroMode(profile.fatGoalMode) ? profile.fatGoalMode : "auto",
-                g: profile.fatGoalG,
-              },
-            }}
-          />
-        </section>
-
-        <section className="mb-8 space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Preferences
           </h2>
           <UnitsSettings
             initial={profile.units as "metric" | "imperial"}
           />
+          <TimezoneSettings initial={profile.timezone} />
         </section>
 
         <section className="space-y-3">
