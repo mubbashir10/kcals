@@ -3,7 +3,7 @@ import { ArrowLeft, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
-import { kgToLb } from "@/lib/bmr";
+import { kgToLb, type Units } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { round1 } from "@/lib/utils";
 import { WeightChart } from "@/components/weight-chart";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function WeightPage() {
   const { userId, profile } = await requireProfile();
-  const units = profile.units as "metric" | "imperial";
+  const units = profile.units as Units;
   const tz = profile.timezone || "UTC";
 
   const logs = await db.weightLog.findMany({
@@ -145,7 +145,7 @@ function DeltaCard({
 }: {
   label: string;
   deltaKg: number | null;
-  units: "metric" | "imperial";
+  units: Units;
 }) {
   const unit = units === "imperial" ? "lb" : "kg";
   const value = deltaKg == null ? null : units === "imperial" ? kgToLb(deltaKg) : deltaKg;

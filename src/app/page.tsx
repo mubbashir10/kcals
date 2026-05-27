@@ -34,6 +34,8 @@ import { getSession } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { loadDayMarkers } from "@/lib/calendar-data";
 import { shiftDayKey } from "@/lib/calendar-build";
+import type { Units } from "@/lib/bmr";
+import type { ActivityMode } from "@/lib/tdee";
 import {
   autoMealNameInTz,
   dayKeyInTz,
@@ -281,7 +283,7 @@ export default async function Home() {
                       : null
                   }
                   delta7dKg={delta7dKg}
-                  units={profile.units as "metric" | "imperial"}
+                  units={profile.units as Units}
                   timezone={tz}
                   state={weightState}
                 />
@@ -403,7 +405,7 @@ function activityOverride(
       }
     | null
 ): {
-  mode: "estimate" | "override";
+  mode: ActivityMode;
   steps: number | null;
   liftingMin: number | null;
   cardioMin: number | null;
@@ -418,7 +420,7 @@ function activityOverride(
         (row.cardioMin ?? 0) > 0));
   if (!hasOverride) return null;
   return {
-    mode: row.mode as "estimate" | "override",
+    mode: row.mode as ActivityMode,
     steps: row.steps,
     liftingMin: row.liftingMin,
     cardioMin: row.cardioMin,

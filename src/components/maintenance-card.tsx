@@ -10,13 +10,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
+import type { BmrFormula } from "@/lib/bmr";
 import type { WidgetState } from "@/lib/widget-order";
 
 type Breakdown =
   | {
       kind: "estimate";
       bmrKcal: number;
-      bmrFormula: "katch-mcardle" | "mifflin-st-jeor";
+      bmrFormula: BmrFormula;
       neatKcal: number;
       neatHint: string;
       eatKcal: number;
@@ -25,7 +26,7 @@ type Breakdown =
   | {
       kind: "override";
       bmrKcal: number;
-      bmrFormula: "katch-mcardle" | "mifflin-st-jeor";
+      bmrFormula: BmrFormula;
       activeKcal: number;
       activeHint: string;
     };

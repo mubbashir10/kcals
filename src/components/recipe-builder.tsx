@@ -32,6 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
+import { dataTypeLabel, titleCase } from "@/lib/food-format";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { approveAiFood } from "@/app/add/actions";
 import {
@@ -1186,20 +1187,4 @@ function formatServings(n: number): string {
   return `${rounded} servings`;
 }
 
-function titleCase(s: string) {
-  return s
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
-}
-
-function dataTypeLabel(t: string) {
-  if (t === "Branded") return "Branded";
-  if (t === "OpenFoodFacts") return "Branded";
-  if (t === "Foundation") return "Whole food";
-  if (t === "SR Legacy") return "Reference";
-  if (t === "Custom") return "Community";
-  return t;
-}
 

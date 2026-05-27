@@ -10,8 +10,8 @@
 
 import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/clock";
-import { calculateBmr } from "@/lib/bmr";
-import { activeKcal, calculateTdee } from "@/lib/tdee";
+import { calculateBmr, type Sex } from "@/lib/bmr";
+import { activeKcal, calculateTdee, type ActivityMode } from "@/lib/tdee";
 import { computeMacroGoals, type MacroGoals } from "@/lib/macros";
 import {
   computeEffectiveTarget,
@@ -117,7 +117,7 @@ export async function loadDailyHistory(
 
   // Fallback BMR/TDEE for any day without an ActivityLog snapshot.
   const fallbackBmr = calculateBmr({
-    sex: profile.sex as "male" | "female",
+    sex: profile.sex as Sex,
     age: profile.age,
     heightCm: profile.heightCm,
     weightKg: profile.weightKg,
@@ -125,7 +125,7 @@ export async function loadDailyHistory(
   });
   const fallbackActive = activeKcal({
     weightKg: profile.weightKg,
-    mode: profile.activityMode as "estimate" | "override",
+    mode: profile.activityMode as ActivityMode,
     stepsPerDay: profile.stepsPerDay,
     liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
     liftingMinutesPerSession: profile.liftingMinutesPerSession,

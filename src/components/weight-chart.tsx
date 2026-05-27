@@ -1,13 +1,13 @@
 "use client";
 
-import { kgToLb } from "@/lib/bmr";
+import { kgToLb, type Units } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 
 export type WeightPoint = { date: string; weightKg: number };
 
 type Props = {
   points: WeightPoint[];
-  units: "metric" | "imperial";
+  units: Units;
   timezone: string;
 };
 

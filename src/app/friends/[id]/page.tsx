@@ -17,7 +17,7 @@ import { areFriends } from "@/lib/friends";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { getSession } from "@/lib/session";
 import { formatLongDateInTz } from "@/lib/clock";
-import { kgToLb } from "@/lib/bmr";
+import { displayWeight, formatWeightDelta, type Units } from "@/lib/bmr";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +135,7 @@ function FriendDayView({
     macroGoals,
   } = stats;
 
-  const units = profile.units as "metric" | "imperial";
+  const units = profile.units as Units;
 
   return (
     <>
@@ -199,12 +199,15 @@ function FriendDayView({
           {latestWeight ? (
             <>
               <div className="text-2xl font-semibold tabular-nums tracking-tight">
-                {formatWeight(latestWeight.weightKg, units)}
+                {(() => {
+                  const w = displayWeight(latestWeight.weightKg, units);
+                  return `${w.value} ${w.unit}`;
+                })()}
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground tabular-nums">
                 {delta7dKg === null
                   ? "Single log so far"
-                  : `${signed(delta7dKg, units)} this week`}
+                  : `${formatWeightDelta(delta7dKg, units).signed} this week`}
               </div>
             </>
           ) : (
@@ -243,19 +246,3 @@ function FriendDayView({
   );
 }
 
-function formatWeight(kg: number, units: "metric" | "imperial"): string {
-  if (units === "imperial") {
-    return `${Math.round(kgToLb(kg) * 10) / 10} lb`;
-  }
-  return `${Math.round(kg * 10) / 10} kg`;
-}
-
-function signed(deltaKg: number, units: "metric" | "imperial"): string {
-  const value =
-    units === "imperial"
-      ? Math.round(kgToLb(deltaKg) * 10) / 10
-      : Math.round(deltaKg * 10) / 10;
-  const unit = units === "imperial" ? "lb" : "kg";
-  if (value === 0) return `±0 ${unit}`;
-  return `${value > 0 ? "+" : ""}${value} ${unit}`;
-}

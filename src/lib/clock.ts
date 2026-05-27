@@ -67,6 +67,12 @@ export function formatShortDateInTz(date: Date | string, tz: string): string {
   });
 }
 
+// Calendar year (in `tz`) that `date` falls in. Useful when deciding
+// whether to render a year label or omit it.
+export function yearInTz(date: Date, tz: string): number {
+  return getDateParts(date, tz).year;
+}
+
 export function greetingInTz(tz: string, ref: Date = new Date()): string {
   const h = hourInTz(ref, tz);
   if (h < 12) return "Good morning";

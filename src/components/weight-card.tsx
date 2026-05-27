@@ -36,7 +36,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WidgetMenu } from "@/components/widget-menu";
-import { kgToLb, lbToKg } from "@/lib/bmr";
+import {
+  displayWeight,
+  formatWeightDelta,
+  kgToLb,
+  lbToKg,
+  type Units,
+} from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import { round1 } from "@/lib/utils";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
@@ -46,7 +52,7 @@ import type { WidgetState } from "@/lib/widget-order";
 export type WeightCardProps = {
   latest: { weightKg: number; loggedAt: string } | null;
   delta7dKg: number | null;
-  units: "metric" | "imperial";
+  units: Units;
   timezone: string;
   state: Exclude<WidgetState, "hidden">;
 };
@@ -56,8 +62,14 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
   const [importOpen, setImportOpen] = useState(false);
   const [, startStateTransition] = useTransition();
 
-  const display = latest ? formatWeight(latest.weightKg, units) : null;
-  const deltaDisplay = delta7dKg != null ? formatDelta(delta7dKg, units) : null;
+  const display = latest ? displayWeight(latest.weightKg, units) : null;
+  const deltaDisplay =
+    delta7dKg != null
+      ? (() => {
+          const d = formatWeightDelta(delta7dKg, units);
+          return { direction: d.direction, label: `${d.signed} · 7d` };
+        })()
+      : null;
 
   function changeState(next: WidgetState) {
     startStateTransition(async () => {
@@ -282,7 +294,7 @@ function LogWeightDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  units: "metric" | "imperial";
+  units: Units;
   initialKg: number | null;
 }) {
   // Prefill with the user's most recent weight in their unit
@@ -595,26 +607,6 @@ function parseWeightCsv(
   }
 
   return { rows, invalidCount };
-}
-
-function formatWeight(kg: number, units: "metric" | "imperial") {
-  if (units === "imperial") {
-    return { value: round1(kgToLb(kg)).toFixed(1), unit: "lb" };
-  }
-  return { value: round1(kg).toFixed(1), unit: "kg" };
-}
-
-function formatDelta(kg: number, units: "metric" | "imperial") {
-  const value = units === "imperial" ? kgToLb(kg) : kg;
-  const abs = Math.abs(value);
-  if (abs < 0.05) {
-    return { direction: "flat" as const, label: "no change · 7d" };
-  }
-  const sign = value > 0 ? "+" : "-";
-  return {
-    direction: value > 0 ? ("up" as const) : ("down" as const),
-    label: `${sign}${round1(abs).toFixed(1)} ${units === "imperial" ? "lb" : "kg"} · 7d`,
-  };
 }
 
 function formatTimeAgo(iso: string, tz: string) {

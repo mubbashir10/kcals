@@ -2,11 +2,12 @@
 // Used by the home dashboard (own data) and friend view pages (read-only).
 
 import { db } from "@/lib/db";
-import { calculateBmr, type BmrResult } from "@/lib/bmr";
+import { calculateBmr, type BmrResult, type Sex } from "@/lib/bmr";
 import {
   activeKcal,
   activeKcalDaily,
   calculateTdee,
+  type ActivityMode,
   type ActiveResult,
 } from "@/lib/tdee";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
@@ -20,6 +21,7 @@ import {
   type GoalType,
 } from "@/lib/goal";
 import { computeMacroGoals } from "@/lib/macros";
+import { sumBy } from "@/lib/utils";
 
 export type DailyStats = Awaited<ReturnType<typeof loadDailyStats>>;
 
@@ -50,7 +52,7 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
       profile,
       todayActivity
         ? {
-            mode: todayActivity.mode as "estimate" | "override",
+            mode: todayActivity.mode as ActivityMode,
             steps: todayActivity.steps,
             liftingMin: todayActivity.liftingMin,
             cardioMin: todayActivity.cardioMin,
@@ -88,7 +90,7 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
             profile.bodyFatPct != null ? "katch-mcardle" : "mifflin-st-jeor",
         }
       : calculateBmr({
-          sex: profile.sex as "male" | "female",
+          sex: profile.sex as Sex,
           age: profile.age,
           heightCm: profile.heightCm,
           weightKg: profile.weightKg,
@@ -109,7 +111,7 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
   const active: ActiveResult = hasOverride
     ? activeKcalDaily({
         weightKg: profile.weightKg,
-        mode: todayActivity!.mode as "estimate" | "override",
+        mode: todayActivity!.mode as ActivityMode,
         steps: todayActivity!.steps,
         liftingMin: todayActivity!.liftingMin,
         cardioMin: todayActivity!.cardioMin,
@@ -117,7 +119,7 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
       })
     : activeKcal({
         weightKg: profile.weightKg,
-        mode: profile.activityMode as "estimate" | "override",
+        mode: profile.activityMode as ActivityMode,
         stepsPerDay: profile.stepsPerDay,
         liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
         liftingMinutesPerSession: profile.liftingMinutesPerSession,
@@ -175,10 +177,10 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
 
   const allFoods = meals.flatMap((m) => m.foods);
   const consumed = {
-    kcal: sum(allFoods, "kcal"),
-    protein: sum(allFoods, "proteinG"),
-    carbs: sum(allFoods, "carbsG"),
-    fat: sum(allFoods, "fatG"),
+    kcal: sumBy(allFoods, "kcal"),
+    protein: sumBy(allFoods, "proteinG"),
+    carbs: sumBy(allFoods, "carbsG"),
+    fat: sumBy(allFoods, "fatG"),
   };
 
   const macroGoals = computeMacroGoals(calorieGoal, profile);
@@ -204,11 +206,5 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
   };
 }
 
-function sum<K extends "kcal" | "proteinG" | "carbsG" | "fatG">(
-  rows: { [P in K]: number }[],
-  key: K
-) {
-  return rows.reduce((acc, r) => acc + (r[key] ?? 0), 0);
-}
 
 export type { ActiveResult, BmrResult };

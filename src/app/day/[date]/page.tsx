@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { MacroCard } from "@/components/macro-card";
 import { MealCard } from "@/components/meal-card";
 import { db } from "@/lib/db";
-import { calculateBmr, kgToLb } from "@/lib/bmr";
+import { calculateBmr, kgToLb, type Sex, type Units } from "@/lib/bmr";
 import {
   dayKeyInTz,
   formatLongDateInTz,
@@ -32,9 +32,14 @@ import {
   type GoalType,
 } from "@/lib/goal";
 import { computeMacroGoals } from "@/lib/macros";
-import { activeKcal, activeKcalDaily, calculateTdee } from "@/lib/tdee";
+import {
+  activeKcal,
+  activeKcalDaily,
+  calculateTdee,
+  type ActivityMode,
+} from "@/lib/tdee";
 import { requireProfile } from "@/lib/session";
-import { round1 } from "@/lib/utils";
+import { round1, sumBy } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +64,7 @@ export default async function DayPage({
 
   const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
-  const units = profile.units as "metric" | "imperial";
+  const units = profile.units as Units;
 
   // The UTC window that covers this calendar day in the user's tz.
   const dayStart = parseDayKeyAsStartOfDay(dayKey, tz);
@@ -88,16 +93,16 @@ export default async function DayPage({
 
   const allFoods = meals.flatMap((m) => m.foods);
   const consumed = {
-    kcal: sum(allFoods, "kcal"),
-    protein: sum(allFoods, "proteinG"),
-    carbs: sum(allFoods, "carbsG"),
-    fat: sum(allFoods, "fatG"),
+    kcal: sumBy(allFoods, "kcal"),
+    protein: sumBy(allFoods, "proteinG"),
+    carbs: sumBy(allFoods, "carbsG"),
+    fat: sumBy(allFoods, "fatG"),
   };
 
   // BMR/TDEE: prefer the day's stored snapshot; fall back to the current
   // profile (same compromise as daily-history.ts).
   const fallbackBmr = calculateBmr({
-    sex: profile.sex as "male" | "female",
+    sex: profile.sex as Sex,
     age: profile.age,
     heightCm: profile.heightCm,
     weightKg: profile.weightKg,
@@ -105,7 +110,7 @@ export default async function DayPage({
   });
   const fallbackActive = activeKcal({
     weightKg: profile.weightKg,
-    mode: profile.activityMode as "estimate" | "override",
+    mode: profile.activityMode as ActivityMode,
     stepsPerDay: profile.stepsPerDay,
     liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
     liftingMinutesPerSession: profile.liftingMinutesPerSession,
@@ -138,7 +143,7 @@ export default async function DayPage({
   const activeKcalToday = activityLog
     ? activeKcalDaily({
         weightKg: profile.weightKg,
-        mode: activityLog.mode as "estimate" | "override",
+        mode: activityLog.mode as ActivityMode,
         steps: activityLog.steps,
         liftingMin: activityLog.liftingMin,
         cardioMin: activityLog.cardioMin,
@@ -322,7 +327,7 @@ function WeightTile({
   units,
 }: {
   weightKg: number | null;
-  units: "metric" | "imperial";
+  units: Units;
 }) {
   const display = weightKg != null
     ? units === "imperial"
@@ -437,10 +442,4 @@ function parseDayKeyAsStartOfDay(dayKey: string, tz: string): Date {
   return startOfDayInTz(tz, ref);
 }
 
-function sum<K extends "kcal" | "proteinG" | "carbsG" | "fatG">(
-  rows: { [P in K]: number }[],
-  key: K
-) {
-  return rows.reduce((acc, r) => acc + (r[key] ?? 0), 0);
-}
 

@@ -4,6 +4,10 @@
 
 export type ActivityMode = "estimate" | "override";
 
+export function isActivityMode(s: unknown): s is ActivityMode {
+  return s === "estimate" || s === "override";
+}
+
 export type ActivityInput = {
   weightKg: number;
   mode: ActivityMode;

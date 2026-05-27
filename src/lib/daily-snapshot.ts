@@ -3,8 +3,12 @@
 // kcal at write time so historical days stay stable even when the user
 // changes their profile later.
 
-import { calculateBmr } from "@/lib/bmr";
-import { activeKcal, activeKcalDaily } from "@/lib/tdee";
+import { calculateBmr, type Sex } from "@/lib/bmr";
+import {
+  activeKcal,
+  activeKcalDaily,
+  type ActivityMode,
+} from "@/lib/tdee";
 
 // What we need from Profile for the snapshot. Kept narrow so the helper
 // is callable from both the action and read paths without dragging in
@@ -32,7 +36,7 @@ export type DailySnapshot = {
 };
 
 export type DailyOverrideInputs = {
-  mode: "estimate" | "override";
+  mode: ActivityMode;
   steps: number | null;
   liftingMin: number | null;
   cardioMin: number | null;
@@ -50,7 +54,7 @@ export function buildDailySnapshot(
   overrideInputs?: DailyOverrideInputs | null
 ): DailySnapshot {
   const bmr = calculateBmr({
-    sex: profile.sex as "male" | "female",
+    sex: profile.sex as Sex,
     age: profile.age,
     heightCm: profile.heightCm,
     weightKg: profile.weightKg,
@@ -60,7 +64,7 @@ export function buildDailySnapshot(
   // The user's typical-day default — derived from profile settings only.
   const def = activeKcal({
     weightKg: profile.weightKg,
-    mode: profile.activityMode as "estimate" | "override",
+    mode: profile.activityMode as ActivityMode,
     stepsPerDay: profile.stepsPerDay,
     liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
     liftingMinutesPerSession: profile.liftingMinutesPerSession,

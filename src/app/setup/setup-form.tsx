@@ -6,12 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
-import { inToCm, lbToKg, cmToIn, kgToLb } from "@/lib/bmr";
+import { inToCm, lbToKg, cmToIn, kgToLb, type Sex, type Units } from "@/lib/bmr";
+import type { ActivityMode } from "@/lib/tdee";
 import { saveProfile } from "./actions";
-
-type Sex = "male" | "female";
-type Units = "metric" | "imperial";
-type ActivityMode = "estimate" | "override";
 
 export type InitialProfile = {
   sex: Sex;

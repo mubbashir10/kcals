@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { requireProfile } from "@/lib/session";
+import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
 import { TimezoneSettings } from "@/components/timezone-settings";
 import { UnitsSettings } from "@/components/units-settings";
@@ -46,7 +47,7 @@ export default async function SettingsPage() {
             Preferences
           </h2>
           <UnitsSettings
-            initial={profile.units as "metric" | "imperial"}
+            initial={profile.units as Units}
           />
           <TimezoneSettings initial={profile.timezone} />
         </section>

@@ -5,19 +5,21 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import type { Sex, Units } from "@/lib/bmr";
+import type { ActivityMode } from "@/lib/tdee";
 
 // Profile setup covers body data, timezone, and activity. Macros and
 // goal type/pace fall back to schema defaults; both are editable in
 // /settings after onboarding.
 export type SaveProfileInput = {
-  sex: "male" | "female";
+  sex: Sex;
   age: number;
   heightCm: number;
   weightKg: number;
   bodyFatPct: number | null;
-  units: "metric" | "imperial";
+  units: Units;
   timezone: string;
-  activityMode: "estimate" | "override";
+  activityMode: ActivityMode;
   stepsPerDay: number | null;
   liftingSessionsPerWeek: number | null;
   liftingMinutesPerSession: number | null;

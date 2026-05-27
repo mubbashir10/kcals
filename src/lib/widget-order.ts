@@ -20,7 +20,7 @@ export type WidgetId = ReorderableWidgetId;
 export type WidgetState = "expanded" | "minimized" | "hidden";
 
 export type CalorieDisplayMode = "remaining" | "consumed";
-export type UnitsPreference = "metric" | "imperial";
+export type { Units as UnitsPreference } from "@/lib/bmr";
 
 // Widgets the user can hide. The calorie ring is currently always-visible
 // (it's the focal point), so it is omitted. Update this list to match what

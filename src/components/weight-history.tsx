@@ -15,8 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
-import { kgToLb, lbToKg } from "@/lib/bmr";
-import { formatTimeInTz, startOfDayInTz } from "@/lib/clock";
+import { kgToLb, lbToKg, type Units } from "@/lib/bmr";
+import { formatTimeInTz, startOfDayInTz, yearInTz } from "@/lib/clock";
 import {
   deleteWeightLog,
   updateWeightLog,
@@ -34,7 +34,7 @@ export function WeightHistory({
   timezone,
 }: {
   entries: WeightHistoryEntry[];
-  units: "metric" | "imperial";
+  units: Units;
   timezone: string;
 }) {
   const [editing, setEditing] = useState<WeightHistoryEntry | null>(null);
@@ -89,7 +89,7 @@ function WeightHistoryRow({
 }: {
   entry: WeightHistoryEntry;
   delta: number | null;
-  units: "metric" | "imperial";
+  units: Units;
   timezone: string;
   onEdit: () => void;
 }) {
@@ -179,7 +179,7 @@ function EditWeightDialog({
   onClose,
 }: {
   entry: WeightHistoryEntry | null;
-  units: "metric" | "imperial";
+  units: Units;
   onClose: () => void;
 }) {
   return (
@@ -204,7 +204,7 @@ function EditWeightForm({
   onClose,
 }: {
   entry: WeightHistoryEntry;
-  units: "metric" | "imperial";
+  units: Units;
   onClose: () => void;
 }) {
   const [value, setValue] = useState(() => {
@@ -342,15 +342,8 @@ function formatHistoryDate(iso: string, tz: string): string {
     timeZone: tz,
     month: "short",
     day: "numeric",
-    year: getYearInTz(date, tz) !== getYearInTz(now, tz) ? "numeric" : undefined,
+    year: yearInTz(date, tz) !== yearInTz(now, tz) ? "numeric" : undefined,
   });
 }
 
-function getYearInTz(date: Date, tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-  }).formatToParts(date);
-  return parseInt(parts.find((p) => p.type === "year")?.value ?? "0", 10);
-}
 

@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/clock";
 import { requireUserId } from "@/lib/session";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import type { ActivityMode } from "@/lib/tdee";
 
-export type ActivityMode = "estimate" | "override";
+export type { ActivityMode };
 
 export type ActivityLogInput = {
   mode: ActivityMode;

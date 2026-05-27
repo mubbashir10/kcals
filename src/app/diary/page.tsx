@@ -4,7 +4,7 @@ import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MealCard } from "@/components/meal-card";
 import { db } from "@/lib/db";
-import { dayKeyInTz, parseDayKey, startOfDayInTz } from "@/lib/clock";
+import { dayKeyInTz, parseDayKey, startOfDayInTz, yearInTz } from "@/lib/clock";
 import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -167,7 +167,7 @@ function formatDayHeading(dayKey: string, tz: string): string {
     return date.toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
   }
 
-  const sameYear = getYearInTz(date, tz) === getYearInTz(now, tz);
+  const sameYear = yearInTz(date, tz) === yearInTz(now, tz);
   return date.toLocaleDateString("en-US", {
     timeZone: tz,
     weekday: "long",
@@ -177,10 +177,3 @@ function formatDayHeading(dayKey: string, tz: string): string {
   });
 }
 
-function getYearInTz(date: Date, tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-  }).formatToParts(date);
-  return parseInt(parts.find((p) => p.type === "year")?.value ?? "0", 10);
-}

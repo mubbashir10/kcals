@@ -24,6 +24,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
+import {
+  dataTypeLabel,
+  extractUnitName,
+  formatGrams,
+  formatQty,
+  titleCase,
+} from "@/lib/food-format";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
 import { approveAiFood, logFood } from "./actions";
@@ -1174,25 +1181,6 @@ function Stat({
   );
 }
 
-function titleCase(s: string) {
-  return s
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
-}
-
-function dataTypeLabel(t: string) {
-  if (t === "Branded") return "Branded";
-  if (t === "OpenFoodFacts") return "Branded";
-  if (t === "Foundation") return "Whole food";
-  if (t === "SR Legacy") return "Reference";
-  if (t === "Custom") return "Community";
-  if (t === "AI") return "AI estimate";
-  if (t === "Recipe") return "Recipe";
-  return t;
-}
-
 function formatAddedAt(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
   const days = Math.floor(ms / (24 * 60 * 60 * 1000));
@@ -1203,23 +1191,3 @@ function formatAddedAt(iso: string) {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-// "1 paratha" → "paratha"; "1 scoop (30g protein)" → "scoop";
-// falls back to the raw label if nothing strippable is found.
-function extractUnitName(label: string): string {
-  const stripped = label
-    .replace(/^\s*1\s+/, "")
-    .replace(/\s*\(.+\)\s*$/, "")
-    .trim();
-  return stripped.length > 0 ? stripped : label;
-}
-
-function formatGrams(n: number): string {
-  return String(Math.round(n));
-}
-
-// Up to 2 decimals, trailing zeros trimmed: 1.5, 0.63, 80
-function formatQty(n: number): string {
-  if (!Number.isFinite(n)) return "";
-  const rounded = Math.round(n * 100) / 100;
-  return String(rounded);
-}
