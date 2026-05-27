@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 // Directly set kcal (and optional macros) on a quick-add food row. Used by
 // the edit UI in MealCard when food.grams === 0 — there's no portion to
@@ -73,6 +74,3 @@ export async function deleteFood(id: number) {
   revalidatePath("/");
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

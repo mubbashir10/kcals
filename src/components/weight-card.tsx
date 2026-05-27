@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { WidgetMenu } from "@/components/widget-menu";
 import { kgToLb, lbToKg } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
+import { round1 } from "@/lib/utils";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
 import { setWidgetState } from "@/app/actions/widgets";
 import type { WidgetState } from "@/lib/widget-order";
@@ -589,15 +590,11 @@ function parseWeightCsv(
       invalidCount++;
       continue;
     }
-    const kg = unit === "lb" ? weight / 2.20462 : weight;
+    const kg = unit === "lb" ? lbToKg(weight) : weight;
     rows.push({ date, weightKg: kg });
   }
 
   return { rows, invalidCount };
-}
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
 }
 
 function formatWeight(kg: number, units: "metric" | "imperial") {

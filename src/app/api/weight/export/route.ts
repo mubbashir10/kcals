@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { kgToLb } from "@/lib/bmr";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,3 @@ export async function GET() {
   });
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

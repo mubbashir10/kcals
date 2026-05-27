@@ -3,7 +3,7 @@ import { ChevronRight, Infinity as InfinityIcon } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { startOfDayInTz } from "@/lib/clock";
+import { parseDayKey, startOfDayInTz } from "@/lib/clock";
 import type { MacroGoal, MacroGoals } from "@/lib/macros";
 
 // Match the dots used in MacrosWidget so the same macro reads the same color
@@ -165,9 +165,9 @@ function Macro({
 
 // "Today" / "Yesterday" / weekday for the past week, otherwise short date.
 function formatHistoryDate(dayKey: string, tz: string): string {
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
+  const { year, month, day } = parseDayKey(dayKey);
   // Use noon UTC so toLocaleDateString in the user's tz lands on the right day.
-  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
 
   const now = new Date();
   const startToday = startOfDayInTz(tz, now);

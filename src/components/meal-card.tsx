@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import {
   formatTimeInTz,
   setTimeOnDateInTz,
@@ -703,10 +703,6 @@ function FoodStat({
       </div>
     </div>
   );
-}
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
 }
 
 // Show the existing macro value when editing a quick-add row, but leave the

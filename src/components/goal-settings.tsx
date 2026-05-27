@@ -29,6 +29,7 @@ import {
   type MacroMode,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
+import { kgToLb } from "@/lib/bmr";
 
 type MacroState = { mode: MacroMode; g: number | null };
 
@@ -73,7 +74,6 @@ const TYPE_META: Record<
   },
 };
 
-const KG_TO_LB = 2.2046226218;
 // Below this delta we treat macros as "matching" the kcal target. 50 kcal
 // covers normal rounding (proteins/carbs at 4 kcal/g, fat at 9 — a single
 // gram of fat is 9 kcal of slop).
@@ -145,7 +145,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
               const perWeek =
                 unitsLabel === "kg"
                   ? `${kg} kg/wk`
-                  : `${(kg * KG_TO_LB).toFixed(2)} lb/wk`;
+                  : `${kgToLb(kg).toFixed(2)} lb/wk`;
               const active = p === pace;
               return (
                 <button

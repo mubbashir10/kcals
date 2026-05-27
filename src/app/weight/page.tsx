@@ -1,11 +1,11 @@
-import { redirect } from "next/navigation";
 import { ArrowLeft, TrendingDown, TrendingUp, Minus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
 import { kgToLb } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
+import { round1 } from "@/lib/utils";
 import { WeightChart } from "@/components/weight-chart";
 import {
   WeightHistory,
@@ -15,10 +15,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function WeightPage() {
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
-
+  const { userId, profile } = await requireProfile();
   const units = profile.units as "metric" | "imperial";
   const tz = profile.timezone || "UTC";
 
@@ -216,6 +213,3 @@ function formatTimeAgo(iso: string, tz: string) {
   return formatShortDateInTz(date, tz);
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
-import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { isGoalPace, isGoalType } from "@/lib/goal";
@@ -13,14 +12,13 @@ export const dynamic = "force-dynamic";
 
 export default async function GoalPage() {
   const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  // Onboarding must finish first.
-  if (!profile) redirect("/setup");
 
   // TDEE = maintenance kcal; shown in the Maintain card and used as the
   // fallback target for Track mode when the user leaves the kcal field blank.
   const stats = await loadDailyStats(userId);
-  const tdee = stats?.tdee ?? null;
+  // Onboarding must finish first.
+  if (!stats) redirect("/setup");
+  const { profile, tdee } = stats;
 
   return (
     <div className="relative flex flex-1 flex-col">

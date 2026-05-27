@@ -1,6 +1,8 @@
 // Pure date helpers shared by the calendar surfaces (widget + /calendar
 // page + MarkerCalendar). No DB access — safe to import client-side.
 
+import { parseDayKey } from "./clock";
+
 export function shiftMonth(monthKey: string, deltaMonths: number): string {
   const [y, m] = monthKey.split("-").map((s) => parseInt(s, 10));
   const total = y * 12 + (m - 1) + deltaMonths;
@@ -11,8 +13,8 @@ export function shiftMonth(monthKey: string, deltaMonths: number): string {
 
 export function shiftDayKey(dayKey: string, deltaDays: number): string {
   // Internal arithmetic stays in UTC to avoid DST-induced day skips.
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
-  const date = new Date(Date.UTC(y, m - 1, d));
+  const { year, month, day } = parseDayKey(dayKey);
+  const date = new Date(Date.UTC(year, month - 1, day));
   date.setUTCDate(date.getUTCDate() + deltaDays);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }

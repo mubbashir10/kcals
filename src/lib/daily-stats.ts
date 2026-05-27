@@ -151,23 +151,23 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
     profile.trackKcal
   );
 
-  const meals = await db.meal.findMany({
-    where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
-    orderBy: { loggedAt: "desc" },
-    include: { foods: { orderBy: { loggedAt: "asc" } } },
-  });
-
-  const latestWeight = await db.weightLog.findFirst({
-    where: { userId },
-    orderBy: { loggedAt: "desc" },
-  });
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const baselineWeight = latestWeight
-    ? await db.weightLog.findFirst({
-        where: { userId, loggedAt: { lte: weekAgo } },
-        orderBy: { loggedAt: "desc" },
-      })
-    : null;
+  const [meals, latestWeight, baselineWeightRaw] = await Promise.all([
+    db.meal.findMany({
+      where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
+      orderBy: { loggedAt: "desc" },
+      include: { foods: { orderBy: { loggedAt: "asc" } } },
+    }),
+    db.weightLog.findFirst({
+      where: { userId },
+      orderBy: { loggedAt: "desc" },
+    }),
+    db.weightLog.findFirst({
+      where: { userId, loggedAt: { lte: weekAgo } },
+      orderBy: { loggedAt: "desc" },
+    }),
+  ]);
+  const baselineWeight = latestWeight ? baselineWeightRaw : null;
   const delta7dKg =
     latestWeight && baselineWeight
       ? latestWeight.weightKg - baselineWeight.weightKg

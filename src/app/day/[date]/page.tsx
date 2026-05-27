@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -20,8 +20,10 @@ import { calculateBmr, kgToLb } from "@/lib/bmr";
 import {
   dayKeyInTz,
   formatLongDateInTz,
+  parseDayKey,
   startOfDayInTz,
 } from "@/lib/clock";
+import { shiftDayKey } from "@/lib/calendar-build";
 import {
   computeEffectiveTarget,
   isGoalPace,
@@ -31,7 +33,8 @@ import {
 } from "@/lib/goal";
 import { computeMacroGoals } from "@/lib/macros";
 import { activeKcal, activeKcalDaily, calculateTdee } from "@/lib/tdee";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +57,7 @@ export default async function DayPage({
   const { date: dayKey } = await params;
   if (!DAY_KEY_RE.test(dayKey)) notFound();
 
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
-
+  const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
   const units = profile.units as "metric" | "imperial";
 
@@ -431,17 +431,10 @@ function ActivityTile({
 function parseDayKeyAsStartOfDay(dayKey: string, tz: string): Date {
   // Treat the dayKey as a wall-clock date in `tz` and resolve the UTC
   // instant of 00:00 local time. Reuses startOfDayInTz via a reference Date.
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
+  const { year, month, day } = parseDayKey(dayKey);
   // Noon UTC is safely inside the calendar day for almost every IANA tz.
-  const ref = new Date(Date.UTC(y, m - 1, d, 12));
+  const ref = new Date(Date.UTC(year, month - 1, day, 12));
   return startOfDayInTz(tz, ref);
-}
-
-function shiftDayKey(dayKey: string, deltaDays: number): string {
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
-  const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + deltaDays);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
 function sum<K extends "kcal" | "proteinG" | "carbsG" | "fatG">(
@@ -451,6 +444,3 @@ function sum<K extends "kcal" | "proteinG" | "carbsG" | "fatG">(
   return rows.reduce((acc, r) => acc + (r[key] ?? 0), 0);
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

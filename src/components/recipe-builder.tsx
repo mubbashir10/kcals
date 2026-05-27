@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { approveAiFood } from "@/app/add/actions";
 import {
@@ -1181,7 +1181,7 @@ function Stat({
 }
 
 function formatServings(n: number): string {
-  const rounded = Math.round(n * 10) / 10;
+  const rounded = round1(n);
   if (rounded === 1) return "1 serving";
   return `${rounded} servings`;
 }
@@ -1203,6 +1203,3 @@ function dataTypeLabel(t: string) {
   return t;
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

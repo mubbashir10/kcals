@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
 import { approveAiFood, logFood } from "./actions";
@@ -1201,10 +1201,6 @@ function formatAddedAt(iso: string) {
   if (days < 30) return `${days}d ago`;
   if (days < 365) return `${Math.floor(days / 30)}mo ago`;
   return `${Math.floor(days / 365)}y ago`;
-}
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
 }
 
 // "1 paratha" → "paratha"; "1 scoop (30g protein)" → "scoop";

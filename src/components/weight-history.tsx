@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import { kgToLb, lbToKg } from "@/lib/bmr";
 import { formatTimeInTz, startOfDayInTz } from "@/lib/clock";
 import {
@@ -354,6 +354,3 @@ function getYearInTz(date: Date, tz: string): number {
   return parseInt(parts.find((p) => p.type === "year")?.value ?? "0", 10);
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

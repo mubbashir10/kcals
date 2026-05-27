@@ -11,6 +11,7 @@ import { AppLink } from "@/components/app-link";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { formatYMD } from "@/lib/calendar-build";
+import { dayKeyToLocalDate } from "@/lib/clock";
 
 export type DayMarkerInput = {
   dayKey: string; // "YYYY-MM-DD"
@@ -47,7 +48,7 @@ export function MarkerCalendar({
     const weight: Date[] = [];
     const activity: Date[] = [];
     for (const m of markers) {
-      const d = dayKeyToDate(m.dayKey);
+      const d = dayKeyToLocalDate(m.dayKey);
       if (m.hasFood) food.push(d);
       if (m.hasWeight) weight.push(d);
       if (m.hasActivity) activity.push(d);
@@ -178,8 +179,3 @@ function MarkerDayButton({
   );
 }
 
-// "2026-05-26" → local Date at midnight on that calendar day.
-function dayKeyToDate(dayKey: string): Date {
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
-  return new Date(y, m - 1, d);
-}

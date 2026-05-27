@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 export type CustomFoodInput = {
   name: string;
@@ -94,6 +95,3 @@ export async function deleteCustomFood(id: number) {
   revalidatePath("/add");
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

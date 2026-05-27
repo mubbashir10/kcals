@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calendar";
-import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/clock";
 import {
   formatMonthLabel,
@@ -11,7 +9,7 @@ import {
   shiftMonth,
 } from "@/lib/calendar-build";
 import { loadDayMarkers } from "@/lib/calendar-data";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +21,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ m?: string }>;
 }) {
   const { m } = await searchParams;
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
-
+  const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
   const todayKey = dayKeyInTz(tz, new Date());
   const currentMonthKey = todayKey.slice(0, 7);

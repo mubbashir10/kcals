@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb } from "@/lib/bmr";
 import { saveProfile } from "./actions";
 
@@ -631,7 +631,4 @@ function SegmentedToggle<T extends string>({
   );
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}
 

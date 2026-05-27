@@ -3,6 +3,7 @@
 
 import { Card } from "@/components/ui/card";
 import { formatTimeInTz } from "@/lib/clock";
+import { round1 } from "@/lib/utils";
 
 export type ReadOnlyMeal = {
   id: number;
@@ -80,6 +81,3 @@ export function ReadOnlyMealCard({
   );
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

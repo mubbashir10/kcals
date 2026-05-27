@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 export type RecipeIngredientInput = {
   // Positive = USDA fdcId, negative = -customFoodId, null = manual.
@@ -193,6 +194,3 @@ function clampMacro(n: number): number {
   return round1(Math.min(n, 100));
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

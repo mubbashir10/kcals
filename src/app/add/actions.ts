@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { autoMealNameInTz } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -155,6 +156,3 @@ function clamp01(n: number, max: number): number {
   return round1(Math.min(n, max));
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}

@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { round1 } from "@/lib/utils";
 
 export async function logWeight(weightKg: number) {
   if (!Number.isFinite(weightKg) || weightKg < 30 || weightKg > 300) {
     throw new Error("Invalid weight");
   }
   const userId = await requireUserId();
-  const rounded = Math.round(weightKg * 10) / 10;
+  const rounded = round1(weightKg);
 
   await db.weightLog.create({ data: { userId, weightKg: rounded } });
 
@@ -35,7 +36,7 @@ export async function updateWeightLog(id: number, weightKg: number) {
     throw new Error("Invalid weight");
   }
   const userId = await requireUserId();
-  const rounded = Math.round(weightKg * 10) / 10;
+  const rounded = round1(weightKg);
 
   await db.weightLog.updateMany({
     where: { id, userId },
@@ -78,7 +79,7 @@ export async function importWeightLogs(
   const valid = rows
     .map((r) => {
       const d = new Date(r.date);
-      const kg = Math.round(r.weightKg * 10) / 10;
+      const kg = round1(r.weightKg);
       const okDate = !Number.isNaN(d.getTime());
       const okKg = Number.isFinite(kg) && kg >= 30 && kg <= 300;
       return okDate && okKg

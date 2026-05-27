@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteRecipe } from "@/app/actions/recipes";
+import { round1 } from "@/lib/utils";
 
 export type RecipeListItemData = {
   id: number;
@@ -171,7 +172,7 @@ function DeleteDialog({
 }
 
 function formatServings(n: number): string {
-  const rounded = Math.round(n * 10) / 10;
+  const rounded = round1(n);
   if (rounded === 1) return "1 serving";
   return `${rounded} servings`;
 }

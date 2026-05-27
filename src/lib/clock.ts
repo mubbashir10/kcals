@@ -27,6 +27,21 @@ export function dayKeyInTz(tz: string, ref: Date = new Date()): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// Parse a "YYYY-MM-DD" key into its parts. Throws on malformed input.
+export function parseDayKey(key: string): { year: number; month: number; day: number } {
+  const [y, m, d] = key.split("-").map((s) => parseInt(s, 10));
+  return { year: y, month: m, day: d };
+}
+
+// Day key → local Date at 00:00 (local-time, not tz-aware). Use this for
+// chart x-axis math and "is same calendar day" comparisons; for absolute
+// instants in a specific tz use `startOfDayInTz` instead. For day-key
+// arithmetic that must survive DST, use `shiftDayKey` from `calendar-build.ts`.
+export function dayKeyToLocalDate(key: string): Date {
+  const { year, month, day } = parseDayKey(key);
+  return new Date(year, month - 1, day);
+}
+
 export function formatTimeInTz(date: Date | string, tz: string): string {
   return new Date(date).toLocaleTimeString("en-US", {
     timeZone: tz,

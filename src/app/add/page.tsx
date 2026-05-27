@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
-
 import { db } from "@/lib/db";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
 import { AddFoodClient, type MealOption } from "./add-food-client";
 import { autoMealNameInTz, startOfDayInTz } from "@/lib/clock";
 
@@ -14,10 +12,7 @@ export default async function AddPage({
 }: {
   searchParams: Promise<{ meal?: string }>;
 }) {
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
-
+  const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
   const now = new Date();
 

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { ArrowLeft, ChefHat, Plus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
@@ -7,14 +6,12 @@ import { RecipeListItem } from "@/components/recipe-list-item";
 import { createBlankRecipe } from "@/app/actions/recipes";
 import { db } from "@/lib/db";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function RecipesPage() {
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
+  const { userId } = await requireProfile();
 
   const recipes = await db.recipe.findMany({
     where: { userId },

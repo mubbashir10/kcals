@@ -3,7 +3,7 @@
 // full /calendar page.
 
 import { db } from "@/lib/db";
-import { dayKeyInTz } from "@/lib/clock";
+import { dayKeyInTz, parseDayKey } from "@/lib/clock";
 
 export type DayMarker = {
   dayKey: string;
@@ -97,11 +97,11 @@ export async function loadDayMarkers(
 // day on each end is safe overshoot, and we filter precisely with the
 // per-row dayKey check above.
 function utcStartOfRange(startKey: string): Date {
-  const [y, m, d] = startKey.split("-").map((s) => parseInt(s, 10));
-  return new Date(Date.UTC(y, m - 1, d - 1));
+  const { year, month, day } = parseDayKey(startKey);
+  return new Date(Date.UTC(year, month - 1, day - 1));
 }
 
 function utcEndOfRange(endKey: string): Date {
-  const [y, m, d] = endKey.split("-").map((s) => parseInt(s, 10));
-  return new Date(Date.UTC(y, m - 1, d + 2));
+  const { year, month, day } = parseDayKey(endKey);
+  return new Date(Date.UTC(year, month - 1, day + 2));
 }

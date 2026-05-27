@@ -1,12 +1,11 @@
-import { redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight, Utensils } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MealCard } from "@/components/meal-card";
 import { db } from "@/lib/db";
-import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
-import { requireUserId } from "@/lib/session";
+import { dayKeyInTz, parseDayKey, startOfDayInTz } from "@/lib/clock";
+import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +15,7 @@ export const dynamic = "force-dynamic";
 const DAYS = 180;
 
 export default async function DiaryPage() {
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) redirect("/setup");
-
+  const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
   const since = new Date(new Date().getTime() - DAYS * 86400_000);
 
@@ -154,8 +150,8 @@ function DaySection({
 }
 
 function formatDayHeading(dayKey: string, tz: string): string {
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
-  const date = new Date(Date.UTC(y, m - 1, d, 12));
+  const { year, month, day } = parseDayKey(dayKey);
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
 
   const now = new Date();
   const startToday = startOfDayInTz(tz, now);

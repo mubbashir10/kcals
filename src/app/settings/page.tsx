@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
-import { db } from "@/lib/db";
-import { requireUserId } from "@/lib/session";
+import { requireProfile } from "@/lib/session";
 import { parseWidgetStates } from "@/lib/widget-order";
 import { TimezoneSettings } from "@/components/timezone-settings";
 import { UnitsSettings } from "@/components/units-settings";
@@ -12,10 +10,7 @@ import { WidgetsSettings } from "@/components/widgets-settings";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const userId = await requireUserId();
-  const profile = await db.profile.findUnique({ where: { userId } });
-  // Onboarding must finish first.
-  if (!profile) redirect("/setup");
+  const { profile } = await requireProfile();
 
   return (
     <div className="relative flex flex-1 flex-col">

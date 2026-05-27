@@ -1,6 +1,6 @@
 "use client";
 
-import { formatShortDateInTz } from "@/lib/clock";
+import { formatShortDateInTz, parseDayKey } from "@/lib/clock";
 
 export type CaloriesPoint = {
   dayKey: string; // "YYYY-MM-DD"
@@ -52,7 +52,7 @@ export function CaloriesChart({ points, timezone }: Props) {
   // a tiny tick on top so retroactive goal changes show through.
   const firstGoal = sorted[0].goal;
 
-  const dateFmt = (k: string) => formatShortDateInTz(parseDayKey(k), timezone);
+  const dateFmt = (k: string) => formatShortDateInTz(dayKeyToNoonUtc(k), timezone);
 
   // Last 3 day labels at bottom — first, middle, last.
   const labels = [
@@ -179,8 +179,8 @@ export function CaloriesChart({ points, timezone }: Props) {
   );
 }
 
-// "2026-05-26" → Date at noon (avoids tz edge cases for *labels only*).
-function parseDayKey(key: string): Date {
-  const [y, m, d] = key.split("-").map((s) => parseInt(s, 10));
-  return new Date(Date.UTC(y, m - 1, d, 12));
+// "2026-05-26" → Date at noon UTC (avoids tz edge cases for *labels only*).
+function dayKeyToNoonUtc(key: string): Date {
+  const { year, month, day } = parseDayKey(key);
+  return new Date(Date.UTC(year, month - 1, day, 12));
 }
