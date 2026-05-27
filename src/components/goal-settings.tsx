@@ -241,29 +241,35 @@ function TrackEditor({
   const [kcal, setKcal] = useState<string>(
     initialKcal != null ? String(initialKcal) : ""
   );
-  const [kcalError, setKcalError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [macros, setMacros] = useState<Record<Macro, MacroState>>(initialMacros);
+
+  const trimmedKcal = kcal.trim();
+  const parsedKcal =
+    trimmedKcal === "" ? null : parseInt(trimmedKcal, 10);
+  const kcalInvalid =
+    trimmedKcal !== "" &&
+    (parsedKcal == null ||
+      !Number.isFinite(parsedKcal) ||
+      parsedKcal < 800 ||
+      parsedKcal > 8000);
+  const kcalError = saveError
+    ?? (kcalInvalid ? "Enter a number between 800 and 8000." : null);
 
   // Debounce kcal writes so we don't slam the action on every keystroke.
   useEffect(() => {
-    setKcalError(null);
-    const trimmed = kcal.trim();
-    if (trimmed === "") {
+    if (trimmedKcal === "") {
       const t = setTimeout(() => {
-        setTrackKcal(null).catch(() => setKcalError("Couldn't save"));
+        setTrackKcal(null).catch(() => setSaveError("Couldn't save"));
       }, 500);
       return () => clearTimeout(t);
     }
-    const n = parseInt(trimmed, 10);
-    if (!Number.isFinite(n) || n < 800 || n > 8000) {
-      setKcalError("Enter a number between 800 and 8000.");
-      return;
-    }
+    if (kcalInvalid || parsedKcal == null) return;
     const t = setTimeout(() => {
-      setTrackKcal(n).catch(() => setKcalError("Couldn't save"));
+      setTrackKcal(parsedKcal).catch(() => setSaveError("Couldn't save"));
     }, 500);
     return () => clearTimeout(t);
-  }, [kcal]);
+  }, [trimmedKcal, parsedKcal, kcalInvalid]);
 
   function updateMacro(macro: Macro, next: MacroState) {
     setMacros((prev) => ({ ...prev, [macro]: next }));
@@ -304,7 +310,10 @@ function TrackEditor({
             inputMode="numeric"
             placeholder="2000"
             value={kcal}
-            onChange={(e) => setKcal(e.target.value)}
+            onChange={(e) => {
+              setKcal(e.target.value);
+              setSaveError(null);
+            }}
             className="h-10 pr-12 text-base tabular-nums"
           />
           <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">

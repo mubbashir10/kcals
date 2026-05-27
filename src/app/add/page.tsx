@@ -36,7 +36,7 @@ export default async function AddPage({
   //   3. otherwise null (creates a new meal)
   const requestedExists =
     requestedMealId != null && meals.some((m) => m.id === requestedMealId);
-  const cutoff = new Date(Date.now() - MEAL_JOIN_WINDOW_MS);
+  const cutoff = new Date(now.getTime() - MEAL_JOIN_WINDOW_MS);
   const autoTargetId = requestedExists
     ? requestedMealId
     : meals.find((m) => new Date(m.loggedAt) >= cutoff)?.id ?? null;

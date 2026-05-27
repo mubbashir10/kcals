@@ -1,7 +1,6 @@
 import { Infinity as InfinityIcon } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import type { MacroGoal } from "@/lib/macros";
 
 type Props = {

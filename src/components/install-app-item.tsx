@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Download, Share, Smartphone } from "lucide-react";
 
 import {
@@ -49,6 +49,12 @@ function detectSurface(): Surface {
   return "desktop";
 }
 
+// Surface is derived from user-agent / display-mode and doesn't change
+// during a session, so subscribe is a no-op. The server snapshot is null
+// so we render nothing during SSR (no hydration mismatch).
+const noSubscribe = () => () => {};
+const serverSurface = (): Surface => null;
+
 // "Install app" menu item for the UserMenu. Three modes:
 //   - Android (or any Chromium with beforeinstallprompt): triggers the
 //     native install prompt directly.
@@ -58,11 +64,15 @@ function detectSurface(): Surface {
 export function InstallAppItem() {
   const [deferred, setDeferred] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [surface, setSurface] = useState<Surface>(null);
+  const [installed, setInstalled] = useState(false);
+  const detectedSurface = useSyncExternalStore(
+    noSubscribe,
+    detectSurface,
+    serverSurface
+  );
+  const surface = installed ? null : detectedSurface;
 
   useEffect(() => {
-    setSurface(detectSurface());
-
     function onPrompt(e: Event) {
       e.preventDefault();
       setDeferred(e as BeforeInstallPromptEvent);
@@ -70,7 +80,7 @@ export function InstallAppItem() {
 
     function onInstalled() {
       setDeferred(null);
-      setSurface(null);
+      setInstalled(true);
     }
 
     window.addEventListener("beforeinstallprompt", onPrompt);
@@ -133,7 +143,7 @@ export function InstallAppDialog() {
           Add kcals to your home screen
         </DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
-          iOS doesn't let websites install themselves — but it only takes
+          iOS doesn&apos;t let websites install themselves — but it only takes
           two taps in Safari.
         </DialogDescription>
 

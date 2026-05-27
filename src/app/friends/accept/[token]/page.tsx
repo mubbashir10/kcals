@@ -23,6 +23,7 @@ export default async function AcceptInvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const now = new Date();
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -55,7 +56,7 @@ export default async function AcceptInvitePage({
     return <Message title="Already used" body="This invite has already been accepted by someone else." />;
   }
 
-  if (invite.expiresAt && invite.expiresAt.getTime() < Date.now()) {
+  if (invite.expiresAt && invite.expiresAt.getTime() < now.getTime()) {
     return <Message title="Invite expired" body="Ask the sender for a new one." />;
   }
 

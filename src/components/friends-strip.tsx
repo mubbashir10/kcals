@@ -104,7 +104,7 @@ function InviteRow() {
       <div className="flex-1">
         <div className="text-sm font-medium">Invite a friend</div>
         <div className="text-[11px] text-muted-foreground/80">
-          See each other's daily stats
+          See each other&apos;s daily stats
         </div>
       </div>
     </AppLink>

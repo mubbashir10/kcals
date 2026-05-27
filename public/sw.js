@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-globals */
-
 // Bump VERSION on shape changes (new caching rules, fixed bugs). The old
 // caches are deleted in `activate`, which forces a clean slate for clients.
 const VERSION = "v1";
@@ -8,7 +6,7 @@ const PAGES_CACHE = `kcals-pages-${VERSION}`;
 
 const ALL_CACHES = [STATIC_CACHE, PAGES_CACHE];
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   // Take over from any previous SW as soon as we're installed — otherwise
   // a returning user keeps running the old worker until every tab closes.
   self.skipWaiting();

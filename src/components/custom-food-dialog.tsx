@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,36 @@ export function CustomFoodDialog({
   onOpenChange: (open: boolean) => void;
   initialName?: string;
 }) {
-  const [name, setName] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
+        <DialogTitle className="text-base font-semibold">
+          Save a custom food
+        </DialogTitle>
+        <DialogDescription className="text-xs text-muted-foreground">
+          Visible to everyone — share food that USDA doesn&apos;t have.
+        </DialogDescription>
+
+        {/* key forces a remount each time the dialog opens, so all the
+            local field state resets cleanly without an effect. */}
+        <CustomFoodForm
+          key={open ? `open:${initialName ?? ""}` : "closed"}
+          initialName={initialName}
+          onSaved={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CustomFoodForm({
+  initialName,
+  onSaved,
+}: {
+  initialName?: string;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(initialName ?? "");
   const [brand, setBrand] = useState("");
   // Most labels are per-serving; we convert to per-100g on save.
   const [mode, setMode] = useState<"per100" | "perServing">("perServing");
@@ -46,27 +75,6 @@ export function CustomFoodDialog({
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (open) {
-      setName(initialName ?? "");
-      setBrand("");
-      setMode("perServing");
-      setServingG("");
-      setServingLabel("");
-      setKcal("");
-      setProtein("");
-      setCarbs("");
-      setFat("");
-      setMoreOpen(false);
-      setFiber("");
-      setSugar("");
-      setSatFat("");
-      setSodium("");
-      setCholesterol("");
-      setError(null);
-    }
-  }, [open, initialName]);
 
   function onSave() {
     setError(null);
@@ -121,7 +129,7 @@ export function CustomFoodDialog({
           servingSizeG: savedServingG,
           servingLabel: servingLabel.trim() || null,
         });
-        onOpenChange(false);
+        onSaved();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't save");
       }
@@ -129,209 +137,198 @@ export function CustomFoodDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
-        <DialogTitle className="text-base font-semibold">
-          Save a custom food
-        </DialogTitle>
-        <DialogDescription className="text-xs text-muted-foreground">
-          Visible to everyone — share food that USDA doesn't have.
-        </DialogDescription>
+    <div className="mt-4 space-y-4">
+      {/* Identity */}
+      <Row>
+        <Field id="cf-name" label="Name" required>
+          <Input
+            id="cf-name"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Mom's lasagna"
+          />
+        </Field>
+      </Row>
 
-        <div className="mt-4 space-y-4">
-          {/* Identity */}
-          <Row>
-            <Field id="cf-name" label="Name" required>
-              <Input
-                id="cf-name"
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Mom's lasagna"
-              />
-            </Field>
-          </Row>
+      <Row>
+        <Field id="cf-brand" label="Brand" optional>
+          <Input
+            id="cf-brand"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            placeholder="Dawn Foods"
+          />
+        </Field>
+      </Row>
 
-          <Row>
-            <Field id="cf-brand" label="Brand" optional>
-              <Input
-                id="cf-brand"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Dawn Foods"
-              />
-            </Field>
-          </Row>
-
-          {/* Mode toggle */}
-          <div className="space-y-2">
-            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Values are
-            </Label>
-            <div className="inline-flex w-full rounded-full bg-muted p-1">
-              {(
-                [
-                  { v: "perServing", label: "Per serving" },
-                  { v: "per100", label: "Per 100g" },
-                ] as const
-              ).map((opt) => {
-                const active = mode === opt.v;
-                return (
-                  <button
-                    key={opt.v}
-                    type="button"
-                    onClick={() => setMode(opt.v)}
-                    className={
-                      "flex-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all " +
-                      (active
-                        ? "bg-background text-foreground shadow-card"
-                        : "text-muted-foreground hover:text-foreground")
-                    }
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {mode === "perServing" && (
-            <div className="grid grid-cols-2 gap-3">
-              <NutrientField
-                id="cf-serving-g"
-                label="Serving size"
-                suffix="g"
-                value={servingG}
-                onChange={setServingG}
-                placeholder="100"
-              />
-              <Field id="cf-serving-label" label="Label" optional>
-                <Input
-                  id="cf-serving-label"
-                  value={servingLabel}
-                  onChange={(e) => setServingLabel(e.target.value)}
-                  placeholder="1 slice"
-                />
-              </Field>
-            </div>
-          )}
-
-          {/* Macros */}
-          <div className="grid grid-cols-2 gap-3">
-            <NutrientField
-              id="cf-kcal"
-              label="Calories"
-              suffix="kcal"
-              value={kcal}
-              onChange={setKcal}
-              placeholder="250"
-              required
-            />
-            <NutrientField
-              id="cf-protein"
-              label="Protein"
-              suffix="g"
-              value={protein}
-              onChange={setProtein}
-              placeholder="20"
-            />
-            <NutrientField
-              id="cf-carbs"
-              label="Carbs"
-              suffix="g"
-              value={carbs}
-              onChange={setCarbs}
-              placeholder="30"
-            />
-            <NutrientField
-              id="cf-fat"
-              label="Fat"
-              suffix="g"
-              value={fat}
-              onChange={setFat}
-              placeholder="8"
-            />
-          </div>
-
-          {/* Optional details */}
-          <button
-            type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <span>More nutrients (optional)</span>
-            {moreOpen ? (
-              <ChevronUp className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
-          </button>
-
-          {moreOpen && (
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <NutrientField
-                id="cf-fiber"
-                label="Fiber"
-                suffix="g"
-                value={fiber}
-                onChange={setFiber}
-              />
-              <NutrientField
-                id="cf-sugar"
-                label="Sugar"
-                suffix="g"
-                value={sugar}
-                onChange={setSugar}
-              />
-              <NutrientField
-                id="cf-satfat"
-                label="Sat. fat"
-                suffix="g"
-                value={satFat}
-                onChange={setSatFat}
-              />
-              <NutrientField
-                id="cf-sodium"
-                label="Sodium"
-                suffix="mg"
-                value={sodium}
-                onChange={setSodium}
-              />
-              <NutrientField
-                id="cf-cholesterol"
-                label="Cholesterol"
-                suffix="mg"
-                value={cholesterol}
-                onChange={setCholesterol}
-              />
-            </div>
-          )}
-
-          {error && (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-
-          <div className="flex gap-2 pt-2">
-            <DialogClose
-              render={
-                <Button variant="ghost" className="flex-1 rounded-full" />
-              }
-            >
-              Cancel
-            </DialogClose>
-            <Button
-              onClick={onSave}
-              disabled={pending}
-              className="flex-1 rounded-full"
-            >
-              {pending ? "Saving…" : "Save food"}
-            </Button>
-          </div>
+      {/* Mode toggle */}
+      <div className="space-y-2">
+        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Values are
+        </Label>
+        <div className="inline-flex w-full rounded-full bg-muted p-1">
+          {(
+            [
+              { v: "perServing", label: "Per serving" },
+              { v: "per100", label: "Per 100g" },
+            ] as const
+          ).map((opt) => {
+            const active = mode === opt.v;
+            return (
+              <button
+                key={opt.v}
+                type="button"
+                onClick={() => setMode(opt.v)}
+                className={
+                  "flex-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all " +
+                  (active
+                    ? "bg-background text-foreground shadow-card"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {mode === "perServing" && (
+        <div className="grid grid-cols-2 gap-3">
+          <NutrientField
+            id="cf-serving-g"
+            label="Serving size"
+            suffix="g"
+            value={servingG}
+            onChange={setServingG}
+            placeholder="100"
+          />
+          <Field id="cf-serving-label" label="Label" optional>
+            <Input
+              id="cf-serving-label"
+              value={servingLabel}
+              onChange={(e) => setServingLabel(e.target.value)}
+              placeholder="1 slice"
+            />
+          </Field>
+        </div>
+      )}
+
+      {/* Macros */}
+      <div className="grid grid-cols-2 gap-3">
+        <NutrientField
+          id="cf-kcal"
+          label="Calories"
+          suffix="kcal"
+          value={kcal}
+          onChange={setKcal}
+          placeholder="250"
+          required
+        />
+        <NutrientField
+          id="cf-protein"
+          label="Protein"
+          suffix="g"
+          value={protein}
+          onChange={setProtein}
+          placeholder="20"
+        />
+        <NutrientField
+          id="cf-carbs"
+          label="Carbs"
+          suffix="g"
+          value={carbs}
+          onChange={setCarbs}
+          placeholder="30"
+        />
+        <NutrientField
+          id="cf-fat"
+          label="Fat"
+          suffix="g"
+          value={fat}
+          onChange={setFat}
+          placeholder="8"
+        />
+      </div>
+
+      {/* Optional details */}
+      <button
+        type="button"
+        onClick={() => setMoreOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <span>More nutrients (optional)</span>
+        {moreOpen ? (
+          <ChevronUp className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5" />
+        )}
+      </button>
+
+      {moreOpen && (
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <NutrientField
+            id="cf-fiber"
+            label="Fiber"
+            suffix="g"
+            value={fiber}
+            onChange={setFiber}
+          />
+          <NutrientField
+            id="cf-sugar"
+            label="Sugar"
+            suffix="g"
+            value={sugar}
+            onChange={setSugar}
+          />
+          <NutrientField
+            id="cf-satfat"
+            label="Sat. fat"
+            suffix="g"
+            value={satFat}
+            onChange={setSatFat}
+          />
+          <NutrientField
+            id="cf-sodium"
+            label="Sodium"
+            suffix="mg"
+            value={sodium}
+            onChange={setSodium}
+          />
+          <NutrientField
+            id="cf-cholesterol"
+            label="Cholesterol"
+            suffix="mg"
+            value={cholesterol}
+            onChange={setCholesterol}
+          />
+        </div>
+      )}
+
+      {error && (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="flex gap-2 pt-2">
+        <DialogClose
+          render={
+            <Button variant="ghost" className="flex-1 rounded-full" />
+          }
+        >
+          Cancel
+        </DialogClose>
+        <Button
+          onClick={onSave}
+          disabled={pending}
+          className="flex-1 rounded-full"
+        >
+          {pending ? "Saving…" : "Save food"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

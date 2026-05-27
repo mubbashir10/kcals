@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -182,22 +182,40 @@ function EditWeightDialog({
   units: "metric" | "imperial";
   onClose: () => void;
 }) {
-  const [value, setValue] = useState("");
+  return (
+    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        {entry && (
+          <EditWeightForm
+            key={`${entry.id}:${units}`}
+            entry={entry}
+            units={units}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditWeightForm({
+  entry,
+  units,
+  onClose,
+}: {
+  entry: WeightHistoryEntry;
+  units: "metric" | "imperial";
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(() => {
+    const v = units === "imperial" ? kgToLb(entry.weightKg) : entry.weightKg;
+    return round1(v).toString();
+  });
   const [error, setError] = useState<string | null>(null);
   const [savePending, startSave] = useTransition();
   const [deletePending, startDelete] = useTransition();
 
-  useEffect(() => {
-    if (entry) {
-      const v =
-        units === "imperial" ? kgToLb(entry.weightKg) : entry.weightKg;
-      setValue(round1(v).toString());
-      setError(null);
-    }
-  }, [entry, units]);
-
   function onSave() {
-    if (!entry) return;
     setError(null);
     const num = parseFloat(value);
     if (!Number.isFinite(num) || num <= 0) {
@@ -220,7 +238,6 @@ function EditWeightDialog({
   }
 
   function onDelete() {
-    if (!entry) return;
     startDelete(async () => {
       await deleteWeightLog(entry.id);
       onClose();
@@ -228,87 +245,81 @@ function EditWeightDialog({
   }
 
   return (
-    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-2xl sm:max-w-sm">
-        {entry && (
-          <>
-            <DialogTitle className="text-base font-semibold">
-              Edit weigh-in
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              {new Date(entry.loggedAt).toLocaleString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </DialogDescription>
+    <>
+      <DialogTitle className="text-base font-semibold">
+        Edit weigh-in
+      </DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">
+        {new Date(entry.loggedAt).toLocaleString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </DialogDescription>
 
-            <div className="mt-4 space-y-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="edit-weight"
-                  className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-                >
-                  Weight
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="edit-weight"
-                    autoFocus
-                    inputMode="decimal"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    className="pr-12 text-lg"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        onSave();
-                      }
-                    }}
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                    {units === "metric" ? "kg" : "lb"}
-                  </span>
-                </div>
-              </div>
+      <div className="mt-4 space-y-4">
+        <div className="space-y-2">
+          <Label
+            htmlFor="edit-weight"
+            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Weight
+          </Label>
+          <div className="relative">
+            <Input
+              id="edit-weight"
+              autoFocus
+              inputMode="decimal"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="pr-12 text-lg"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSave();
+                }
+              }}
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+              {units === "metric" ? "kg" : "lb"}
+            </span>
+          </div>
+        </div>
 
-              {error && (
-                <p className="text-xs text-destructive" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={onDelete}
-                  disabled={deletePending || savePending}
-                  className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="mr-1 h-3.5 w-3.5" />
-                  {deletePending ? "Deleting…" : "Delete"}
-                </Button>
-                <div className="flex-1" />
-                <DialogClose
-                  render={<Button variant="ghost" className="rounded-full" />}
-                >
-                  Cancel
-                </DialogClose>
-                <Button
-                  onClick={onSave}
-                  disabled={savePending || deletePending}
-                  className="rounded-full"
-                >
-                  {savePending ? "Saving…" : "Save"}
-                </Button>
-              </div>
-            </div>
-          </>
+        {error && (
+          <p className="text-xs text-destructive" role="alert">
+            {error}
+          </p>
         )}
-      </DialogContent>
-    </Dialog>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={onDelete}
+            disabled={deletePending || savePending}
+            className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            {deletePending ? "Deleting…" : "Delete"}
+          </Button>
+          <div className="flex-1" />
+          <DialogClose
+            render={<Button variant="ghost" className="rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onSave}
+            disabled={savePending || deletePending}
+            className="rounded-full"
+          >
+            {savePending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 

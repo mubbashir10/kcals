@@ -135,23 +135,21 @@ export function AddFoodClient({
     }
   }
 
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setAiResult(null);
-      setAiLoading(false);
-      setLoading(false);
-      setSearchError(null);
-      return;
-    }
-
-    setLoading(true);
+  // Reset transient search state synchronously on each keystroke so the
+  // user never sees stale results from a previous query, then let the
+  // debounced effect below fetch the new results.
+  function updateQuery(next: string) {
+    setQuery(next);
+    setResults([]);
     setSearchError(null);
-    // Reset AI state when the query changes — stale AI results from a
-    // previous typed-then-deleted query would otherwise stick around.
     setAiResult(null);
     setAiLoading(false);
+    setLoading(next.trim().length >= 2);
+  }
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
 
     const myId = ++reqId.current;
     // AbortController cancels both the debounced search and the AI
@@ -244,14 +242,14 @@ export function AddFoodClient({
           <Input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => updateQuery(e.target.value)}
             placeholder="Search foods (e.g. chicken breast, banana)"
             className="h-12 rounded-full border-border/60 bg-card pl-11 pr-11 text-base shadow-sm"
           />
           {query && (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => updateQuery("")}
               aria-label="Clear"
               className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
@@ -733,27 +731,36 @@ function PortionDialog({
   target: Target;
   onClose: () => void;
 }) {
+  return (
+    <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        {food && (
+          <PortionForm key={food.fdcId} food={food} target={target} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PortionForm({
+  food,
+  target,
+}: {
+  food: Food;
+  target: Target;
+}) {
+  const servingG =
+    food.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
+  const unitLabel = food.servingLabel ? extractUnitName(food.servingLabel) : null;
+
   // Canonical state is grams. `qtyStr` is a display-only string that the user
   // can type into; we mirror it back to grams on change. We keep both as
   // separate strings so partial inputs like "1." don't get clobbered.
-  const [grams, setGrams] = useState<string>("100");
-  const [qtyStr, setQtyStr] = useState<string>("1");
+  const [grams, setGrams] = useState<string>(() =>
+    servingG ? formatGrams(servingG) : "100"
+  );
+  const [qtyStr, setQtyStr] = useState<string>(() => (servingG ? "1" : ""));
   const [pending, startTransition] = useTransition();
-
-  const servingG = food?.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
-  const unitLabel = food?.servingLabel ? extractUnitName(food.servingLabel) : null;
-
-  useEffect(() => {
-    if (!food) return;
-    if (servingG) {
-      setGrams(formatGrams(servingG));
-      setQtyStr("1");
-    } else {
-      setGrams("100");
-      setQtyStr("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [food]);
 
   function onGramsChange(s: string) {
     setGrams(s);
@@ -778,17 +785,15 @@ function PortionDialog({
   const g = parseFloat(grams);
   const valid = Number.isFinite(g) && g > 0 && g < 5000;
   const factor = valid ? g / 100 : 0;
-  const computed = food
-    ? {
-        kcal: food.per100g.kcal * factor,
-        proteinG: food.per100g.proteinG * factor,
-        carbsG: food.per100g.carbsG * factor,
-        fatG: food.per100g.fatG * factor,
-      }
-    : null;
+  const computed = {
+    kcal: food.per100g.kcal * factor,
+    proteinG: food.per100g.proteinG * factor,
+    carbsG: food.per100g.carbsG * factor,
+    fatG: food.per100g.fatG * factor,
+  };
 
   function onLog() {
-    if (!food || !valid || !computed) return;
+    if (!valid) return;
     const isRecipe = food.dataType === "Recipe";
     startTransition(async () => {
       try {
@@ -821,128 +826,106 @@ function PortionDialog({
   }
 
   return (
-    <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
-        {food && (
-          <>
-            <DialogTitle className="pr-6 text-base font-semibold leading-tight">
-              {food.dataType === "Recipe" ? food.name : titleCase(food.name)}
-            </DialogTitle>
-            {food.dataType === "AI" ? (
-              <DialogDescription className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3 w-3" />
-                AI estimate — verify before relying on it
-              </DialogDescription>
-            ) : (
-              food.brand && (
-                <DialogDescription className="text-xs text-muted-foreground">
-                  {food.brand}
-                </DialogDescription>
-              )
+    <>
+      <DialogTitle className="pr-6 text-base font-semibold leading-tight">
+        {food.dataType === "Recipe" ? food.name : titleCase(food.name)}
+      </DialogTitle>
+      {food.dataType === "AI" ? (
+        <DialogDescription className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Sparkles className="h-3 w-3" />
+          AI estimate — verify before relying on it
+        </DialogDescription>
+      ) : (
+        food.brand && (
+          <DialogDescription className="text-xs text-muted-foreground">
+            {food.brand}
+          </DialogDescription>
+        )
+      )}
+
+      <div className="mt-4 space-y-5">
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label
+              htmlFor="grams"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
+              Serving
+            </Label>
+            {servingG && unitLabel && (
+              <span className="text-[10px] text-muted-foreground/70">
+                1 {unitLabel} = {formatGrams(servingG)}g
+              </span>
             )}
-
-            <div className="mt-4 space-y-5">
-              <div className="space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <Label
-                    htmlFor="grams"
-                    className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-                  >
-                    Serving
-                  </Label>
-                  {servingG && unitLabel && (
-                    <span className="text-[10px] text-muted-foreground/70">
-                      1 {unitLabel} = {formatGrams(servingG)}g
-                    </span>
-                  )}
-                </div>
-                {servingG && unitLabel ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="relative">
-                      <Input
-                        id="qty"
-                        inputMode="decimal"
-                        value={qtyStr}
-                        onChange={(e) => onQtyChange(e.target.value)}
-                        className="pr-16 text-lg"
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-                        {unitLabel}
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="grams"
-                        inputMode="decimal"
-                        value={grams}
-                        onChange={(e) => onGramsChange(e.target.value)}
-                        className="pr-8 text-lg"
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                        g
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <Input
-                      id="grams"
-                      inputMode="decimal"
-                      value={grams}
-                      onChange={(e) => onGramsChange(e.target.value)}
-                      className="pr-12 text-lg"
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                      g
-                    </span>
-                  </div>
-                )}
+          </div>
+          {servingG && unitLabel ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <Input
+                  id="qty"
+                  inputMode="decimal"
+                  value={qtyStr}
+                  onChange={(e) => onQtyChange(e.target.value)}
+                  className="pr-16 text-lg"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+                  {unitLabel}
+                </span>
               </div>
-
-              <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
-                <Stat
-                  label="kcal"
-                  value={computed ? Math.round(computed.kcal) : 0}
-                  emphasis
+              <div className="relative">
+                <Input
+                  id="grams"
+                  inputMode="decimal"
+                  value={grams}
+                  onChange={(e) => onGramsChange(e.target.value)}
+                  className="pr-8 text-lg"
                 />
-                <Stat
-                  label="P"
-                  value={computed ? round1(computed.proteinG) : 0}
-                  unit="g"
-                />
-                <Stat
-                  label="C"
-                  value={computed ? round1(computed.carbsG) : 0}
-                  unit="g"
-                />
-                <Stat
-                  label="F"
-                  value={computed ? round1(computed.fatG) : 0}
-                  unit="g"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <DialogClose
-                  render={
-                    <Button variant="ghost" className="flex-1 rounded-full" />
-                  }
-                >
-                  Cancel
-                </DialogClose>
-                <Button
-                  onClick={onLog}
-                  disabled={!valid || pending}
-                  className="flex-1 rounded-full"
-                >
-                  {pending ? "Logging…" : "Log food"}
-                </Button>
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                  g
+                </span>
               </div>
             </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+          ) : (
+            <div className="relative">
+              <Input
+                id="grams"
+                inputMode="decimal"
+                value={grams}
+                onChange={(e) => onGramsChange(e.target.value)}
+                className="pr-12 text-lg"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                g
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
+          <Stat label="kcal" value={Math.round(computed.kcal)} emphasis />
+          <Stat label="P" value={round1(computed.proteinG)} unit="g" />
+          <Stat label="C" value={round1(computed.carbsG)} unit="g" />
+          <Stat label="F" value={round1(computed.fatG)} unit="g" />
+        </div>
+
+        <div className="flex gap-2">
+          <DialogClose
+            render={
+              <Button variant="ghost" className="flex-1 rounded-full" />
+            }
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onLog}
+            disabled={!valid || pending}
+            className="flex-1 rounded-full"
+          >
+            {pending ? "Logging…" : "Log food"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 

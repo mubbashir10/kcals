@@ -28,11 +28,12 @@ export default async function WeightPage() {
   });
 
   const latest = logs[0] ?? null;
+  const nowMs = new Date().getTime();
 
   // Deltas vs N days ago — find the closest log on/before that date.
   function deltaSince(daysAgo: number): number | null {
     if (!latest) return null;
-    const cutoff = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+    const cutoff = new Date(nowMs - daysAgo * 24 * 60 * 60 * 1000);
     const baseline = logs.find((l) => l.loggedAt <= cutoff);
     if (!baseline) return null;
     return latest.weightKg - baseline.weightKg;

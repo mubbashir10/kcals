@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
@@ -401,7 +401,7 @@ function DeleteDialog({
         </DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
           This removes the meal and all {meal.foods.length} food
-          {meal.foods.length === 1 ? "" : "s"} inside it. Can't be undone.
+          {meal.foods.length === 1 ? "" : "s"} inside it. Can&apos;t be undone.
         </DialogDescription>
 
         <div className="mt-4 flex gap-2">
@@ -431,26 +431,41 @@ function FoodEditDialog({
   food: MealCardFood | null;
   onClose: () => void;
 }) {
-  const isQuickAdd = !!food && food.grams === 0;
+  return (
+    <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        {food && (
+          <FoodEditForm key={food.id} food={food} onClose={onClose} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  const [grams, setGrams] = useState<string>("");
-  const [kcalInput, setKcalInput] = useState<string>("");
-  const [proteinInput, setProteinInput] = useState<string>("");
-  const [carbsInput, setCarbsInput] = useState<string>("");
-  const [fatInput, setFatInput] = useState<string>("");
+function FoodEditForm({
+  food,
+  onClose,
+}: {
+  food: MealCardFood;
+  onClose: () => void;
+}) {
+  const isQuickAdd = food.grams === 0;
+
+  const [grams, setGrams] = useState<string>(() => String(round1(food.grams)));
+  const [kcalInput, setKcalInput] = useState<string>(() =>
+    String(Math.round(food.kcal))
+  );
+  const [proteinInput, setProteinInput] = useState<string>(() =>
+    macroInitial(food.proteinG)
+  );
+  const [carbsInput, setCarbsInput] = useState<string>(() =>
+    macroInitial(food.carbsG)
+  );
+  const [fatInput, setFatInput] = useState<string>(() =>
+    macroInitial(food.fatG)
+  );
   const [savePending, startSave] = useTransition();
   const [deletePending, startDelete] = useTransition();
-
-  // reset inputs whenever a new food opens
-  useEffect(() => {
-    if (food) {
-      setGrams(String(round1(food.grams)));
-      setKcalInput(String(Math.round(food.kcal)));
-      setProteinInput(macroInitial(food.proteinG));
-      setCarbsInput(macroInitial(food.carbsG));
-      setFatInput(macroInitial(food.fatG));
-    }
-  }, [food]);
 
   // Branch 1: quick-add row — edit kcal + macros directly, no portion math.
   // Branch 2: scanned food — edit grams, derive kcal/macros from per-100g.
@@ -464,7 +479,7 @@ function FoodEditDialog({
 
   // Per-100g basis — only meaningful when food has a real serving size.
   const per100g =
-    food && food.grams > 0
+    food.grams > 0
       ? {
           kcal: (food.kcal / food.grams) * 100,
           proteinG: (food.proteinG / food.grams) * 100,
@@ -484,7 +499,7 @@ function FoodEditDialog({
     : null;
 
   function onSave() {
-    if (!food || !valid) return;
+    if (!valid) return;
     startSave(async () => {
       if (isQuickAdd) {
         await updateFoodQuickAdd(food.id, {
@@ -501,7 +516,6 @@ function FoodEditDialog({
   }
 
   function onDelete() {
-    if (!food) return;
     startDelete(async () => {
       await deleteFood(food.id);
       onClose();
@@ -509,159 +523,151 @@ function FoodEditDialog({
   }
 
   return (
-    <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
-        {food && (
+    <>
+      <DialogTitle className="pr-6 text-base font-semibold leading-tight">
+        {food.name}
+      </DialogTitle>
+      {food.brand && (
+        <DialogDescription className="text-xs text-muted-foreground">
+          {food.brand}
+        </DialogDescription>
+      )}
+
+      <div className="mt-4 space-y-5">
+        {isQuickAdd ? (
           <>
-            <DialogTitle className="pr-6 text-base font-semibold leading-tight">
-              {food.name}
-            </DialogTitle>
-            {food.brand && (
-              <DialogDescription className="text-xs text-muted-foreground">
-                {food.brand}
-              </DialogDescription>
-            )}
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-kcal"
+                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              >
+                Calories
+              </Label>
+              <div className="relative">
+                <Input
+                  id="edit-kcal"
+                  inputMode="numeric"
+                  autoFocus
+                  value={kcalInput}
+                  onChange={(e) => setKcalInput(e.target.value)}
+                  className="pr-14 text-lg"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && valid) {
+                      e.preventDefault();
+                      onSave();
+                    }
+                  }}
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                  kcal
+                </span>
+              </div>
+            </div>
 
-            <div className="mt-4 space-y-5">
-              {isQuickAdd ? (
-                <>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="edit-kcal"
-                      className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-                    >
-                      Calories
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="edit-kcal"
-                        inputMode="numeric"
-                        autoFocus
-                        value={kcalInput}
-                        onChange={(e) => setKcalInput(e.target.value)}
-                        className="pr-14 text-lg"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && valid) {
-                            e.preventDefault();
-                            onSave();
-                          }
-                        }}
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                        kcal
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Macros
-                      <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
-                        (optional)
-                      </span>
-                    </Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <MacroEditInput
-                        id="edit-protein"
-                        label="P"
-                        value={proteinInput}
-                        onChange={setProteinInput}
-                      />
-                      <MacroEditInput
-                        id="edit-carbs"
-                        label="C"
-                        value={carbsInput}
-                        onChange={setCarbsInput}
-                      />
-                      <MacroEditInput
-                        id="edit-fat"
-                        label="F"
-                        value={fatInput}
-                        onChange={setFatInput}
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="edit-grams"
-                      className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-                    >
-                      Serving
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="edit-grams"
-                        inputMode="decimal"
-                        autoFocus
-                        value={grams}
-                        onChange={(e) => setGrams(e.target.value)}
-                        className="pr-12 text-lg"
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
-                        g
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
-                    <FoodStat
-                      label="kcal"
-                      value={computed ? Math.round(computed.kcal) : 0}
-                      emphasis
-                    />
-                    <FoodStat
-                      label="P"
-                      value={computed ? round1(computed.proteinG) : 0}
-                      unit="g"
-                    />
-                    <FoodStat
-                      label="C"
-                      value={computed ? round1(computed.carbsG) : 0}
-                      unit="g"
-                    />
-                    <FoodStat
-                      label="F"
-                      value={computed ? round1(computed.fatG) : 0}
-                      unit="g"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={onDelete}
-                  disabled={deletePending || savePending}
-                  className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="mr-1 h-3.5 w-3.5" />
-                  {deletePending ? "Deleting…" : "Delete"}
-                </Button>
-                <div className="flex-1" />
-                <DialogClose
-                  render={
-                    <Button variant="ghost" className="rounded-full" />
-                  }
-                >
-                  Cancel
-                </DialogClose>
-                <Button
-                  onClick={onSave}
-                  disabled={!valid || savePending || deletePending}
-                  className="rounded-full"
-                >
-                  {savePending ? "Saving…" : "Save"}
-                </Button>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Macros
+                <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+                  (optional)
+                </span>
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                <MacroEditInput
+                  id="edit-protein"
+                  label="P"
+                  value={proteinInput}
+                  onChange={setProteinInput}
+                />
+                <MacroEditInput
+                  id="edit-carbs"
+                  label="C"
+                  value={carbsInput}
+                  onChange={setCarbsInput}
+                />
+                <MacroEditInput
+                  id="edit-fat"
+                  label="F"
+                  value={fatInput}
+                  onChange={setFatInput}
+                />
               </div>
             </div>
           </>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-grams"
+                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              >
+                Serving
+              </Label>
+              <div className="relative">
+                <Input
+                  id="edit-grams"
+                  inputMode="decimal"
+                  autoFocus
+                  value={grams}
+                  onChange={(e) => setGrams(e.target.value)}
+                  className="pr-12 text-lg"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-muted-foreground">
+                  g
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 rounded-xl bg-muted/40 p-3">
+              <FoodStat
+                label="kcal"
+                value={computed ? Math.round(computed.kcal) : 0}
+                emphasis
+              />
+              <FoodStat
+                label="P"
+                value={computed ? round1(computed.proteinG) : 0}
+                unit="g"
+              />
+              <FoodStat
+                label="C"
+                value={computed ? round1(computed.carbsG) : 0}
+                unit="g"
+              />
+              <FoodStat
+                label="F"
+                value={computed ? round1(computed.fatG) : 0}
+                unit="g"
+              />
+            </div>
+          </>
         )}
-      </DialogContent>
-    </Dialog>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={onDelete}
+            disabled={deletePending || savePending}
+            className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            {deletePending ? "Deleting…" : "Delete"}
+          </Button>
+          <div className="flex-1" />
+          <DialogClose
+            render={<Button variant="ghost" className="rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onSave}
+            disabled={!valid || savePending || deletePending}
+            className="rounded-full"
+          >
+            {savePending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 

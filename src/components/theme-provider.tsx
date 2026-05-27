@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useSyncExternalStore,
 } from "react";
 
 export type Theme = "light" | "dark" | "system";
@@ -21,11 +21,48 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function getSystemTheme(): ResolvedTheme {
+// In-window listeners — `storage` events only fire across tabs, so we
+// notify our own subscribers when setTheme writes here.
+const themeListeners = new Set<() => void>();
+
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "system";
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark" || stored === "system") {
+      return stored;
+    }
+  } catch {
+    // localStorage might be blocked; fall back to system
+  }
+  return "system";
+}
+
+function subscribeStoredTheme(cb: () => void) {
+  themeListeners.add(cb);
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", cb);
+  }
+  return () => {
+    themeListeners.delete(cb);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", cb);
+    }
+  };
+}
+
+function readSystemTheme(): ResolvedTheme {
   if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
+}
+
+function subscribeSystemTheme(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
 }
 
 function applyClass(resolved: ResolvedTheme) {
@@ -41,49 +78,32 @@ function applyClass(resolved: ResolvedTheme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
+  const theme = useSyncExternalStore(
+    subscribeStoredTheme,
+    readStoredTheme,
+    () => "system" as Theme
+  );
+  const systemTheme = useSyncExternalStore(
+    subscribeSystemTheme,
+    readSystemTheme,
+    () => "light" as ResolvedTheme
+  );
 
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    let initial: Theme = "system";
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === "light" || stored === "dark" || stored === "system") {
-        initial = stored;
-      }
-    } catch {
-      // localStorage might be blocked; fall back to system
-    }
-    setThemeState(initial);
-    const resolved = initial === "system" ? getSystemTheme() : initial;
-    setResolvedTheme(resolved);
-    applyClass(resolved);
-  }, []);
+  const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme;
 
-  // React to OS-level theme changes when in "system" mode
+  // Sync the resolved theme to the DOM. The boot script handles the
+  // very first paint; this keeps the class in sync after that.
   useEffect(() => {
-    if (theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      const resolved = getSystemTheme();
-      setResolvedTheme(resolved);
-      applyClass(resolved);
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [theme]);
+    applyClass(resolvedTheme);
+  }, [resolvedTheme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
     try {
-      localStorage.setItem(STORAGE_KEY, next);
+      window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore
     }
-    const resolved = next === "system" ? getSystemTheme() : next;
-    setResolvedTheme(resolved);
-    applyClass(resolved);
+    themeListeners.forEach((l) => l());
   }, []);
 
   return (

@@ -61,7 +61,7 @@ export default async function SetupPage() {
           </h1>
           {!existing && (
             <p className="mt-2 text-sm text-muted-foreground">
-              We'll use this to calculate your daily calorie needs.
+              We&apos;ll use this to calculate your daily calorie needs.
             </p>
           )}
         </div>

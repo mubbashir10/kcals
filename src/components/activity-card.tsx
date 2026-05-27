@@ -100,7 +100,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Today's activity
+              Today&apos;s activity
             </span>
           </div>
           <DropdownMenu>
@@ -118,7 +118,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
                 {logged ? (
                   <>
                     <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Edit today's log
+                    Edit today&apos;s log
                   </>
                 ) : (
                   <>
@@ -154,7 +154,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
                   className="cursor-pointer rounded-lg text-sm"
                 >
                   <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Clear today's log
+                  Clear today&apos;s log
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -168,7 +168,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
             <p className="text-sm text-foreground/80">
               Using your typical-day estimate.
               <span className="ml-1 text-muted-foreground">
-                Log today's actual activity before bed for an accurate TDEE.
+                Log today&apos;s actual activity before bed for an accurate TDEE.
               </span>
             </p>
           )}
@@ -387,10 +387,10 @@ function LogActivityDialog({
     <Dialog open={open} onOpenChange={onOpen}>
       <DialogContent className="rounded-2xl sm:max-w-sm">
         <DialogTitle className="text-base font-semibold">
-          Log today's activity
+          Log today&apos;s activity
         </DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
-          Updates today's TDEE for an accurate calorie target.
+          Updates today&apos;s TDEE for an accurate calorie target.
         </DialogDescription>
 
         <div className="mt-4 space-y-4">
