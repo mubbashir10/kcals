@@ -52,6 +52,15 @@ export default async function Home() {
   const userEmail = session.user.email ?? null;
 
   const now = new Date();
+
+  // Friends + invites don't need `tz` from this user's profile (friends
+  // resolve their own tz, invites are by email), so kick them off in
+  // parallel with the main stats fetch instead of waiting on it.
+  const friendSummariesPromise = listFriendSummaries(userId, now);
+  const incomingInvitesPromise = userEmail
+    ? pendingInvitesForUser(userEmail)
+    : Promise.resolve([]);
+
   const stats = await loadDailyStats(userId, now);
   if (!stats) redirect("/setup");
 
@@ -115,8 +124,8 @@ export default async function Home() {
         })();
 
   const [friendSummaries, incomingInvites, calendarData] = await Promise.all([
-    listFriendSummaries(userId, now),
-    userEmail ? pendingInvitesForUser(userEmail) : Promise.resolve([]),
+    friendSummariesPromise,
+    incomingInvitesPromise,
     calendarPromise,
   ]);
 

@@ -113,17 +113,30 @@ export function autoMealNameInTz(d: Date, tz: string): string {
   return "Late snack";
 }
 
+// Cache one DateTimeFormat per tz — these are non-trivially expensive to
+// construct (one of the slowest hot-path JS APIs on V8), and we call
+// getDateParts in tight per-row loops in loadDailyHistory and friends.
+const datePartsFormatters = new Map<string, Intl.DateTimeFormat>();
+function getDatePartsFormatter(tz: string): Intl.DateTimeFormat {
+  let f = datePartsFormatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    datePartsFormatters.set(tz, f);
+  }
+  return f;
+}
+
 // Internal: pull discrete Y/M/D/H/M parts of `date` as seen in `tz`.
 function getDateParts(date: Date, tz: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
+  const parts = getDatePartsFormatter(tz).formatToParts(date);
 
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parseInt(parts.find((p) => p.type === type)?.value ?? "0", 10);
