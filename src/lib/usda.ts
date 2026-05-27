@@ -1,6 +1,8 @@
 // USDA FoodData Central client. Server-side only.
 // Docs: https://fdc.nal.usda.gov/api-guide.html
 
+import { unstable_cache } from "next/cache";
+
 const BASE = "https://api.nal.usda.gov/fdc/v1";
 
 // Legacy "Nutrient Number" codes — used by the /foods abridged endpoint.
@@ -278,7 +280,16 @@ function scoreResult(
   return score;
 }
 
-export async function searchFoods(
+// USDA responses are deterministic for (query, pageSize) and the data
+// changes glacially. Cache for 1 hour, keyed on the inputs, so popular
+// queries don't re-hit the USDA API for every user keystroke.
+export const searchFoods = unstable_cache(
+  searchFoodsUncached,
+  ["usda-search-foods"],
+  { revalidate: 3600, tags: ["usda-search"] }
+);
+
+async function searchFoodsUncached(
   query: string,
   { pageSize = 25 }: { pageSize?: number } = {}
 ): Promise<UsdaFood[]> {

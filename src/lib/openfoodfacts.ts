@@ -4,6 +4,8 @@
 // OFF is a crowdsourced packaged-food database with strong coverage of
 // regional brands (incl. Pakistan/India) that USDA misses entirely.
 
+import { unstable_cache } from "next/cache";
+
 import type { UsdaFood } from "./usda";
 
 // Note: OFF's v2 /api/v2/search ignores `search_terms` and returns popular
@@ -54,7 +56,15 @@ function syntheticIdFromBarcode(code: string | undefined, fallback: number): num
   return OFF_ID_FLOOR - folded;
 }
 
-export async function searchOpenFoodFacts(
+// OFF responses are slow and change rarely; cache for 1 hour keyed on
+// (query, pageSize) so popular queries don't re-hit OFF on every search.
+export const searchOpenFoodFacts = unstable_cache(
+  searchOpenFoodFactsUncached,
+  ["off-search"],
+  { revalidate: 3600, tags: ["off-search"] }
+);
+
+async function searchOpenFoodFactsUncached(
   query: string,
   { pageSize = 15 }: { pageSize?: number } = {}
 ): Promise<UsdaFood[]> {

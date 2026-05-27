@@ -45,7 +45,7 @@ export default async function FriendViewPage({
   if (!friend) notFound();
 
   const now = new Date();
-  const stats = await loadDailyStats(friendId, now);
+  const stats = await loadDailyStats(friendId, now, { readOnly: true });
 
   const displayName = friend.name ?? friend.email;
   const initial =

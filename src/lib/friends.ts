@@ -56,10 +56,11 @@ export async function listFriendSummaries(
     orderBy: { name: "asc" },
   });
 
-  // Compute each friend's day in parallel.
+  // Compute each friend's day in parallel. readOnly skips the snapshot
+  // upsert — we're viewing a friend's row, not theirs to touch.
   return await Promise.all(
     users.map(async (u) => {
-      const stats = await loadDailyStats(u.id, now);
+      const stats = await loadDailyStats(u.id, now, { readOnly: true });
       if (!stats) {
         return {
           id: u.id,

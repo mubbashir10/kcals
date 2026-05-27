@@ -25,7 +25,18 @@ import { sumBy } from "@/lib/utils";
 
 export type DailyStats = Awaited<ReturnType<typeof loadDailyStats>>;
 
-export async function loadDailyStats(userId: string, now: Date = new Date()) {
+export type LoadDailyStatsOptions = {
+  /** Skip the snapshot upsert so reading a friend's day doesn't write
+   *  to their ActivityLog row. The function still returns sensible
+   *  values by computing the snapshot in-memory from the profile. */
+  readOnly?: boolean;
+};
+
+export async function loadDailyStats(
+  userId: string,
+  now: Date = new Date(),
+  opts: LoadDailyStatsOptions = {}
+) {
   const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) return null;
 
@@ -60,24 +71,39 @@ export async function loadDailyStats(userId: string, now: Date = new Date()) {
           }
         : null
     );
-    todayActivity = await db.activityLog.upsert({
-      where: { userId_dayKey: { userId, dayKey: todayKey } },
-      create: {
-        userId,
-        dayKey: todayKey,
-        mode: "estimate",
-        bmrKcal: snapshot.bmrKcal,
-        defaultActiveKcal: snapshot.defaultActiveKcal,
-        overrideActiveKcal: snapshot.overrideActiveKcal,
-        tdeeKcal: snapshot.tdeeKcal,
-      },
-      update: {
-        bmrKcal: snapshot.bmrKcal,
-        defaultActiveKcal: snapshot.defaultActiveKcal,
-        overrideActiveKcal: snapshot.overrideActiveKcal,
-        tdeeKcal: snapshot.tdeeKcal,
-      },
-    });
+    if (opts.readOnly) {
+      // Friend-view read: synthesize the snapshot fields in-memory so
+      // downstream code reads them off `todayActivity`, but don't
+      // persist anything to the friend's row.
+      todayActivity = todayActivity
+        ? {
+            ...todayActivity,
+            bmrKcal: snapshot.bmrKcal,
+            defaultActiveKcal: snapshot.defaultActiveKcal,
+            overrideActiveKcal: snapshot.overrideActiveKcal,
+            tdeeKcal: snapshot.tdeeKcal,
+          }
+        : null;
+    } else {
+      todayActivity = await db.activityLog.upsert({
+        where: { userId_dayKey: { userId, dayKey: todayKey } },
+        create: {
+          userId,
+          dayKey: todayKey,
+          mode: "estimate",
+          bmrKcal: snapshot.bmrKcal,
+          defaultActiveKcal: snapshot.defaultActiveKcal,
+          overrideActiveKcal: snapshot.overrideActiveKcal,
+          tdeeKcal: snapshot.tdeeKcal,
+        },
+        update: {
+          bmrKcal: snapshot.bmrKcal,
+          defaultActiveKcal: snapshot.defaultActiveKcal,
+          overrideActiveKcal: snapshot.overrideActiveKcal,
+          tdeeKcal: snapshot.tdeeKcal,
+        },
+      });
+    }
   }
 
   // BMR for display — prefer the stored snapshot (historically stable),
