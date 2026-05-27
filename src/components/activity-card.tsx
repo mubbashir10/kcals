@@ -280,25 +280,46 @@ function LogActivityDialog({
   today: ActivityCardProps["today"];
   defaults: ActivityCardProps["defaults"];
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        {/* key forces a remount each time the dialog opens so all form
+            fields reinitialize from today/defaults without a reset(). */}
+        <LogActivityForm
+          key={open ? "open" : "closed"}
+          today={today}
+          defaults={defaults}
+          onSaved={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LogActivityForm({
+  today,
+  defaults,
+  onSaved,
+}: {
+  today: ActivityCardProps["today"];
+  defaults: ActivityCardProps["defaults"];
+  onSaved: () => void;
+}) {
   const [mode, setMode] = useState<ActivityMode>(today?.mode ?? "estimate");
-  const [steps, setSteps] = useState<string>(
+  const [steps, setSteps] = useState<string>(() =>
     today?.steps != null
       ? String(today.steps)
       : defaults.stepsPerDay != null
       ? String(defaults.stepsPerDay)
       : ""
   );
-  const [liftingMin, setLiftingMin] = useState<string>(
-    today?.liftingMin != null
-      ? String(today.liftingMin)
-      : ""
+  const [liftingMin, setLiftingMin] = useState<string>(() =>
+    today?.liftingMin != null ? String(today.liftingMin) : ""
   );
-  const [cardioMin, setCardioMin] = useState<string>(
-    today?.cardioMin != null
-      ? String(today.cardioMin)
-      : ""
+  const [cardioMin, setCardioMin] = useState<string>(() =>
+    today?.cardioMin != null ? String(today.cardioMin) : ""
   );
-  const [wearableKcal, setWearableKcal] = useState<string>(
+  const [wearableKcal, setWearableKcal] = useState<string>(() =>
     today?.wearableKcal != null
       ? String(today.wearableKcal)
       : defaults.activeKcalOverride != null
@@ -307,32 +328,6 @@ function LogActivityDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  function reset() {
-    setMode(today?.mode ?? "estimate");
-    setSteps(
-      today?.steps != null
-        ? String(today.steps)
-        : defaults.stepsPerDay != null
-        ? String(defaults.stepsPerDay)
-        : ""
-    );
-    setLiftingMin(today?.liftingMin != null ? String(today.liftingMin) : "");
-    setCardioMin(today?.cardioMin != null ? String(today.cardioMin) : "");
-    setWearableKcal(
-      today?.wearableKcal != null
-        ? String(today.wearableKcal)
-        : defaults.activeKcalOverride != null
-        ? String(defaults.activeKcalOverride)
-        : ""
-    );
-    setError(null);
-  }
-
-  function onOpen(next: boolean) {
-    if (next) reset();
-    onOpenChange(next);
-  }
 
   function parseOptionalInt(v: string, max: number): number | null | "invalid" {
     const trimmed = v.trim();
@@ -353,7 +348,7 @@ function LogActivityDialog({
       startTransition(async () => {
         try {
           await upsertTodayActivity({ mode, wearableKcal: k });
-          onOpenChange(false);
+          onSaved();
         } catch {
           setError("Couldn't save. Try again.");
         }
@@ -376,7 +371,7 @@ function LogActivityDialog({
           liftingMin: lm,
           cardioMin: cm,
         });
-        onOpenChange(false);
+        onSaved();
       } catch {
         setError("Couldn't save. Try again.");
       }
@@ -384,110 +379,106 @@ function LogActivityDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpen}>
-      <DialogContent className="rounded-2xl sm:max-w-sm">
-        <DialogTitle className="text-base font-semibold">
-          Log today&apos;s activity
-        </DialogTitle>
-        <DialogDescription className="text-xs text-muted-foreground">
-          Updates today&apos;s TDEE for an accurate calorie target.
-        </DialogDescription>
+    <>
+      <DialogTitle className="text-base font-semibold">
+        Log today&apos;s activity
+      </DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">
+        Updates today&apos;s TDEE for an accurate calorie target.
+      </DialogDescription>
 
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Source
-            </Label>
-            <div className="inline-flex w-full rounded-full bg-muted p-1">
-              {[
-                { value: "estimate" as const, label: "Steps + workout" },
-                { value: "override" as const, label: "From wearable" },
-              ].map((opt) => {
-                const active = opt.value === mode;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setMode(opt.value)}
-                    className={cn(
-                      "flex-1 rounded-full px-4 py-1.5 text-xs font-medium transition-all",
-                      active
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {mode === "estimate" ? (
-            <>
-              <NumberField
-                id="activity-steps"
-                label="Steps"
-                suffix="steps"
-                placeholder="8,000"
-                value={steps}
-                onChange={setSteps}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField
-                  id="activity-lift"
-                  label="Lifting"
-                  suffix="min"
-                  placeholder="0"
-                  value={liftingMin}
-                  onChange={setLiftingMin}
-                />
-                <NumberField
-                  id="activity-cardio"
-                  label="Cardio"
-                  suffix="min"
-                  placeholder="0"
-                  value={cardioMin}
-                  onChange={setCardioMin}
-                />
-              </div>
-            </>
-          ) : (
-            <NumberField
-              id="activity-wearable"
-              label="Active calories"
-              suffix="kcal"
-              placeholder="450"
-              value={wearableKcal}
-              onChange={setWearableKcal}
-            />
-          )}
-
-          {error && (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-
-          <div className="flex gap-2">
-            <DialogClose
-              render={
-                <Button variant="ghost" className="flex-1 rounded-full" />
-              }
-            >
-              Cancel
-            </DialogClose>
-            <Button
-              onClick={onSave}
-              disabled={pending}
-              className="flex-1 rounded-full"
-            >
-              {pending ? "Saving…" : "Save"}
-            </Button>
+      <div className="mt-4 space-y-4">
+        <div className="space-y-2">
+          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Source
+          </Label>
+          <div className="inline-flex w-full rounded-full bg-muted p-1">
+            {[
+              { value: "estimate" as const, label: "Steps + workout" },
+              { value: "override" as const, label: "From wearable" },
+            ].map((opt) => {
+              const active = opt.value === mode;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMode(opt.value)}
+                  className={cn(
+                    "flex-1 rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+                    active
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {mode === "estimate" ? (
+          <>
+            <NumberField
+              id="activity-steps"
+              label="Steps"
+              suffix="steps"
+              placeholder="8,000"
+              value={steps}
+              onChange={setSteps}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                id="activity-lift"
+                label="Lifting"
+                suffix="min"
+                placeholder="0"
+                value={liftingMin}
+                onChange={setLiftingMin}
+              />
+              <NumberField
+                id="activity-cardio"
+                label="Cardio"
+                suffix="min"
+                placeholder="0"
+                value={cardioMin}
+                onChange={setCardioMin}
+              />
+            </div>
+          </>
+        ) : (
+          <NumberField
+            id="activity-wearable"
+            label="Active calories"
+            suffix="kcal"
+            placeholder="450"
+            value={wearableKcal}
+            onChange={setWearableKcal}
+          />
+        )}
+
+        {error && (
+          <p className="text-xs text-destructive" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="flex gap-2">
+          <DialogClose
+            render={<Button variant="ghost" className="flex-1 rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onSave}
+            disabled={pending}
+            className="flex-1 rounded-full"
+          >
+            {pending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 

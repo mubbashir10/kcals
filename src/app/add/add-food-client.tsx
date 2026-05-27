@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -31,30 +31,12 @@ import {
   formatQty,
   titleCase,
 } from "@/lib/food-format";
+import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
 import { approveAiFood, logFood } from "./actions";
 
-type Food = {
-  fdcId: number;
-  name: string;
-  brand: string | null;
-  dataType: string;
-  per100g: { kcal: number; proteinG: number; carbsG: number; fatG: number };
-  servingSizeG: number | null;
-  servingLabel: string | null;
-  /** Only set for community-contributed custom foods. */
-  createdAtIso?: string;
-  // Recipes carry the real recipeId here. fdcId on recipe rows is a
-  // synthetic display-only key (see /api/foods/search/route.ts).
-  recipeId?: number;
-  // AI-only fields, present when dataType === "AI" and the row is still
-  // an unsaved preview from /api/foods/search/ai. After approval we
-  // hand the user a fresh Food without these set.
-  aiModel?: string;
-  aiSources?: string[];
-  aiConfidence?: "low" | "medium" | "high";
-};
+type Food = SearchFood;
 
 export type MealOption = {
   id: number;
@@ -79,10 +61,15 @@ export function AddFoodClient({
   suggestedNewMealName: string;
   timezone: string;
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Food[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const {
+    query,
+    setQuery: updateQuery,
+    results,
+    loading,
+    error: searchError,
+    aiResult,
+    aiLoading,
+  } = useFoodSearch();
   const [selected, setSelected] = useState<Food | null>(null);
 
   const [target, setTarget] = useState<Target>(() =>
@@ -94,18 +81,9 @@ export function AddFoodClient({
   const [quickOpen, setQuickOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
 
-  // Second-stage AI search. We only fire it when the conventional
-  // search returns empty, so most queries never pay the AI latency.
-  // `aiLoading` drives a distinct "Searching the web with AI…" message
-  // separate from the regular `loading` spinner.
-  const [aiResult, setAiResult] = useState<Food | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   // Which AI preview is mid-approval — keeps a spinner on just that row
   // while we persist it to CustomFood.
   const [approvingAiId, setApprovingAiId] = useState<number | null>(null);
-
-  const reqId = useRef(0);
-  const aiReqId = useRef(0);
 
   async function onResultSelect(food: Food) {
     if (food.dataType !== "AI" || food.aiModel == null) {
@@ -141,81 +119,6 @@ export function AddFoodClient({
       setApprovingAiId(null);
     }
   }
-
-  // Reset transient search state synchronously on each keystroke so the
-  // user never sees stale results from a previous query, then let the
-  // debounced effect below fetch the new results.
-  function updateQuery(next: string) {
-    setQuery(next);
-    setResults([]);
-    setSearchError(null);
-    setAiResult(null);
-    setAiLoading(false);
-    setLoading(next.trim().length >= 2);
-  }
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) return;
-
-    const myId = ++reqId.current;
-    // AbortController cancels both the debounced search and the AI
-    // follow-up when the query changes or the component unmounts, so
-    // in-flight requests don't stack while the user keeps typing.
-    const controller = new AbortController();
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/foods/search?q=${encodeURIComponent(q)}`,
-          { signal: controller.signal }
-        );
-        const json = await res.json();
-        if (myId !== reqId.current) return;
-        if (!res.ok) {
-          setSearchError(json.error ?? "Search failed");
-          setResults([]);
-          return;
-        }
-        const foods: Food[] = json.foods ?? [];
-        setResults(foods);
-
-        // Conventional sources covered it — skip the AI call.
-        if (foods.length > 0) return;
-
-        // Empty result. Kick off the AI fallback and let the UI show
-        // "Searching the web with AI…" while it runs.
-        setAiLoading(true);
-        const aiMyId = ++aiReqId.current;
-        try {
-          const aiRes = await fetch(
-            `/api/foods/search/ai?q=${encodeURIComponent(q)}`,
-            { signal: controller.signal }
-          );
-          const aiJson = await aiRes.json();
-          if (aiMyId !== aiReqId.current) return;
-          setAiResult(aiRes.ok ? aiJson.food ?? null : null);
-        } catch (err) {
-          if ((err as Error)?.name === "AbortError") return;
-          if (aiMyId === aiReqId.current) setAiResult(null);
-        } finally {
-          if (aiMyId === aiReqId.current) setAiLoading(false);
-        }
-      } catch (err) {
-        // Aborts are expected when typing continues — silently ignore.
-        if ((err as Error)?.name === "AbortError") return;
-        if (myId !== reqId.current) return;
-        setSearchError("Couldn't reach the server");
-        setResults([]);
-      } finally {
-        if (myId === reqId.current) setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(t);
-      controller.abort();
-    };
-  }, [query]);
 
   return (
     <>

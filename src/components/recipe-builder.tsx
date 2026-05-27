@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
 import { dataTypeLabel, titleCase } from "@/lib/food-format";
+import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { approveAiFood } from "@/app/add/actions";
 import {
@@ -49,18 +50,6 @@ import {
 // (USDA, OFF, community Custom, AI-approved) can become an ingredient.
 // AI preview rows from /api/foods/search/ai also carry aiModel/aiSources
 // so the parent can approve them before opening the portion dialog.
-type SearchFood = {
-  fdcId: number;
-  name: string;
-  brand: string | null;
-  dataType: string;
-  per100g: { kcal: number; proteinG: number; carbsG: number; fatG: number };
-  servingSizeG: number | null;
-  servingLabel: string | null;
-  aiModel?: string;
-  aiSources?: string[];
-  aiConfidence?: "low" | "medium" | "high";
-};
 
 export type RecipeBuilderIngredient = {
   id: number;
@@ -418,102 +407,8 @@ function IngredientSearch({
   onSelect: (food: SearchFood) => void;
   approvingAiId: number | null;
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchFood[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Second-stage AI search — fired only when the conventional search
-  // returns empty, so most queries don't pay the AI latency.
-  const [aiResult, setAiResult] = useState<SearchFood | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const reqId = useRef(0);
-  const aiReqId = useRef(0);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setResults([]);
-
-      setError(null);
-
-      setLoading(false);
-      setAiResult(null);
-      setAiLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    setError(null);
-    // Reset AI state when the query changes so stale results don't stick.
-    setAiResult(null);
-    setAiLoading(false);
-    const myId = ++reqId.current;
-    // AbortController cancels both the debounced fetch and the AI
-    // follow-up when the query changes or the component unmounts — so
-    // we don't pile up in-flight requests while the user is still
-    // typing (especially relevant for the slow AI route).
-    const controller = new AbortController();
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/foods/search?q=${encodeURIComponent(q)}`,
-          { signal: controller.signal }
-        );
-        const json = await res.json();
-        if (myId !== reqId.current) return;
-        if (!res.ok) {
-          setError(json.error ?? "Search failed");
-          setResults([]);
-          return;
-        }
-        // Filter out Recipe rows — nesting a recipe inside another recipe
-        // makes totals fragile (a snapshot of a snapshot) and the UX is
-        // muddled. AI rows are kept; their nutrition is persisted as a
-        // CustomFood on approval so it stays stable for the recipe.
-        const foods: SearchFood[] = (json.foods ?? []).filter(
-          (f: SearchFood) => f.dataType !== "Recipe"
-        );
-        setResults(foods);
-
-        // Conventional sources covered it — skip the AI call.
-        if (foods.length > 0) return;
-
-        // Empty — fire the AI fallback and show a distinct indicator
-        // while it runs. Same flow as /add.
-        setAiLoading(true);
-        const aiMy = ++aiReqId.current;
-        try {
-          const aiRes = await fetch(
-            `/api/foods/search/ai?q=${encodeURIComponent(q)}`,
-            { signal: controller.signal }
-          );
-          const aiJson = await aiRes.json();
-          if (aiMy !== aiReqId.current) return;
-          setAiResult(aiRes.ok ? aiJson.food ?? null : null);
-        } catch (err) {
-          if ((err as Error)?.name === "AbortError") return;
-          if (aiMy === aiReqId.current) setAiResult(null);
-        } finally {
-          if (aiMy === aiReqId.current) setAiLoading(false);
-        }
-      } catch (err) {
-        // Aborts are expected when the user keeps typing — silently ignore.
-        if ((err as Error)?.name === "AbortError") return;
-        if (myId !== reqId.current) return;
-        setError("Couldn't reach the server");
-        setResults([]);
-      } finally {
-        if (myId === reqId.current) setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(t);
-      controller.abort();
-    };
-  }, [query]);
+  const { query, setQuery, results, loading, error, aiResult, aiLoading } =
+    useFoodSearch({ excludeRecipes: true });
 
   return (
     <div>
