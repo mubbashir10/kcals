@@ -99,6 +99,9 @@ model Profile {
   bodyFatPct Float?
   units      String @default("metric") // "metric" | "imperial"
   timezone   String @default("UTC") // IANA timezone, e.g. "America/New_York" — drives all date/time math in the app
+  // Which weekday the week summary starts on. 0=Sunday … 6=Saturday (matches
+  // JS getUTCDay). Default 1 = Monday.
+  weekStartDay Int @default(1)
 
   // Goal — drives the "effective calorie target" used by the ring + macros.
   //   "loss"     → eat below TDEE by goalPace's deficit

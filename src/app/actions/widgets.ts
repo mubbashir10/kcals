@@ -63,6 +63,20 @@ export async function setUnits(units: UnitsPreference) {
   revalidatePath("/settings");
 }
 
+export async function setWeekStartDay(day: number) {
+  // 0=Sunday … 6=Saturday (JS getUTCDay convention).
+  if (!Number.isInteger(day) || day < 0 || day > 6) {
+    throw new Error(`Invalid week start day: ${day}`);
+  }
+  const userId = await requireUserId();
+  await db.profile.updateMany({
+    where: { userId },
+    data: { weekStartDay: day },
+  });
+  revalidatePath("/week");
+  revalidatePath("/settings");
+}
+
 export async function setTimezone(tz: string) {
   // IANA tz names are 1..64 chars of [A-Za-z0-9_+-/]; validate cheaply so
   // we don't write garbage into the field that drives every date cutoff.

@@ -1,4 +1,5 @@
 import {
+  CalendarRange,
   ChefHat,
   Check,
   LogOut,
@@ -90,6 +91,17 @@ export async function UserMenu() {
         )}
 
         <DropdownMenuGroup>
+          <DropdownMenuItem
+            render={
+              <AppLink
+                href="/week"
+                className="cursor-pointer rounded-lg text-sm"
+              />
+            }
+          >
+            <CalendarRange className="mr-2 h-3.5 w-3.5 opacity-70" />
+            Week summary
+          </DropdownMenuItem>
           <DropdownMenuItem
             render={
               <AppLink

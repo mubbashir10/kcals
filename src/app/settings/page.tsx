@@ -6,6 +6,7 @@ import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
 import { TimezoneSettings } from "@/components/timezone-settings";
 import { UnitsSettings } from "@/components/units-settings";
+import { WeekStartSettings } from "@/components/week-start-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export default async function SettingsPage() {
             initial={profile.units as Units}
           />
           <TimezoneSettings initial={profile.timezone} />
+          <WeekStartSettings initial={profile.weekStartDay} />
         </section>
 
         <section className="space-y-3">

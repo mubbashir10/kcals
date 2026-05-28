@@ -10,6 +10,11 @@
 //   moderate   0.50 kg/wk  →  550 kcal/day
 //   aggressive 0.75 kg/wk  →  825 kcal/day
 
+// Dietetics-textbook energy density of body-weight change. The pace offsets
+// below derive from it (e.g. 0.5 kg/wk × 7700 ÷ 7 ≈ 550 kcal/day), and the
+// week summary uses it to turn a net deficit/surplus into a predicted Δweight.
+export const KCAL_PER_KG = 7700;
+
 export const GOAL_TYPES = ["loss", "maintain", "gain", "track"] as const;
 export type GoalType = (typeof GOAL_TYPES)[number];
 
