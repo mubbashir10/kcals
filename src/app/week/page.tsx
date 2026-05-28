@@ -6,7 +6,7 @@ import { requireProfile } from "@/lib/session";
 import { displayWeight, type Units } from "@/lib/bmr";
 import { parseDayKey } from "@/lib/clock";
 import { goalPaceLabel, KCAL_PER_KG } from "@/lib/goal";
-import { loadWeekSummary, type WeekSummary } from "@/lib/week";
+import { loadWeekSummary, netBalanceWord, type WeekSummary } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +37,7 @@ export default async function WeekPage({
 
   // Deficit is negative net; show the magnitude with a deficit/surplus word.
   const net = Math.round(summary.netKcal);
-  const isDeficit = net < 0;
-  const netWord = net === 0 ? "balanced" : isDeficit ? "deficit" : "surplus";
+  const netWord = netBalanceWord(net);
 
   // The net deficit/surplus expressed as body weight, in the user's unit.
   const netWeight = displayWeight(Math.abs(summary.predictedWeightKg), units);

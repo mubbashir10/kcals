@@ -47,6 +47,12 @@ export function weekDayKeys(startKey: string): string[] {
   return Array.from({ length: 7 }, (_, i) => shiftDayKey(startKey, i));
 }
 
+// Word for a net energy balance: negative = deficit, positive = surplus.
+export function netBalanceWord(net: number): "balanced" | "deficit" | "surplus" {
+  if (net === 0) return "balanced";
+  return net < 0 ? "deficit" : "surplus";
+}
+
 export type WeekDay = {
   dayKey: string;
   isToday: boolean;

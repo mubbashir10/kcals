@@ -24,6 +24,7 @@ import {
   type SortableWidgetItem,
 } from "@/components/sortable-widgets";
 import { WeightCard } from "@/components/weight-card";
+import { WeekSummaryWidget } from "@/components/week-summary-widget";
 import {
   getWidgetState,
   parseWidgetOrder,
@@ -33,6 +34,7 @@ import { listFriendSummaries, pendingInvitesForUser } from "@/lib/friends";
 import { getSession } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { loadDayMarkers } from "@/lib/calendar-data";
+import { loadWeekSummary } from "@/lib/week";
 import { shiftDayKey } from "@/lib/calendar-build";
 import type { Units } from "@/lib/bmr";
 import type { ActivityMode } from "@/lib/tdee";
@@ -89,6 +91,7 @@ export default async function Home() {
   const activityState = getWidgetState(widgetStates, "activity");
   const weightState = getWidgetState(widgetStates, "weight");
   const calendarState = getWidgetState(widgetStates, "calendar");
+  const weekState = getWidgetState(widgetStates, "week");
   const mealsState = getWidgetState(widgetStates, "meals");
   const friendsState = getWidgetState(widgetStates, "friends");
 
@@ -123,11 +126,20 @@ export default async function Home() {
           return { markers, loggedCount };
         })();
 
-  const [friendSummaries, incomingInvites, calendarData] = await Promise.all([
-    friendSummariesPromise,
-    incomingInvitesPromise,
-    calendarPromise,
-  ]);
+  // Week summary — skip the fetch when the widget is hidden. Reuses the
+  // already-loaded profile so it costs only the two week-window queries.
+  const weekSummaryPromise =
+    weekState === "hidden"
+      ? Promise.resolve(null)
+      : loadWeekSummary(userId, profile, null, now);
+
+  const [friendSummaries, incomingInvites, calendarData, weekSummary] =
+    await Promise.all([
+      friendSummariesPromise,
+      incomingInvitesPromise,
+      calendarPromise,
+      weekSummaryPromise,
+    ]);
 
   const dateStr = formatLongDateInTz(now, tz);
 
@@ -307,6 +319,18 @@ export default async function Home() {
                   timezone={tz}
                   state={calendarState}
                   loggedCount={calendarData.loggedCount}
+                />
+              ),
+            },
+            weekState !== "hidden" && weekSummary && {
+              id: "week" as const,
+              node: (
+                <WeekSummaryWidget
+                  state={weekState}
+                  loggedDays={weekSummary.loggedDays}
+                  netKcal={weekSummary.netKcal}
+                  predictedWeightKg={weekSummary.predictedWeightKg}
+                  units={profile.units as Units}
                 />
               ),
             },
