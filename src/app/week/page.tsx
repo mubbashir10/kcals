@@ -40,6 +40,9 @@ export default async function WeekPage({
   const isDeficit = net < 0;
   const netWord = net === 0 ? "balanced" : isDeficit ? "deficit" : "surplus";
 
+  // The net deficit/surplus expressed as body weight, in the user's unit.
+  const netWeight = displayWeight(Math.abs(summary.predictedWeightKg), units);
+
   return (
     <div className="relative flex flex-1 flex-col">
       <div
@@ -109,12 +112,18 @@ export default async function WeekPage({
             </p>
           ) : (
             <>
-              <div className="mt-1 flex items-baseline gap-3">
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <div className="text-5xl font-semibold leading-none tabular-nums tracking-tight">
                   {Math.abs(net).toLocaleString()}
                 </div>
                 <span className="text-base font-normal text-muted-foreground">
                   kcal {netWord}
+                </span>
+                <span className="text-base font-normal text-muted-foreground tabular-nums">
+                  ≈{" "}
+                  <span className="font-medium text-foreground/80">
+                    {netWeight.value} {netWeight.unit}
+                  </span>
                 </span>
               </div>
               <div className="mt-3 flex items-center gap-2">
