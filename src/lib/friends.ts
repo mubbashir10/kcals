@@ -1,7 +1,17 @@
 // Helpers for the friends feature. Server-only (touches the DB).
 
 import { db } from "@/lib/db";
-import { loadDailyStats } from "@/lib/daily-stats";
+import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import {
+  computeEffectiveTarget,
+  isGoalPace,
+  isGoalType,
+  type GoalPace,
+  type GoalType,
+} from "@/lib/goal";
+import type { ActivityMode } from "@/lib/tdee";
+import { sumBy } from "@/lib/utils";
 
 // Lowercased canonical email — same shape Auth.js stores. We always compare
 // emails case-insensitively because that's how Google delivers them anyway.
@@ -50,45 +60,131 @@ export async function listFriendSummaries(
   const friendIds = await friendIdsOf(userId);
   if (friendIds.length === 0) return [];
 
-  const users = await db.user.findMany({
-    where: { id: { in: friendIds } },
-    select: { id: true, name: true, email: true, image: true },
-    orderBy: { name: "asc" },
-  });
+  // Bulk-fetch instead of running loadDailyStats per friend (which was
+  // ~5 queries each). Users + profiles are independent of tz, so fetch
+  // them first; activity logs and meals need each friend's tz-derived
+  // day boundary, so they come second.
+  const [users, profiles] = await Promise.all([
+    db.user.findMany({
+      where: { id: { in: friendIds } },
+      select: { id: true, name: true, email: true, image: true },
+      orderBy: { name: "asc" },
+    }),
+    db.profile.findMany({ where: { userId: { in: friendIds } } }),
+  ]);
 
-  // Compute each friend's day in parallel. readOnly skips the snapshot
-  // upsert — we're viewing a friend's row, not theirs to touch.
-  return await Promise.all(
-    users.map(async (u) => {
-      const stats = await loadDailyStats(u.id, now, { readOnly: true });
-      if (!stats) {
-        return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          image: u.image,
-          hasProfile: false,
-          consumedKcal: 0,
-          goalKcal: null,
-          consumedProtein: 0,
-          consumedCarbs: 0,
-          consumedFat: 0,
-        };
-      }
+  const profileByUser = new Map(profiles.map((p) => [p.userId, p]));
+
+  // Per-friend day boundaries. dayKey/startOfDay depend on the friend's
+  // own timezone, so compute them up front.
+  const todayKeyByUser = new Map<string, string>();
+  let earliestStart: Date | null = null;
+  for (const p of profiles) {
+    const tz = p.timezone || "UTC";
+    todayKeyByUser.set(p.userId, dayKeyInTz(tz, now));
+    const start = startOfDayInTz(tz, now);
+    if (earliestStart == null || start < earliestStart) earliestStart = start;
+  }
+
+  const dayKeys = Array.from(new Set(todayKeyByUser.values()));
+
+  const [activityLogs, meals] = await Promise.all([
+    dayKeys.length > 0
+      ? db.activityLog.findMany({
+          where: { userId: { in: friendIds }, dayKey: { in: dayKeys } },
+        })
+      : Promise.resolve([]),
+    earliestStart != null
+      ? db.meal.findMany({
+          where: { userId: { in: friendIds }, loggedAt: { gte: earliestStart } },
+          select: {
+            userId: true,
+            loggedAt: true,
+            foods: {
+              select: { kcal: true, proteinG: true, carbsG: true, fatG: true },
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // Index activity by (userId, dayKey) — the unique key — so each friend
+  // reads only their own row for their own day.
+  const activityByUserDay = new Map<string, (typeof activityLogs)[number]>();
+  for (const a of activityLogs) {
+    activityByUserDay.set(`${a.userId}:${a.dayKey}`, a);
+  }
+
+  return users.map((u) => {
+    const profile = profileByUser.get(u.id);
+    if (!profile) {
       return {
         id: u.id,
         name: u.name,
         email: u.email,
         image: u.image,
-        hasProfile: true,
-        consumedKcal: Math.round(stats.consumed.kcal),
-        goalKcal: stats.calorieGoal,
-        consumedProtein: Math.round(stats.consumed.protein),
-        consumedCarbs: Math.round(stats.consumed.carbs),
-        consumedFat: Math.round(stats.consumed.fat),
+        hasProfile: false,
+        consumedKcal: 0,
+        goalKcal: null,
+        consumedProtein: 0,
+        consumedCarbs: 0,
+        consumedFat: 0,
       };
-    })
-  );
+    }
+
+    const tz = profile.timezone || "UTC";
+    const start = startOfDayInTz(tz, now);
+    const todayKey = todayKeyByUser.get(u.id)!;
+    const activity = activityByUserDay.get(`${u.id}:${todayKey}`) ?? null;
+
+    // Prefer the friend's stored snapshot; fall back to a fresh compute
+    // from their current profile (same precedence as loadDailyStats).
+    const snapshot = buildDailySnapshot(
+      profile,
+      activity
+        ? {
+            mode: activity.mode as ActivityMode,
+            steps: activity.steps,
+            liftingMin: activity.liftingMin,
+            cardioMin: activity.cardioMin,
+            wearableKcal: activity.wearableKcal,
+          }
+        : null
+    );
+    const bmrKcal = activity?.bmrKcal ?? snapshot.bmrKcal;
+    const tdeeKcal = activity?.tdeeKcal ?? snapshot.tdeeKcal;
+
+    const goalType: GoalType = isGoalType(profile.goalType)
+      ? profile.goalType
+      : "maintain";
+    const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
+      ? profile.goalPace
+      : null;
+    const goalKcal = computeEffectiveTarget(
+      tdeeKcal,
+      bmrKcal,
+      goalType,
+      goalPace,
+      profile.trackKcal
+    );
+
+    const todaysFoods = meals
+      .filter((m) => m.userId === u.id && m.loggedAt >= start)
+      .flatMap((m) => m.foods);
+
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      image: u.image,
+      hasProfile: true,
+      consumedKcal: Math.round(sumBy(todaysFoods, "kcal")),
+      goalKcal,
+      consumedProtein: Math.round(sumBy(todaysFoods, "proteinG")),
+      consumedCarbs: Math.round(sumBy(todaysFoods, "carbsG")),
+      consumedFat: Math.round(sumBy(todaysFoods, "fatG")),
+    };
+  });
 }
 
 // Invites addressed to a signed-in user (by email match) that haven't been
