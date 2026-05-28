@@ -8,8 +8,6 @@ import { requireUserId } from "@/lib/session";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import type { ActivityMode } from "@/lib/tdee";
 
-export type { ActivityMode };
-
 export type ActivityLogInput = {
   mode: ActivityMode;
   steps?: number | null;

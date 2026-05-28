@@ -37,9 +37,9 @@ import { cn } from "@/lib/utils";
 import {
   deleteTodayActivity,
   upsertTodayActivity,
-  type ActivityMode,
 } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
+import type { ActivityMode } from "@/lib/tdee";
 
 export type ActivityCardProps = {
   today: {
