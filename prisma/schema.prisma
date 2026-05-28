@@ -264,6 +264,11 @@ model CustomFood {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // NOTE: a GIN trigram index "CustomFood_name_trgm_idx" also exists in
+  // the database (see prisma/manual-indexes.sql) to accelerate the
+  // `name ILIKE '%t%'` food search. It isn't expressed here because the
+  // Prisma CLI can't run in this environment to validate the gin/ops
+  // syntax — declare it here and drop this note once the CLI is fixed.
   @@index([name])
   @@index([createdAt])
 }
