@@ -93,6 +93,7 @@ export function SortableWidgets({
 
   return (
     <DndContext
+      id="kcals-widget-sort"
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
