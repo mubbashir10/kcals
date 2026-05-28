@@ -15,7 +15,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMeal } from "@/app/actions/meals";
 
-export function NewMealButton({ suggestedName }: { suggestedName: string }) {
+export function NewMealButton({
+  suggestedName,
+  dayKey = null,
+}: {
+  suggestedName: string;
+  /** Day to create the meal on. `null`/omitted means today. */
+  dayKey?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
@@ -27,7 +34,7 @@ export function NewMealButton({ suggestedName }: { suggestedName: string }) {
 
   function onCreate() {
     startTransition(async () => {
-      await createMeal(name);
+      await createMeal(name, dayKey);
       setOpen(false);
       setName("");
     });

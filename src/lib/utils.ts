@@ -25,6 +25,23 @@ export function sumBy<K extends string>(
 }
 
 /**
+ * Parse an optional non-negative integer from form input. Empty → null (a
+ * valid "left blank"); a number outside [0, max] → "invalid" so the caller
+ * can surface an error. Distinguishing the two is why this isn't
+ * `parseFiniteNumber`.
+ */
+export function parseOptionalInt(
+  v: string,
+  max: number
+): number | null | "invalid" {
+  const trimmed = v.trim();
+  if (trimmed === "") return null;
+  const n = parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < 0 || n > max) return "invalid";
+  return n;
+}
+
+/**
  * Parse a string into a finite number, optionally bounded. Returns null if
  * the string is empty, not a number, or out of range. Use at form-input
  * boundaries where partial entries like "1." or "" are expected.

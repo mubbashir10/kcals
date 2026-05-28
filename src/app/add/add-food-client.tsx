@@ -50,17 +50,28 @@ type Target =
   | { kind: "existing"; mealId: number }
   | { kind: "new"; name: string };
 
+// Map the picker's target + edited day into logFood's options shape.
+function logOptions(target: Target, dayKey: string | null) {
+  return target.kind === "existing"
+    ? { mealId: target.mealId, dayKey }
+    : { newMealName: target.name, dayKey };
+}
+
 export function AddFoodClient({
   meals,
   autoTargetId,
   suggestedNewMealName,
   timezone,
+  dayKey = null,
 }: {
   meals: MealOption[];
   autoTargetId: number | null;
   suggestedNewMealName: string;
   timezone: string;
+  /** Past day being edited. `null` means today. */
+  dayKey?: string | null;
 }) {
+  const backHref = dayKey ? `/day/${dayKey}` : "/";
   const {
     query,
     setQuery: updateQuery,
@@ -125,7 +136,7 @@ export function AddFoodClient({
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
           <AppLink
-            href="/"
+            href={backHref}
             direction="back"
             aria-label="Back"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -273,12 +284,14 @@ export function AddFoodClient({
       <PortionDialog
         food={selected}
         target={target}
+        dayKey={dayKey}
         onClose={() => setSelected(null)}
       />
 
       <QuickAddDialog
         open={quickOpen}
         target={target}
+        dayKey={dayKey}
         onClose={() => setQuickOpen(false)}
       />
 
@@ -635,17 +648,24 @@ function EmptyState() {
 function PortionDialog({
   food,
   target,
+  dayKey,
   onClose,
 }: {
   food: Food | null;
   target: Target;
+  dayKey: string | null;
   onClose: () => void;
 }) {
   return (
     <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="rounded-2xl sm:max-w-md">
         {food && (
-          <PortionForm key={food.fdcId} food={food} target={target} />
+          <PortionForm
+            key={food.fdcId}
+            food={food}
+            target={target}
+            dayKey={dayKey}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -655,9 +675,11 @@ function PortionDialog({
 function PortionForm({
   food,
   target,
+  dayKey,
 }: {
   food: Food;
   target: Target;
+  dayKey: string | null;
 }) {
   const servingG =
     food.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
@@ -723,9 +745,7 @@ function PortionForm({
             carbsG: round1(computed.carbsG),
             fatG: round1(computed.fatG),
           },
-          target.kind === "existing"
-            ? { mealId: target.mealId }
-            : { newMealName: target.name }
+          logOptions(target, dayKey)
         );
       } catch (err) {
         if (err instanceof Error && !err.message.includes("NEXT_REDIRECT")) {
@@ -842,10 +862,12 @@ function PortionForm({
 function QuickAddDialog({
   open,
   target,
+  dayKey,
   onClose,
 }: {
   open: boolean;
   target: Target;
+  dayKey: string | null;
   onClose: () => void;
 }) {
   const [kcal, setKcal] = useState("");
@@ -891,9 +913,7 @@ function QuickAddDialog({
             carbsG: parseMacro(carbs),
             fatG: parseMacro(fat),
           },
-          target.kind === "existing"
-            ? { mealId: target.mealId }
-            : { newMealName: target.name }
+          logOptions(target, dayKey)
         );
       } catch (err) {
         if (err instanceof Error && !err.message.includes("NEXT_REDIRECT")) {

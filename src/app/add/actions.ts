@@ -4,10 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { autoMealNameInTz } from "@/lib/clock";
+import {
+  autoMealNameInTz,
+  instantWithinDayInTz,
+  isFutureDayKey,
+} from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
 import { round1 } from "@/lib/utils";
+import { revalidateDiary } from "@/lib/revalidate";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -29,6 +34,12 @@ export type LogFoodOptions = {
   mealId?: number | null;
   /** Create a brand-new meal with this name (only used when mealId is null/undefined). */
   newMealName?: string | null;
+  /**
+   * Calendar day (YYYY-MM-DD) for a newly-created meal. `null`/omitted means
+   * today. Ignored when appending to an existing meal — that meal already has
+   * its day. Also controls where we redirect back to after logging.
+   */
+  dayKey?: string | null;
 };
 
 /**
@@ -44,6 +55,7 @@ export async function logFood(
   options: LogFoodOptions = {}
 ) {
   const userId = await requireUserId();
+  const dayKey = options.dayKey ?? null;
   let mealId: number;
 
   if (options.mealId) {
@@ -58,25 +70,45 @@ export async function logFood(
     mealId = owned.id;
   } else if (typeof options.newMealName === "string") {
     const tz = await getProfileTimezone(userId);
+    if (dayKey && isFutureDayKey(tz, dayKey)) {
+      throw new Error("Cannot log a future date");
+    }
+    const loggedAt = dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
     const meal = await db.meal.create({
       data: {
         userId,
-        name: options.newMealName.trim() || autoMealNameInTz(new Date(), tz),
+        name:
+          options.newMealName.trim() ||
+          autoMealNameInTz(loggedAt ?? new Date(), tz),
+        loggedAt,
       },
     });
     mealId = meal.id;
   } else {
-    // auto-grouping (default)
-    const cutoff = new Date(Date.now() - MEAL_JOIN_WINDOW_MS);
-    const recent = await db.meal.findFirst({
-      where: { userId, loggedAt: { gte: cutoff } },
-      orderBy: { loggedAt: "desc" },
-    });
-    let meal = recent;
+    // auto-grouping (default). Only joins a recent meal when logging "today" —
+    // the 2h window is relative to now, so a past day never matches and we
+    // open a fresh meal pinned to that day instead.
+    let meal = dayKey
+      ? null
+      : await db.meal.findFirst({
+          where: {
+            userId,
+            loggedAt: { gte: new Date(Date.now() - MEAL_JOIN_WINDOW_MS) },
+          },
+          orderBy: { loggedAt: "desc" },
+        });
     if (!meal) {
       const tz = await getProfileTimezone(userId);
+      if (dayKey && isFutureDayKey(tz, dayKey)) {
+        throw new Error("Cannot log a future date");
+      }
+      const loggedAt = dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
       meal = await db.meal.create({
-        data: { userId, name: autoMealNameInTz(new Date(), tz) },
+        data: {
+          userId,
+          name: autoMealNameInTz(loggedAt ?? new Date(), tz),
+          loggedAt,
+        },
       });
     }
     mealId = meal.id;
@@ -86,8 +118,8 @@ export async function logFood(
     data: { mealId, ...input },
   });
 
-  revalidatePath("/");
-  redirect("/");
+  revalidateDiary();
+  redirect(dayKey ? `/day/${dayKey}` : "/");
 }
 
 export type ApproveAiFoodInput = {

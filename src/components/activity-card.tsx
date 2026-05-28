@@ -33,11 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import {
-  deleteTodayActivity,
-  upsertTodayActivity,
-} from "@/app/actions/activity";
+import { cn, parseOptionalInt } from "@/lib/utils";
+import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
 import type { ActivityMode } from "@/lib/tdee";
 
@@ -56,9 +53,16 @@ export type ActivityCardProps = {
     activeKcalOverride: number | null;
   };
   state: Exclude<WidgetState, "hidden">;
+  /** Day being edited. `null`/omitted means today. */
+  dayKey?: string | null;
 };
 
-export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
+export function ActivityCard({
+  today,
+  defaults,
+  state,
+  dayKey = null,
+}: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
 
@@ -88,6 +92,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
           onOpenChange={setOpen}
           today={today}
           defaults={defaults}
+          dayKey={dayKey}
         />
       </Card>
     );
@@ -149,7 +154,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
                 <DropdownMenuItem
                   variant="destructive"
                   onClick={async () => {
-                    await deleteTodayActivity();
+                    await clearActivity(dayKey);
                   }}
                   className="cursor-pointer rounded-lg text-sm"
                 >
@@ -180,6 +185,7 @@ export function ActivityCard({ today, defaults, state }: ActivityCardProps) {
         onOpenChange={setOpen}
         today={today}
         defaults={defaults}
+        dayKey={dayKey}
       />
     </>
   );
@@ -274,11 +280,13 @@ function LogActivityDialog({
   onOpenChange,
   today,
   defaults,
+  dayKey,
 }: {
   open: boolean;
   onOpenChange: (next: boolean) => void;
   today: ActivityCardProps["today"];
   defaults: ActivityCardProps["defaults"];
+  dayKey: string | null;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -289,6 +297,7 @@ function LogActivityDialog({
           key={open ? "open" : "closed"}
           today={today}
           defaults={defaults}
+          dayKey={dayKey}
           onSaved={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -299,10 +308,12 @@ function LogActivityDialog({
 function LogActivityForm({
   today,
   defaults,
+  dayKey,
   onSaved,
 }: {
   today: ActivityCardProps["today"];
   defaults: ActivityCardProps["defaults"];
+  dayKey: string | null;
   onSaved: () => void;
 }) {
   const [mode, setMode] = useState<ActivityMode>(today?.mode ?? "estimate");
@@ -329,14 +340,6 @@ function LogActivityForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function parseOptionalInt(v: string, max: number): number | null | "invalid" {
-    const trimmed = v.trim();
-    if (trimmed === "") return null;
-    const n = parseInt(trimmed, 10);
-    if (!Number.isFinite(n) || n < 0 || n > max) return "invalid";
-    return n;
-  }
-
   function onSave() {
     setError(null);
     if (mode === "override") {
@@ -347,7 +350,7 @@ function LogActivityForm({
       }
       startTransition(async () => {
         try {
-          await upsertTodayActivity({ mode, wearableKcal: k });
+          await upsertActivity(dayKey, { mode, wearableKcal: k });
           onSaved();
         } catch {
           setError("Couldn't save. Try again.");
@@ -365,7 +368,7 @@ function LogActivityForm({
     }
     startTransition(async () => {
       try {
-        await upsertTodayActivity({
+        await upsertActivity(dayKey, {
           mode,
           steps: s,
           liftingMin: lm,

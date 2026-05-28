@@ -1,27 +1,19 @@
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  Flame,
-  Footprints,
-  Scale,
-  Watch,
-  Zap,
-} from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MacroCard } from "@/components/macro-card";
 import { MealCard } from "@/components/meal-card";
+import { NewMealButton } from "@/components/new-meal-button";
+import { DayActivityTile, DayWeightTile } from "@/components/day-editors";
 import { db } from "@/lib/db";
-import { calculateBmr, kgToLb, type Sex, type Units } from "@/lib/bmr";
+import { calculateBmr, type Sex, type Units } from "@/lib/bmr";
 import {
+  autoMealNameInTz,
   dayKeyInTz,
   formatLongDateInTz,
-  parseDayKey,
-  startOfDayInTz,
+  startOfDayForDayKey,
 } from "@/lib/clock";
 import { shiftDayKey } from "@/lib/calendar-build";
 import {
@@ -39,7 +31,7 @@ import {
   type ActivityMode,
 } from "@/lib/tdee";
 import { requireProfile } from "@/lib/session";
-import { round1, sumBy } from "@/lib/utils";
+import { sumBy } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +59,7 @@ export default async function DayPage({
   const units = profile.units as Units;
 
   // The UTC window that covers this calendar day in the user's tz.
-  const dayStart = parseDayKeyAsStartOfDay(dayKey, tz);
+  const dayStart = startOfDayForDayKey(tz, dayKey);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
   const [meals, activityLog, weightLogs] = await Promise.all([
@@ -274,12 +266,30 @@ export default async function DayPage({
 
         {/* Weight & Activity strip */}
         <section className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <WeightTile weightKg={dayWeight?.weightKg ?? null} units={units} />
-          <ActivityTile
-            steps={activityLog?.steps ?? null}
-            liftingMin={activityLog?.liftingMin ?? null}
-            cardioMin={activityLog?.cardioMin ?? null}
-            wearableKcal={activityLog?.wearableKcal ?? null}
+          <DayWeightTile
+            weightKg={dayWeight?.weightKg ?? null}
+            logId={dayWeight?.id ?? null}
+            units={units}
+            dayKey={dayKey}
+          />
+          <DayActivityTile
+            activity={
+              activityLog
+                ? {
+                    mode: activityLog.mode as ActivityMode,
+                    steps: activityLog.steps,
+                    liftingMin: activityLog.liftingMin,
+                    cardioMin: activityLog.cardioMin,
+                    wearableKcal: activityLog.wearableKcal,
+                  }
+                : null
+            }
+            defaults={{
+              stepsPerDay: profile.stepsPerDay,
+              liftingMinutesPerSession: profile.liftingMinutesPerSession,
+              cardioMinutesPerSession: profile.cardioMinutesPerSession,
+              activeKcalOverride: profile.activeKcalOverride,
+            }}
             activeKcal={Math.round(activeKcalToday.kcal)}
             hasActivity={
               activityLog != null &&
@@ -288,6 +298,7 @@ export default async function DayPage({
                 (activityLog.cardioMin ?? 0) > 0 ||
                 (activityLog.wearableKcal ?? 0) > 0)
             }
+            dayKey={dayKey}
           />
         </section>
 
@@ -316,130 +327,15 @@ export default async function DayPage({
               ))}
             </div>
           )}
+          <div className="mt-4 flex justify-center">
+            <NewMealButton
+              suggestedName={autoMealNameInTz(new Date(), tz)}
+              dayKey={dayKey}
+            />
+          </div>
         </section>
       </main>
     </div>
   );
 }
-
-function WeightTile({
-  weightKg,
-  units,
-}: {
-  weightKg: number | null;
-  units: Units;
-}) {
-  const display = weightKg != null
-    ? units === "imperial"
-      ? kgToLb(weightKg)
-      : weightKg
-    : null;
-  const unit = units === "imperial" ? "lb" : "kg";
-
-  return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="flex items-center gap-2">
-        <Scale className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Weight
-        </span>
-      </div>
-      <div className="mt-2 text-2xl font-semibold leading-none tabular-nums tracking-tight">
-        {display != null ? (
-          <>
-            {round1(display).toFixed(1)}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">
-              {unit}
-            </span>
-          </>
-        ) : (
-          <span className="text-base font-normal text-muted-foreground">
-            —
-          </span>
-        )}
-      </div>
-      {display == null && (
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          No weigh-in logged
-        </p>
-      )}
-    </Card>
-  );
-}
-
-function ActivityTile({
-  steps,
-  liftingMin,
-  cardioMin,
-  wearableKcal,
-  activeKcal: activeKcalValue,
-  hasActivity,
-}: {
-  steps: number | null;
-  liftingMin: number | null;
-  cardioMin: number | null;
-  wearableKcal: number | null;
-  activeKcal: number;
-  hasActivity: boolean;
-}) {
-  return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="flex items-center gap-2">
-        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Activity
-        </span>
-      </div>
-      <div className="mt-2 flex items-baseline gap-1">
-        <span className="text-2xl font-semibold leading-none tabular-nums tracking-tight">
-          {activeKcalValue.toLocaleString()}
-        </span>
-        <span className="text-xs font-normal text-muted-foreground">
-          active kcal
-        </span>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] tabular-nums text-muted-foreground">
-        {!hasActivity ? (
-          <span>Estimated from defaults</span>
-        ) : wearableKcal != null && wearableKcal > 0 ? (
-          <span className="inline-flex items-center gap-1">
-            <Watch className="h-3 w-3" />
-            From wearable
-          </span>
-        ) : (
-          <>
-            {(steps ?? 0) > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Footprints className="h-3 w-3" />
-                {steps!.toLocaleString()} steps
-              </span>
-            )}
-            {(liftingMin ?? 0) > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Dumbbell className="h-3 w-3" />
-                {liftingMin}m lift
-              </span>
-            )}
-            {(cardioMin ?? 0) > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Flame className="h-3 w-3" />
-                {cardioMin}m cardio
-              </span>
-            )}
-          </>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function parseDayKeyAsStartOfDay(dayKey: string, tz: string): Date {
-  // Treat the dayKey as a wall-clock date in `tz` and resolve the UTC
-  // instant of 00:00 local time. Reuses startOfDayInTz via a reference Date.
-  const { year, month, day } = parseDayKey(dayKey);
-  // Noon UTC is safely inside the calendar day for almost every IANA tz.
-  const ref = new Date(Date.UTC(year, month - 1, day, 12));
-  return startOfDayInTz(tz, ref);
-}
-
 

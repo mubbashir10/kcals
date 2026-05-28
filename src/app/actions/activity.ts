@@ -1,9 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { db } from "@/lib/db";
-import { dayKeyInTz } from "@/lib/clock";
+import { dayKeyInTz, isFutureDayKey } from "@/lib/clock";
+import { revalidateDiary } from "@/lib/revalidate";
 import { requireUserId } from "@/lib/session";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import type { ActivityMode } from "@/lib/tdee";
@@ -27,12 +26,24 @@ function sanitizeInt(
   return v;
 }
 
-export async function upsertTodayActivity(input: ActivityLogInput) {
+function revalidateActivity() {
+  revalidateDiary();
+}
+
+// `dayKey === null` means "today" (computed server-side). Pass an explicit
+// dayKey to edit a past day.
+export async function upsertActivity(
+  dayKey: string | null,
+  input: ActivityLogInput
+) {
   const userId = await requireUserId();
   const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) return;
   const tz = profile.timezone || "UTC";
-  const key = dayKeyInTz(tz);
+  if (dayKey && isFutureDayKey(tz, dayKey)) {
+    throw new Error("Cannot log a future date");
+  }
+  const key = dayKey ?? dayKeyInTz(tz);
 
   const mode: ActivityMode = input.mode === "override" ? "override" : "estimate";
 
@@ -82,20 +93,23 @@ export async function upsertTodayActivity(input: ActivityLogInput) {
     },
   });
 
-  revalidatePath("/");
+  revalidateActivity();
 }
 
 /**
- * "Clear" today's log. We keep the row but null-out the override fields
- * and recompute TDEE from the default snapshot. The row persists so the
- * daily TDEE history stays complete.
+ * "Clear" a day's log. We keep the row but null-out the override fields and
+ * recompute TDEE from the default snapshot. The row persists so the daily
+ * TDEE history stays complete. `dayKey === null` means "today".
  */
-export async function deleteTodayActivity() {
+export async function clearActivity(dayKey: string | null) {
   const userId = await requireUserId();
   const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) return;
   const tz = profile.timezone || "UTC";
-  const key = dayKeyInTz(tz);
+  if (dayKey && isFutureDayKey(tz, dayKey)) {
+    throw new Error("Cannot log a future date");
+  }
+  const key = dayKey ?? dayKeyInTz(tz);
 
   // Default snapshot only — no override.
   const snapshot = buildDailySnapshot(profile, null);
@@ -128,5 +142,5 @@ export async function deleteTodayActivity() {
     },
   });
 
-  revalidatePath("/");
+  revalidateActivity();
 }

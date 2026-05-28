@@ -33,6 +33,39 @@ export function parseDayKey(key: string): { year: number; month: number; day: nu
   return { year: y, month: m, day: d };
 }
 
+// True when `dayKey` is a calendar day after "today" in `tz`. Used to reject
+// logging into the future. Relies on "YYYY-MM-DD" sorting lexicographically.
+export function isFutureDayKey(
+  tz: string,
+  dayKey: string,
+  ref: Date = new Date()
+): boolean {
+  return dayKey > dayKeyInTz(tz, ref);
+}
+
+// A UTC instant that lands inside `dayKey`'s calendar day in `tz`, using the
+// current wall-clock time-of-day. So a meal or weigh-in logged *for* a past
+// day still sorts and auto-names by the moment it was entered, just pinned to
+// the chosen date.
+export function instantWithinDayInTz(
+  tz: string,
+  dayKey: string,
+  ref: Date = new Date()
+): Date {
+  const { year, month, day } = parseDayKey(dayKey);
+  const { hour, minute } = getDateParts(ref, tz);
+  const asUtc = Date.UTC(year, month - 1, day, hour, minute);
+  const offset = tzOffsetMs(new Date(asUtc), tz);
+  return new Date(asUtc - offset);
+}
+
+// UTC instant of 00:00 local time in `tz` for the calendar day `dayKey`. Noon
+// UTC is safely inside the day for every IANA tz, so it's a stable reference.
+export function startOfDayForDayKey(tz: string, dayKey: string): Date {
+  const { year, month, day } = parseDayKey(dayKey);
+  return startOfDayInTz(tz, new Date(Date.UTC(year, month - 1, day, 12)));
+}
+
 // Day key → local Date at 00:00 (local-time, not tz-aware). Use this for
 // chart x-axis math and "is same calendar day" comparisons; for absolute
 // instants in a specific tz use `startOfDayInTz` instead. For day-key

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
 import {
+  dayKeyInTz,
   formatTimeInTz,
   setTimeOnDateInTz,
   timeInputValueInTz,
@@ -69,6 +70,12 @@ export function MealCard({
   const mealCarbs = meal.foods.reduce((a, f) => a + f.carbsG, 0);
   const mealFat = meal.foods.reduce((a, f) => a + f.fatG, 0);
   const time = formatTimeInTz(meal.loggedAt, timezone);
+  // Carry the meal's own day so "Add food" lands on the right date (and the
+  // add flow redirects back here), not whatever "today" is.
+  const addHref = `/add?meal=${meal.id}&day=${dayKeyInTz(
+    timezone,
+    new Date(meal.loggedAt)
+  )}`;
 
   return (
     <Card className="overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
@@ -140,7 +147,7 @@ export function MealCard({
         <div className="px-5 py-8 text-center">
           <p className="mb-3 text-xs text-muted-foreground">No food yet</p>
           <AppLink
-            href={`/add?meal=${meal.id}`}
+            href={addHref}
             className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90"
           >
             <Plus className="h-3 w-3" />
@@ -161,7 +168,7 @@ export function MealCard({
 
       {meal.foods.length > 0 && (
         <AppLink
-          href={`/add?meal=${meal.id}`}
+          href={addHref}
           className="flex items-center justify-center gap-1.5 border-t border-border/60 px-5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
         >
           <Plus className="h-3 w-3" />

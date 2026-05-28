@@ -1,22 +1,38 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { db } from "@/lib/db";
-import { autoMealNameInTz } from "@/lib/clock";
+import {
+  autoMealNameInTz,
+  instantWithinDayInTz,
+  isFutureDayKey,
+} from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
+import { revalidateDiary } from "@/lib/revalidate";
 
-export async function createMeal(name?: string) {
+function revalidateMeals() {
+  revalidateDiary("/diary");
+}
+
+export async function createMeal(name?: string, dayKey?: string | null) {
   const userId = await requireUserId();
   const trimmed = (name ?? "").trim();
+
+  let tz: string | undefined;
+  let loggedAt: Date | undefined;
+  if (dayKey) {
+    tz = await getProfileTimezone(userId);
+    if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
+    loggedAt = instantWithinDayInTz(tz, dayKey);
+  }
+
   let resolved = trimmed;
   if (resolved.length === 0) {
-    const tz = await getProfileTimezone(userId);
-    resolved = autoMealNameInTz(new Date(), tz);
+    tz ??= await getProfileTimezone(userId);
+    resolved = autoMealNameInTz(loggedAt ?? new Date(), tz);
   }
-  await db.meal.create({ data: { userId, name: resolved } });
-  revalidatePath("/");
+  await db.meal.create({ data: { userId, name: resolved, loggedAt } });
+  revalidateMeals();
 }
 
 export async function renameMeal(id: number, name: string) {
@@ -26,7 +42,7 @@ export async function renameMeal(id: number, name: string) {
     where: { id, userId },
     data: { name: trimmed.length > 0 ? trimmed : null },
   });
-  revalidatePath("/");
+  revalidateMeals();
 }
 
 export async function updateMeal(
@@ -41,11 +57,11 @@ export async function updateMeal(
   }
   if (patch.loggedAt) data.loggedAt = patch.loggedAt;
   await db.meal.updateMany({ where: { id, userId }, data });
-  revalidatePath("/");
+  revalidateMeals();
 }
 
 export async function deleteMeal(id: number) {
   const userId = await requireUserId();
   await db.meal.deleteMany({ where: { id, userId } });
-  revalidatePath("/");
+  revalidateMeals();
 }
