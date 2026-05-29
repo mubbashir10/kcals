@@ -9,23 +9,23 @@ import { dayKeyInTz } from "@/lib/clock";
 import { revalidateDiary } from "@/lib/revalidate";
 import { round1 } from "@/lib/utils";
 
-// A loggedAt for a food landing in `target`. It must bucket onto the target
-// meal's calendar day (daily-history/calendar group foods by their own
-// loggedAt). Normally we append just after the meal's latest food — but only
-// when that food shares the meal's day; otherwise the meal has a stray food
-// and we anchor to the meal's own instant so the day stays correct.
+// A loggedAt for a food landing in `target`: just after the meal's latest
+// food, so it sorts last in the list. We only consider foods already on the
+// meal's own calendar day — ignoring any stray food on another day — so the
+// new row both appends to the end AND buckets onto the meal's day (which is
+// what daily-history/calendar group foods by). Anchors to the meal's own
+// instant when it has no same-day foods yet.
 function landingInstant(
   target: { loggedAt: Date; foods: { loggedAt: Date }[] },
   tz: string
 ): Date {
-  const last = target.foods[0]?.loggedAt;
-  if (last) {
-    const candidate = new Date(last.getTime() + 1);
-    if (dayKeyInTz(tz, candidate) === dayKeyInTz(tz, target.loggedAt)) {
-      return candidate;
-    }
+  const mealDay = dayKeyInTz(tz, target.loggedAt);
+  let latest = target.loggedAt.getTime();
+  for (const f of target.foods) {
+    const t = f.loggedAt.getTime();
+    if (t > latest && dayKeyInTz(tz, f.loggedAt) === mealDay) latest = t;
   }
-  return new Date(target.loggedAt.getTime() + 1);
+  return new Date(latest + 1);
 }
 
 // Directly set kcal (and optional macros) on a quick-add food row. Used by
@@ -106,7 +106,9 @@ async function loadFoodAndTarget(foodId: number, targetMealId: number, userId: s
       select: {
         id: true,
         loggedAt: true,
-        foods: { orderBy: { loggedAt: "desc" }, take: 1, select: { loggedAt: true } },
+        // All food timestamps — landingInstant needs the latest one on the
+        // meal's own day, which may not be the single most-recent food.
+        foods: { select: { loggedAt: true } },
       },
     }),
   ]);
