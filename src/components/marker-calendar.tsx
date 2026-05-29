@@ -111,7 +111,7 @@ function MarkerDayButton({
   const inner = (
     <span
       className={cn(
-        "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium tabular-nums leading-none sm:h-8 sm:w-8",
+        "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium tabular-nums leading-none sm:h-8 sm:w-8",
         modifiers.today
           ? "bg-foreground text-background"
           : dim
