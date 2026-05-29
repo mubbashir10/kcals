@@ -66,7 +66,7 @@ export function CalendarWidget({
           className="group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <CalendarDays className="h-3.5 w-3.5 text-emerald-500/80" />
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground/80">
+          <span className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground/80">
             {monthLabel}
           </span>
           <ChevronRight className="h-3 w-3 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground" />
@@ -85,7 +85,7 @@ export function CalendarWidget({
         navigable={false}
       />
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
         <Legend color="bg-emerald-500" label="food" />
         <Legend color="bg-violet-500" label="weight" />
         <Legend color="bg-sky-500" label="activity" />
@@ -97,7 +97,7 @@ export function CalendarWidget({
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`h-1 w-1 rounded-full ${color}`} aria-hidden />
+      <span className={`h-1.5 w-1.5 rounded-full ${color}`} aria-hidden />
       {label}
     </span>
   );
