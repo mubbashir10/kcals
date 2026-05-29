@@ -4,7 +4,29 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { getProfileTimezone } from "@/lib/clock.server";
+import { dayKeyInTz } from "@/lib/clock";
+import { revalidateDiary } from "@/lib/revalidate";
 import { round1 } from "@/lib/utils";
+
+// A loggedAt for a food landing in `target`. It must bucket onto the target
+// meal's calendar day (daily-history/calendar group foods by their own
+// loggedAt). Normally we append just after the meal's latest food — but only
+// when that food shares the meal's day; otherwise the meal has a stray food
+// and we anchor to the meal's own instant so the day stays correct.
+function landingInstant(
+  target: { loggedAt: Date; foods: { loggedAt: Date }[] },
+  tz: string
+): Date {
+  const last = target.foods[0]?.loggedAt;
+  if (last) {
+    const candidate = new Date(last.getTime() + 1);
+    if (dayKeyInTz(tz, candidate) === dayKeyInTz(tz, target.loggedAt)) {
+      return candidate;
+    }
+  }
+  return new Date(target.loggedAt.getTime() + 1);
+}
 
 // Directly set kcal (and optional macros) on a quick-add food row. Used by
 // the edit UI in MealCard when food.grams === 0 — there's no portion to
@@ -72,5 +94,60 @@ export async function deleteFood(id: number) {
   const userId = await requireUserId();
   await db.food.deleteMany({ where: { id, meal: { userId } } });
   revalidatePath("/");
+}
+
+// Shared lookup: the food (ownership-checked) and the destination meal with
+// just enough to compute where the row should land.
+async function loadFoodAndTarget(foodId: number, targetMealId: number, userId: string) {
+  const [food, target] = await Promise.all([
+    db.food.findFirst({ where: { id: foodId, meal: { userId } } }),
+    db.meal.findFirst({
+      where: { id: targetMealId, userId },
+      select: {
+        id: true,
+        loggedAt: true,
+        foods: { orderBy: { loggedAt: "desc" }, take: 1, select: { loggedAt: true } },
+      },
+    }),
+  ]);
+  if (!food || !target) throw new Error("Food or target meal not found");
+  return { food, target };
+}
+
+// Move a single food into another (existing) meal — same day or a different
+// one. The food adopts the target meal's day via a fresh loggedAt.
+export async function moveFood(foodId: number, targetMealId: number) {
+  const userId = await requireUserId();
+  const { food, target } = await loadFoodAndTarget(foodId, targetMealId, userId);
+  if (food.mealId === target.id) return; // already there — no-op
+  const tz = await getProfileTimezone(userId);
+  await db.food.update({
+    where: { id: food.id },
+    data: { mealId: target.id, loggedAt: landingInstant(target, tz) },
+  });
+  revalidateDiary("/diary");
+}
+
+// Duplicate a single food into another (existing) meal.
+export async function copyFood(foodId: number, targetMealId: number) {
+  const userId = await requireUserId();
+  const { food, target } = await loadFoodAndTarget(foodId, targetMealId, userId);
+  const tz = await getProfileTimezone(userId);
+  await db.food.create({
+    data: {
+      mealId: target.id,
+      fdcId: food.fdcId,
+      recipeId: food.recipeId,
+      name: food.name,
+      brand: food.brand,
+      grams: food.grams,
+      kcal: food.kcal,
+      proteinG: food.proteinG,
+      carbsG: food.carbsG,
+      fatG: food.fatG,
+      loggedAt: landingInstant(target, tz),
+    },
+  });
+  revalidateDiary("/diary");
 }
 

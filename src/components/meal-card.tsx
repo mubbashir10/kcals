@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   Copy,
   CornerUpRight,
@@ -36,11 +36,23 @@ import {
   setTimeOnDateInTz,
   timeInputValueInTz,
 } from "@/lib/clock";
-import { updateMeal, deleteMeal, moveMeal, copyMeal } from "@/app/actions/meals";
+import {
+  updateMeal,
+  deleteMeal,
+  moveMeal,
+  copyMeal,
+  listMealsOnDay,
+} from "@/app/actions/meals";
+
+// Derived from the server action's return type — the action file is
+// "use server" and can't export the type itself.
+type MealOption = Awaited<ReturnType<typeof listMealsOnDay>>[number];
 import {
   deleteFood,
   updateFoodGrams,
   updateFoodQuickAdd,
+  moveFood,
+  copyFood,
 } from "@/app/actions/foods";
 
 export type MealCardFood = {
@@ -72,6 +84,10 @@ export function MealCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferMode, setTransferMode] = useState<"move" | "copy" | null>(null);
   const [editingFood, setEditingFood] = useState<MealCardFood | null>(null);
+  const [transferFood, setTransferFood] = useState<{
+    mode: "move" | "copy";
+    food: MealCardFood;
+  } | null>(null);
 
   const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
   const mealProtein = meal.foods.reduce((a, f) => a + f.proteinG, 0);
@@ -184,6 +200,8 @@ export function MealCard({
             key={f.id}
             food={f}
             onEdit={() => setEditingFood(f)}
+            onMove={() => setTransferFood({ mode: "move", food: f })}
+            onCopy={() => setTransferFood({ mode: "copy", food: f })}
           />
         ))}
       </ul>
@@ -219,6 +237,13 @@ export function MealCard({
         food={editingFood}
         onClose={() => setEditingFood(null)}
       />
+      <FoodTransferDialog
+        transfer={transferFood}
+        currentMealId={meal.id}
+        currentDayKey={dayKeyInTz(timezone, new Date(meal.loggedAt))}
+        timezone={timezone}
+        onClose={() => setTransferFood(null)}
+      />
     </Card>
   );
 }
@@ -226,9 +251,13 @@ export function MealCard({
 function FoodRow({
   food: f,
   onEdit,
+  onMove,
+  onCopy,
 }: {
   food: MealCardFood;
   onEdit: () => void;
+  onMove: () => void;
+  onCopy: () => void;
 }) {
   const [deletePending, startDelete] = useTransition();
 
@@ -237,11 +266,6 @@ function FoodRow({
     startDelete(async () => {
       await deleteFood(f.id);
     });
-  }
-
-  function handleEditClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    onEdit();
   }
 
   return (
@@ -280,14 +304,40 @@ function FoodRow({
         </div>
 
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={handleEditClick}
-            aria-label="Edit food"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Food options"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+            >
+              <MoreHorizontal className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl p-1.5">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={onEdit}
+                >
+                  <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={onMove}
+                >
+                  <CornerUpRight className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Move to…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={onCopy}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Copy to…
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={handleDelete}
@@ -530,6 +580,200 @@ function TransferMealForm({
           <Button
             onClick={onSubmit}
             disabled={pending || !dateValid}
+            className="flex-1 rounded-full"
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function FoodTransferDialog({
+  transfer,
+  currentMealId,
+  currentDayKey,
+  timezone,
+  onClose,
+}: {
+  transfer: { mode: "move" | "copy"; food: MealCardFood } | null;
+  currentMealId: number;
+  currentDayKey: string;
+  timezone: string;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={transfer !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        {transfer && (
+          <FoodTransferForm
+            key={`${transfer.mode}-${transfer.food.id}`}
+            mode={transfer.mode}
+            food={transfer.food}
+            currentMealId={currentMealId}
+            currentDayKey={currentDayKey}
+            timezone={timezone}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FoodTransferForm({
+  mode,
+  food,
+  currentMealId,
+  currentDayKey,
+  timezone,
+  onClose,
+}: {
+  mode: "move" | "copy";
+  food: MealCardFood;
+  currentMealId: number;
+  currentDayKey: string;
+  timezone: string;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState(currentDayKey);
+  const [meals, setMeals] = useState<MealOption[] | null>(null);
+  const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const todayKey = dayKeyInTz(timezone, new Date());
+  const isCopy = mode === "copy";
+  const submitLabel = pending
+    ? isCopy
+      ? "Copying…"
+      : "Moving…"
+    : isCopy
+      ? "Copy"
+      : "Move";
+
+  // Load the chosen day's meals to pick a destination. Re-runs when the date
+  // changes; the cancelled flag drops a stale response if the user flips dates
+  // quickly. The "loading" reset lives in changeDate (the event handler) so we
+  // don't call setState synchronously inside the effect.
+  useEffect(() => {
+    let cancelled = false;
+    listMealsOnDay(date).then((list) => {
+      if (!cancelled) setMeals(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
+
+  function changeDate(next: string) {
+    setMeals(null);
+    setSelectedMealId(null);
+    setDate(next);
+  }
+
+  // Moving into the food's own meal is a no-op, so it can't be a target.
+  function isDisabled(mealId: number) {
+    return !isCopy && mealId === currentMealId;
+  }
+
+  function onSubmit() {
+    if (selectedMealId == null) return;
+    startTransition(async () => {
+      if (isCopy) await copyFood(food.id, selectedMealId);
+      else await moveFood(food.id, selectedMealId);
+      onClose();
+    });
+  }
+
+  return (
+    <>
+      <DialogTitle className="text-base font-semibold">
+        {isCopy ? "Copy food" : "Move food"}
+      </DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">
+        {isCopy ? "Duplicate" : "Move"} “{food.name}” into another meal.
+      </DialogDescription>
+
+      <div className="mt-4 space-y-4">
+        <div className="space-y-2">
+          <Label
+            htmlFor="food-transfer-date"
+            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Day
+          </Label>
+          <Input
+            id="food-transfer-date"
+            type="date"
+            value={date}
+            max={todayKey}
+            onChange={(e) => changeDate(e.target.value)}
+            className="tabular-nums"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Meal
+          </Label>
+          {meals === null ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              Loading…
+            </p>
+          ) : meals.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border/60 py-6 text-center text-xs text-muted-foreground">
+              No meals on this day. Pick another day.
+            </p>
+          ) : (
+            <div className="max-h-56 space-y-1.5 overflow-y-auto">
+              {meals.map((m) => {
+                const disabled = isDisabled(m.id);
+                const selected = m.id === selectedMealId;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setSelectedMealId(m.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors",
+                      selected
+                        ? "border-foreground/40 bg-accent/40"
+                        : "border-border/60 hover:bg-accent/30",
+                      disabled && "cursor-not-allowed opacity-40 hover:bg-transparent"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {m.name ?? "Meal"}
+                        {disabled && (
+                          <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
+                            (current)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums">
+                        {formatTimeInTz(m.loggedAt, timezone)} · {m.kcal} kcal ·{" "}
+                        {m.foodCount} {m.foodCount === 1 ? "food" : "foods"}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <DialogClose
+            render={<Button variant="ghost" className="flex-1 rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onSubmit}
+            disabled={pending || selectedMealId == null}
             className="flex-1 rounded-full"
           >
             {submitLabel}

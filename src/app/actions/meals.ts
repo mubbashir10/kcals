@@ -6,6 +6,7 @@ import {
   instantOnDayInTz,
   instantWithinDayInTz,
   isFutureDayKey,
+  startOfDayForDayKey,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
@@ -34,6 +35,38 @@ export async function createMeal(name?: string, dayKey?: string | null) {
   }
   await db.meal.create({ data: { userId, name: resolved, loggedAt } });
   revalidateMeals();
+}
+
+// NOTE: this file is "use server" — it may only export async functions, so
+// MealOption is intentionally NOT exported (consumers derive it from the
+// action's return type). Exporting a type here triggers a runtime 500.
+type MealOption = {
+  id: number;
+  name: string | null;
+  loggedAt: string;
+  kcal: number;
+  foodCount: number;
+};
+
+// Meals on a given calendar day (in the user's tz), summarised for the
+// "move/copy a food into a meal" picker.
+export async function listMealsOnDay(dayKey: string): Promise<MealOption[]> {
+  const userId = await requireUserId();
+  const tz = await getProfileTimezone(userId);
+  const dayStart = startOfDayForDayKey(tz, dayKey);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const meals = await db.meal.findMany({
+    where: { userId, loggedAt: { gte: dayStart, lt: dayEnd } },
+    orderBy: { loggedAt: "asc" },
+    select: { id: true, name: true, loggedAt: true, foods: { select: { kcal: true } } },
+  });
+  return meals.map((m) => ({
+    id: m.id,
+    name: m.name,
+    loggedAt: m.loggedAt.toISOString(),
+    kcal: Math.round(m.foods.reduce((a, f) => a + f.kcal, 0)),
+    foodCount: m.foods.length,
+  }));
 }
 
 export async function renameMeal(id: number, name: string) {
