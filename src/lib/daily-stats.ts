@@ -21,6 +21,7 @@ import {
   type GoalType,
 } from "@/lib/goal";
 import { computeMacroGoals } from "@/lib/macros";
+import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
 
 export type DailyStats = Awaited<ReturnType<typeof loadDailyStats>>;
@@ -183,7 +184,7 @@ export async function loadDailyStats(
   const [meals, latestWeight, baselineWeightRaw] = await Promise.all([
     db.meal.findMany({
       where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
-      orderBy: { loggedAt: "desc" },
+      orderBy: { loggedAt: normalizeMealSort(profile.mealSortDir) },
       include: { foods: { orderBy: { loggedAt: "asc" } } },
     }),
     db.weightLog.findFirst({

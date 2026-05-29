@@ -16,6 +16,7 @@ import {
   startOfDayForDayKey,
 } from "@/lib/clock";
 import { shiftDayKey } from "@/lib/calendar-build";
+import { normalizeMealSort } from "@/lib/widget-order";
 import {
   computeEffectiveTarget,
   isGoalPace,
@@ -68,7 +69,7 @@ export default async function DayPage({
         userId,
         loggedAt: { gte: dayStart, lt: dayEnd },
       },
-      orderBy: { loggedAt: "asc" },
+      orderBy: { loggedAt: normalizeMealSort(profile.mealSortDir) },
       include: { foods: { orderBy: { loggedAt: "asc" } } },
     }),
     db.activityLog.findUnique({

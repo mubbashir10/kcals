@@ -141,6 +141,9 @@ model Profile {
   // Calorie ring display — "remaining" (default) shows what's left to eat;
   // "consumed" shows what's been eaten so far.
   calorieDisplay String  @default("remaining")
+  // Order meals are listed in (by loggedAt): "desc" = newest first (default),
+  // "asc" = oldest first. Persisted so the choice sticks across sessions.
+  mealSortDir    String  @default("desc")
   // JSON array of widget IDs in display order. NULL = default order.
   widgetOrder    String?
 

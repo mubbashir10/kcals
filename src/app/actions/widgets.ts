@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
+import { revalidateDiary } from "@/lib/revalidate";
 import {
   isGoalPace,
   isGoalType,
@@ -15,6 +16,7 @@ import {
   REORDERABLE_WIDGETS,
   parseWidgetStates,
   type CalorieDisplayMode,
+  type MealSortDir,
   type ReorderableWidgetId,
   type UnitsPreference,
   type WidgetId,
@@ -41,6 +43,18 @@ export async function setWidgetState(id: WidgetId, state: WidgetState) {
     data: { widgetStates: JSON.stringify(next) },
   });
   revalidatePath("/");
+}
+
+export async function setMealSort(dir: MealSortDir) {
+  if (dir !== "asc" && dir !== "desc") {
+    throw new Error(`Invalid meal sort direction: ${dir}`);
+  }
+  const userId = await requireUserId();
+  await db.profile.updateMany({
+    where: { userId },
+    data: { mealSortDir: dir },
+  });
+  revalidateDiary("/diary");
 }
 
 export async function setCalorieDisplay(mode: CalorieDisplayMode) {

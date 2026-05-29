@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { MealCard } from "@/components/meal-card";
 import { db } from "@/lib/db";
 import { dayKeyInTz, parseDayKey, startOfDayInTz, yearInTz } from "@/lib/clock";
+import { normalizeMealSort } from "@/lib/widget-order";
 import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export default async function DiaryPage() {
 
   const meals = await db.meal.findMany({
     where: { userId, loggedAt: { gte: since } },
-    orderBy: { loggedAt: "desc" },
+    orderBy: { loggedAt: normalizeMealSort(profile.mealSortDir) },
     include: { foods: { orderBy: { loggedAt: "asc" } } },
   });
 

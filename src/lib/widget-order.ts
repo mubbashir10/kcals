@@ -23,6 +23,15 @@ export type WidgetState = "shown" | "hidden";
 export type CalorieDisplayMode = "remaining" | "consumed";
 export type { Units as UnitsPreference } from "@/lib/bmr";
 
+// Order meals are listed in by their logged time.
+export type MealSortDir = "asc" | "desc";
+
+// Narrow the profile's stored string to a valid direction. Anything other
+// than "asc" falls back to "desc" (newest first, the default).
+export function normalizeMealSort(value: string | null | undefined): MealSortDir {
+  return value === "asc" ? "asc" : "desc";
+}
+
 // Widgets the user can hide. Update this list to match what
 // WidgetsSettings offers.
 export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [

@@ -23,6 +23,7 @@ import { WeightCard } from "@/components/weight-card";
 import { WeekSummaryWidget } from "@/components/week-summary-widget";
 import {
   getWidgetState,
+  normalizeMealSort,
   parseWidgetOrder,
   parseWidgetStates,
 } from "@/lib/widget-order";
@@ -347,7 +348,11 @@ export default async function Home() {
                             : `${meals.length} ${meals.length === 1 ? "meal" : "meals"} · ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
                         </span>
                       </div>
-                      <SectionWidgetMenu widgetId="meals" label="Meals" />
+                      <SectionWidgetMenu
+                        widgetId="meals"
+                        label="Meals"
+                        sort={normalizeMealSort(profile.mealSortDir)}
+                      />
                     </div>
 
                     {meals.length === 0 ? (
