@@ -7,10 +7,9 @@ import {
   CalendarDays,
   CalendarRange,
   Circle,
+  Eye,
   EyeOff,
   Flame,
-  Maximize2,
-  Minimize2,
   Scale,
   UtensilsCrossed,
   Users,
@@ -31,8 +30,7 @@ const STATES: {
   label: string;
   icon: LucideIcon;
 }[] = [
-  { value: "expanded", label: "Expanded", icon: Maximize2 },
-  { value: "minimized", label: "Minimized", icon: Minimize2 },
+  { value: "shown", label: "Shown", icon: Eye },
   { value: "hidden", label: "Hidden", icon: EyeOff },
 ];
 
@@ -82,7 +80,7 @@ export function WidgetsSettings({ initial }: { initial: WidgetsSettingsProps }) 
           label={w.label}
           icon={w.icon}
           accent={w.accent}
-          current={initial.states[w.id] ?? "expanded"}
+          current={initial.states[w.id] ?? "shown"}
           extra={
             w.id === "calorie" ? (
               <CalorieDisplayToggle current={initial.calorieDisplay} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { ChevronUp, EyeOff, MoreHorizontal } from "lucide-react";
+import { EyeOff, MoreHorizontal } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -12,9 +12,9 @@ import {
 import { setWidgetState } from "@/app/actions/widgets";
 import type { WidgetId } from "@/lib/widget-order";
 
-// Minimize/hide dropdown for the dashboard sections that don't render
-// inside a single Card (Meals, Friends). Same affordance as the per-widget
-// menu inside Card-shaped widgets.
+// Hide dropdown for the dashboard sections that don't render inside a single
+// Card (Meals, Friends). Same affordance as the per-widget menu inside
+// Card-shaped widgets.
 export function SectionWidgetMenu({
   widgetId,
   label,
@@ -24,9 +24,9 @@ export function SectionWidgetMenu({
 }) {
   const [pending, startTransition] = useTransition();
 
-  function set(next: "minimized" | "hidden") {
+  function hide() {
     startTransition(async () => {
-      await setWidgetState(widgetId, next);
+      await setWidgetState(widgetId, "hidden");
     });
   }
 
@@ -41,15 +41,8 @@ export function SectionWidgetMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5">
         <DropdownMenuItem
-          onClick={() => set("minimized")}
-          className="cursor-pointer rounded-lg text-sm"
-        >
-          <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-          Minimize
-        </DropdownMenuItem>
-        <DropdownMenuItem
           variant="destructive"
-          onClick={() => set("hidden")}
+          onClick={hide}
           className="cursor-pointer rounded-lg text-sm"
         >
           <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />

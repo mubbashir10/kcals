@@ -12,10 +12,6 @@ import { Logo } from "@/components/logo";
 import { MacrosWidget } from "@/components/macros-widget";
 import { MaintenanceCard } from "@/components/maintenance-card";
 import { MealCard } from "@/components/meal-card";
-import {
-  MinimizedFriendsSummary,
-  MinimizedMealsSummary,
-} from "@/components/minimized-summaries";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { UserMenu } from "@/components/user-menu";
@@ -99,7 +95,6 @@ export default async function Home() {
   // markers for the 6×7 grid containing today's month.
   const todayKey = dayKeyInTz(tz, now);
   const monthKey = todayKey.slice(0, 7);
-  const monthPrefix = `${monthKey}-`;
   const calendarPromise =
     calendarState === "hidden"
       ? Promise.resolve(null)
@@ -114,16 +109,7 @@ export default async function Home() {
             hasWeight: m.hasWeight,
             hasActivity: m.hasActivity,
           }));
-          let loggedCount = 0;
-          for (const v of markersMap.values()) {
-            if (
-              v.dayKey.startsWith(monthPrefix) &&
-              (v.hasFood || v.hasWeight || v.hasActivity)
-            ) {
-              loggedCount += 1;
-            }
-          }
-          return { markers, loggedCount };
+          return { markers };
         })();
 
   // Week summary — skip the fetch when the widget is hidden. Reuses the
@@ -207,7 +193,6 @@ export default async function Home() {
                   activeKcal={active.kcal}
                   goalType={goalType}
                   kcalOffset={kcalOffset}
-                  state={calorieState}
                   initialMode={
                     (profile.calorieDisplay as "remaining" | "consumed") ??
                     "remaining"
@@ -225,7 +210,6 @@ export default async function Home() {
                     fat: Math.round(consumed.fat),
                   }}
                   goals={macroGoals}
-                  state={macrosState}
                 />
               ),
             },
@@ -234,7 +218,6 @@ export default async function Home() {
               node: (
                 <MaintenanceCard
                   tdee={tdee}
-                  state={maintenanceState}
                   breakdown={
                     active.source === "override"
                       ? {
@@ -273,27 +256,13 @@ export default async function Home() {
                 />
               ),
             },
-            activityState !== "hidden" && {
-              id: "activity" as const,
-              node: (
-                <ActivityCard
-                  today={
-                    activityOverride(todayActivity)
-                  }
-                  defaults={{
-                    stepsPerDay: profile.stepsPerDay,
-                    liftingMinutesPerSession:
-                      profile.liftingMinutesPerSession,
-                    cardioMinutesPerSession: profile.cardioMinutesPerSession,
-                    activeKcalOverride: profile.activeKcalOverride,
-                  }}
-                  state={activityState}
-                />
-              ),
-            },
-            weightState !== "hidden" && {
-              id: "weight" as const,
-              node: (
+            // Weight + activity share one row (like the diary day page). They
+            // move together; if one is hidden the other takes the full width.
+            ((): SortableWidgetItem | false => {
+              const showWeight = weightState !== "hidden";
+              const showActivity = activityState !== "hidden";
+              if (!showWeight && !showActivity) return false;
+              const weightNode = showWeight ? (
                 <WeightCard
                   latest={
                     latestWeight
@@ -306,10 +275,36 @@ export default async function Home() {
                   delta7dKg={delta7dKg}
                   units={profile.units as Units}
                   timezone={tz}
-                  state={weightState}
                 />
-              ),
-            },
+              ) : null;
+              const activityNode = showActivity ? (
+                <ActivityCard
+                  today={activityOverride(todayActivity)}
+                  defaults={{
+                    stepsPerDay: profile.stepsPerDay,
+                    liftingMinutesPerSession: profile.liftingMinutesPerSession,
+                    cardioMinutesPerSession: profile.cardioMinutesPerSession,
+                    activeKcalOverride: profile.activeKcalOverride,
+                  }}
+                />
+              ) : null;
+              return {
+                // Stable sort key regardless of which card is shown — the row
+                // always occupies the "weight" slot in the saved order, so the
+                // dnd persist logic (which pins ids absent from the item map)
+                // stays consistent. "activity" is never its own item.
+                id: "weight",
+                node:
+                  showWeight && showActivity ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {weightNode}
+                      {activityNode}
+                    </div>
+                  ) : (
+                    weightNode ?? activityNode
+                  ),
+              };
+            })(),
             calendarState !== "hidden" && calendarData && {
               id: "calendar" as const,
               node: (
@@ -317,8 +312,6 @@ export default async function Home() {
                   monthKey={monthKey}
                   markers={calendarData.markers}
                   timezone={tz}
-                  state={calendarState}
-                  loggedCount={calendarData.loggedCount}
                 />
               ),
             },
@@ -326,7 +319,6 @@ export default async function Home() {
               id: "week" as const,
               node: (
                 <WeekSummaryWidget
-                  state={weekState}
                   loggedDays={weekSummary.loggedDays}
                   netKcal={weekSummary.netKcal}
                   predictedWeightKg={weekSummary.predictedWeightKg}
@@ -336,14 +328,7 @@ export default async function Home() {
             },
             mealsState !== "hidden" && {
               id: "meals" as const,
-              node:
-                mealsState === "minimized" ? (
-                  <MinimizedMealsSummary
-                    mealCount={meals.length}
-                    foodCount={foodCount}
-                    kcal={Math.round(consumed.kcal)}
-                  />
-                ) : (
+              node: (
                   <section>
                     <div className="mb-4 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -397,12 +382,7 @@ export default async function Home() {
             },
             friendsState !== "hidden" && {
               id: "friends" as const,
-              node:
-                friendsState === "minimized" ? (
-                  <MinimizedFriendsSummary count={friendSummaries.length} />
-                ) : (
-                  <FriendsStrip friends={friendSummaries} />
-                ),
+              node: <FriendsStrip friends={friendSummaries} />,
             },
           ] as (SortableWidgetItem | false)[]).filter(
             (x): x is SortableWidgetItem => x !== false

@@ -18,16 +18,13 @@ export const REORDERABLE_WIDGETS = [
 export type ReorderableWidgetId = (typeof REORDERABLE_WIDGETS)[number];
 export type WidgetId = ReorderableWidgetId;
 
-export type WidgetState = "expanded" | "minimized" | "hidden";
+export type WidgetState = "shown" | "hidden";
 
 export type CalorieDisplayMode = "remaining" | "consumed";
 export type { Units as UnitsPreference } from "@/lib/bmr";
 
-// Widgets the user can hide. The calorie ring is currently always-visible
-// (it's the focal point), so it is omitted. Update this list to match what
+// Widgets the user can hide. Update this list to match what
 // WidgetsSettings offers.
-//
-// NOTE: every reorderable widget can be minimized; only a subset can be hidden.
 export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [
   "calorie",
   "macros",
@@ -41,7 +38,7 @@ export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [
 ];
 
 // Default state for each widget when the user hasn't picked one yet.
-const DEFAULT_STATE: WidgetState = "expanded";
+const DEFAULT_STATE: WidgetState = "shown";
 
 export type WidgetStates = Partial<Record<ReorderableWidgetId, WidgetState>>;
 
@@ -59,9 +56,11 @@ export function parseWidgetStates(
   const result: WidgetStates = {};
   for (const id of REORDERABLE_WIDGETS) {
     const v = (parsed as Record<string, unknown>)[id];
-    if (v === "expanded" || v === "minimized" || v === "hidden") {
-      result[id] = v;
-    }
+    // Migrate the legacy three-state model: "expanded"/"minimized" both
+    // collapse to "shown".
+    if (v === "hidden") result[id] = "hidden";
+    else if (v === "shown" || v === "expanded" || v === "minimized")
+      result[id] = "shown";
   }
   return result;
 }

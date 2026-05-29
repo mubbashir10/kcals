@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import {
   Activity,
   ArrowLeftRight,
-  Flame,
   Minus,
   TrendingDown,
   TrendingUp,
@@ -16,7 +15,6 @@ import { Card } from "@/components/ui/card";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
 import { WidgetMenu } from "@/components/widget-menu";
 import { setCalorieDisplay } from "@/app/actions/widgets";
-import type { WidgetState } from "@/lib/widget-order";
 import type { GoalType } from "@/lib/goal";
 
 const GOAL_CHIP: Record<
@@ -37,7 +35,6 @@ export function CalorieRingWidget({
   activeKcal,
   goalType,
   kcalOffset,
-  state,
 }: {
   consumed: number;
   goal: number;
@@ -48,7 +45,6 @@ export function CalorieRingWidget({
   goalType: GoalType;
   /** Signed kcal offset applied to TDEE for the effective target (negative = deficit). */
   kcalOffset: number;
-  state: Exclude<WidgetState, "hidden">;
 }) {
   const [mode, setMode] = useState<CalorieDisplayMode>(initialMode);
   const [, startTransition] = useTransition();
@@ -61,40 +57,6 @@ export function CalorieRingWidget({
     startTransition(async () => {
       await setCalorieDisplay(next);
     });
-  }
-
-  if (state === "minimized") {
-    const value = mode === "remaining" ? goal - consumed : consumed;
-    const label = mode === "remaining" ? "left" : "eaten";
-    return (
-      <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
-        <AppLink
-          href="/calories"
-          aria-label="View calorie history"
-          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        />
-        <div className="relative flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Flame className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Calories
-            </span>
-          </div>
-          <WidgetMenu
-            widgetId="calorie"
-            current="minimized"
-            label="Calorie ring"
-            size="sm"
-          />
-        </div>
-        <div className="relative mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
-          {Math.round(value).toLocaleString()}
-          <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
-            {label}
-          </span>
-        </div>
-      </Card>
-    );
   }
 
   return (
@@ -121,11 +83,7 @@ export function CalorieRingWidget({
 
         <div className="flex items-center gap-1.5">
           <GoalChip type={goalType} offset={kcalOffset} />
-          <WidgetMenu
-            widgetId="calorie"
-            current="expanded"
-            label="Calorie ring"
-          />
+          <WidgetMenu widgetId="calorie" label="Calorie ring" />
         </div>
       </div>
 

@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
 import type { BmrFormula } from "@/lib/bmr";
-import type { WidgetState } from "@/lib/widget-order";
 
 type Breakdown =
   | {
@@ -33,48 +32,6 @@ type Breakdown =
 
 export function MaintenanceCard({
   tdee,
-  state,
-  breakdown,
-}: {
-  tdee: number;
-  state: Exclude<WidgetState, "hidden">;
-  breakdown: Breakdown;
-}) {
-  if (state === "minimized") {
-    return <MinimizedView tdee={tdee} />;
-  }
-  return <ExpandedView tdee={tdee} breakdown={breakdown} />;
-}
-
-function MinimizedView({ tdee }: { tdee: number }) {
-  return (
-    <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Flame className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Maintenance
-          </span>
-        </div>
-        <WidgetMenu
-          widgetId="maintenance"
-          current="minimized"
-          label="Maintenance"
-          size="sm"
-        />
-      </div>
-      <div className="mt-1 text-base font-semibold leading-none tabular-nums tracking-tight">
-        {Math.round(tdee).toLocaleString()}
-        <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">
-          kcal/day
-        </span>
-      </div>
-    </Card>
-  );
-}
-
-function ExpandedView({
-  tdee,
   breakdown,
 }: {
   tdee: number;
@@ -89,11 +46,7 @@ function ExpandedView({
             Maintenance calories
           </span>
         </div>
-        <WidgetMenu
-          widgetId="maintenance"
-          current="expanded"
-          label="Maintenance"
-        />
+        <WidgetMenu widgetId="maintenance" label="Maintenance" />
       </div>
       <div className="mt-3 text-5xl font-semibold leading-none tabular-nums tracking-tight">
         {Math.round(tdee).toLocaleString()}

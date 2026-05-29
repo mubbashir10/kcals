@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ChevronUp,
   Dumbbell,
   EyeOff,
   Footprints,
@@ -16,8 +15,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { WidgetMenu } from "@/components/widget-menu";
-import type { WidgetState } from "@/lib/widget-order";
 import {
   Dialog,
   DialogClose,
@@ -52,7 +49,6 @@ export type ActivityCardProps = {
     cardioMinutesPerSession: number | null;
     activeKcalOverride: number | null;
   };
-  state: Exclude<WidgetState, "hidden">;
   /** Day being edited. `null`/omitted means today. */
   dayKey?: string | null;
 };
@@ -60,43 +56,10 @@ export type ActivityCardProps = {
 export function ActivityCard({
   today,
   defaults,
-  state,
   dayKey = null,
 }: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
-
-  if (state === "minimized") {
-    return (
-      <Card className="rounded-2xl border-border/60 px-5 py-3 shadow-card">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Activity
-            </span>
-          </div>
-          <WidgetMenu
-            widgetId="activity"
-            current="minimized"
-            label="Activity"
-            size="sm"
-          />
-        </div>
-        <div className="mt-1 truncate text-sm text-foreground/80">
-          {logged ? <MinimizedSummaryText today={today!} /> : "Using estimate"}
-        </div>
-
-        <LogActivityDialog
-          open={open}
-          onOpenChange={setOpen}
-          today={today}
-          defaults={defaults}
-          dayKey={dayKey}
-        />
-      </Card>
-    );
-  }
 
   return (
     <>
@@ -131,15 +94,6 @@ export function ActivityCard({
                     Log today
                   </>
                 )}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  await setWidgetState("activity", "minimized");
-                }}
-                className="cursor-pointer rounded-lg text-sm"
-              >
-                <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-                Minimize
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={async () => {
@@ -189,31 +143,6 @@ export function ActivityCard({
       />
     </>
   );
-}
-
-function MinimizedSummaryText({
-  today,
-}: {
-  today: NonNullable<ActivityCardProps["today"]>;
-}) {
-  if (today.mode === "override") {
-    return (
-      <>
-        {today.wearableKcal != null
-          ? `${today.wearableKcal.toLocaleString()} kcal`
-          : "—"}{" "}
-        <span className="text-muted-foreground">from wearable</span>
-      </>
-    );
-  }
-  const parts: string[] = [];
-  if (today.steps && today.steps > 0)
-    parts.push(`${today.steps.toLocaleString()} steps`);
-  if (today.liftingMin && today.liftingMin > 0)
-    parts.push(`${today.liftingMin}m lift`);
-  if (today.cardioMin && today.cardioMin > 0)
-    parts.push(`${today.cardioMin}m cardio`);
-  return <>{parts.length === 0 ? "Rest day" : parts.join(" · ")}</>;
 }
 
 function ActivitySummary({

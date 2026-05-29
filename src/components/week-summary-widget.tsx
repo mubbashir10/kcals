@@ -5,18 +5,15 @@ import { Card } from "@/components/ui/card";
 import { WidgetMenu } from "@/components/widget-menu";
 import { displayWeight, type Units } from "@/lib/bmr";
 import { netBalanceWord } from "@/lib/week";
-import type { WidgetState } from "@/lib/widget-order";
 
 // Compact home-dashboard view of the week summary — net deficit/surplus and
 // its body-weight equivalent, linking to the full /week page.
 export function WeekSummaryWidget({
-  state,
   loggedDays,
   netKcal,
   predictedWeightKg,
   units,
 }: {
-  state: Exclude<WidgetState, "hidden">;
   loggedDays: number;
   netKcal: number;
   predictedWeightKg: number;
@@ -26,39 +23,6 @@ export function WeekSummaryWidget({
   const net = Math.round(netKcal);
   const netWord = netBalanceWord(net);
   const weight = displayWeight(Math.abs(predictedWeightKg), units);
-
-  if (state === "minimized") {
-    return (
-      <Card className="group relative rounded-2xl border-border/60 px-4 py-3 shadow-card transition-colors hover:bg-accent/20">
-        <AppLink
-          href="/week"
-          aria-label="View week summary"
-          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        />
-        <div className="relative flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            This week
-          </span>
-          <WidgetMenu
-            widgetId="week"
-            current="minimized"
-            label="This week"
-            size="sm"
-          />
-        </div>
-        <div className="relative mt-1 truncate text-sm tabular-nums text-foreground/80">
-          {hasData ? (
-            <>
-              {Math.abs(net).toLocaleString()} kcal {netWord} · ≈ {weight.value}{" "}
-              {weight.unit}
-            </>
-          ) : (
-            "Nothing logged yet"
-          )}
-        </div>
-      </Card>
-    );
-  }
 
   return (
     <Card className="rounded-2xl border-border/60 p-5 shadow-card">
@@ -73,12 +37,7 @@ export function WeekSummaryWidget({
             This week
           </h2>
         </AppLink>
-        <WidgetMenu
-          widgetId="week"
-          current="expanded"
-          label="This week"
-          size="sm"
-        />
+        <WidgetMenu widgetId="week" label="This week" size="sm" />
       </div>
 
       {hasData ? (

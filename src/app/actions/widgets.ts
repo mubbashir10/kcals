@@ -25,7 +25,7 @@ export async function setWidgetState(id: WidgetId, state: WidgetState) {
   if (!(REORDERABLE_WIDGETS as readonly string[]).includes(id)) {
     throw new Error(`Unknown widget id: ${id}`);
   }
-  if (state !== "expanded" && state !== "minimized" && state !== "hidden") {
+  if (state !== "shown" && state !== "hidden") {
     throw new Error(`Invalid widget state: ${state}`);
   }
   const userId = await requireUserId();

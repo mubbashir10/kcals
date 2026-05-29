@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import {
-  ChevronUp,
   Download,
   EyeOff,
   FileText,
@@ -35,7 +34,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { WidgetMenu } from "@/components/widget-menu";
 import {
   displayWeight,
   formatWeightDelta,
@@ -48,17 +46,15 @@ import { formatShortDateInTz } from "@/lib/clock";
 import { round1 } from "@/lib/utils";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
 import { setWidgetState } from "@/app/actions/widgets";
-import type { WidgetState } from "@/lib/widget-order";
 
 export type WeightCardProps = {
   latest: { weightKg: number; loggedAt: string } | null;
   delta7dKg: number | null;
   units: Units;
   timezone: string;
-  state: Exclude<WidgetState, "hidden">;
 };
 
-export function WeightCard({ latest, delta7dKg, units, timezone, state }: WeightCardProps) {
+export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardProps) {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [, startStateTransition] = useTransition();
@@ -72,62 +68,10 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
         })()
       : null;
 
-  function changeState(next: WidgetState) {
+  function hide() {
     startStateTransition(async () => {
-      await setWidgetState("weight", next);
+      await setWidgetState("weight", "hidden");
     });
-  }
-
-  if (state === "minimized") {
-    return (
-      <Card className="group relative rounded-2xl border-border/60 px-5 py-3 shadow-card transition-colors hover:bg-accent/20">
-        <AppLink
-          href="/weight"
-          aria-label="View weight history"
-          className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-        />
-        <div className="relative flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Scale className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Weight
-            </span>
-          </div>
-          <WidgetMenu
-            widgetId="weight"
-            current="minimized"
-            label="Weight"
-            size="sm"
-          />
-        </div>
-        <div className="relative mt-1 flex items-baseline gap-2">
-          {display ? (
-            <>
-              <span className="text-base font-semibold leading-none tabular-nums">
-                {display.value}
-                <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
-                  {display.unit}
-                </span>
-              </span>
-              {deltaDisplay && deltaDisplay.direction !== "flat" && (
-                <span
-                  className={
-                    "text-[11px] font-medium tabular-nums " +
-                    (deltaDisplay.direction === "down"
-                      ? "text-emerald-500"
-                      : "text-rose-500")
-                  }
-                >
-                  {deltaDisplay.label.replace(" · 7d", "")}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
-        </div>
-      </Card>
-    );
   }
 
   return (
@@ -168,15 +112,8 @@ export function WeightCard({ latest, delta7dKg, units, timezone, state }: Weight
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
-                  onClick={() => changeState("minimized")}
-                  className="cursor-pointer rounded-lg text-sm"
-                >
-                  <ChevronUp className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Minimize
-                </DropdownMenuItem>
-                <DropdownMenuItem
                   variant="destructive"
-                  onClick={() => changeState("hidden")}
+                  onClick={hide}
                   className="cursor-pointer rounded-lg text-sm"
                 >
                   <EyeOff className="mr-2 h-3.5 w-3.5 opacity-70" />

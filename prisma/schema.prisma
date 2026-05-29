@@ -133,9 +133,10 @@ model Profile {
   activeKcalOverride       Int? // wearable-tracker number (override mode)
 
   // Per-widget state on the home dashboard. JSON map of
-  //   { [widgetId]: "expanded" | "minimized" | "hidden" }
-  // Missing keys fall back to "expanded". See REORDERABLE_WIDGETS for the
-  // current set of widget IDs.
+  //   { [widgetId]: "shown" | "hidden" }
+  // Missing keys fall back to "shown". Legacy "expanded"/"minimized" values
+  // are migrated to "shown" on read. See REORDERABLE_WIDGETS for the current
+  // set of widget IDs.
   widgetStates   String  @default("{}")
   // Calorie ring display — "remaining" (default) shows what's left to eat;
   // "consumed" shows what's been eaten so far.
