@@ -455,6 +455,7 @@ function TransferMealForm({
 
   // Can't log into the future — clamp the date picker to today.
   const todayKey = dayKeyInTz(timezone, new Date());
+  const dateValid = !!date && date <= todayKey;
   const isCopy = mode === "copy";
   const label = meal.name ?? "Meal";
   const submitLabel = pending
@@ -466,7 +467,7 @@ function TransferMealForm({
       : "Move";
 
   function onSubmit() {
-    if (!date || date > todayKey) return;
+    if (!dateValid) return;
     startTransition(async () => {
       if (isCopy) await copyMeal(meal.id, date, time);
       else await moveMeal(meal.id, date, time);
@@ -528,7 +529,7 @@ function TransferMealForm({
           </DialogClose>
           <Button
             onClick={onSubmit}
-            disabled={pending || !date || date > todayKey}
+            disabled={pending || !dateValid}
             className="flex-1 rounded-full"
           >
             {submitLabel}

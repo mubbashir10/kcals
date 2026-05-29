@@ -68,13 +68,33 @@ export async function deleteMeal(id: number) {
 }
 
 // Move a meal to another calendar day and/or time. `dayKey` is "YYYY-MM-DD"
-// and `hhmm` is "HH:mm", both interpreted in the user's timezone.
+// and `hhmm` is "HH:mm", both interpreted in the user's timezone. The foods
+// move with the meal (re-stamped a millisecond apart to keep their order) so
+// daily-history, which buckets foods by their own loggedAt, follows along.
 export async function moveMeal(id: number, dayKey: string, hhmm: string) {
   const userId = await requireUserId();
   const tz = await getProfileTimezone(userId);
   if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
   const loggedAt = instantOnDayInTz(tz, dayKey, hhmm);
-  await db.meal.updateMany({ where: { id, userId }, data: { loggedAt } });
+
+  const meal = await db.meal.findFirst({
+    where: { id, userId },
+    select: { id: true, foods: { orderBy: { loggedAt: "asc" }, select: { id: true } } },
+  });
+  if (!meal) throw new Error("Meal not found");
+
+  await db.meal.update({
+    where: { id: meal.id },
+    data: {
+      loggedAt,
+      foods: {
+        update: meal.foods.map((f, i) => ({
+          where: { id: f.id },
+          data: { loggedAt: new Date(loggedAt.getTime() + i) },
+        })),
+      },
+    },
+  });
   revalidateMeals();
 }
 
