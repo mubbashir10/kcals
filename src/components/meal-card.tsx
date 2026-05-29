@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Copy,
+  CornerUpRight,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
@@ -29,7 +36,7 @@ import {
   setTimeOnDateInTz,
   timeInputValueInTz,
 } from "@/lib/clock";
-import { updateMeal, deleteMeal } from "@/app/actions/meals";
+import { updateMeal, deleteMeal, moveMeal, copyMeal } from "@/app/actions/meals";
 import {
   deleteFood,
   updateFoodGrams,
@@ -63,6 +70,7 @@ export function MealCard({
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [transferMode, setTransferMode] = useState<"move" | "copy" | null>(null);
   const [editingFood, setEditingFood] = useState<MealCardFood | null>(null);
 
   const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
@@ -109,6 +117,20 @@ export function MealCard({
                 >
                   <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
                   Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => setTransferMode("move")}
+                >
+                  <CornerUpRight className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Move to…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => setTransferMode("copy")}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Copy to…
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
@@ -186,6 +208,12 @@ export function MealCard({
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         meal={meal}
+      />
+      <TransferMealDialog
+        mode={transferMode}
+        onClose={() => setTransferMode(null)}
+        meal={meal}
+        timezone={timezone}
       />
       <FoodEditDialog
         food={editingFood}
@@ -379,6 +407,135 @@ function EditMealDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TransferMealDialog({
+  mode,
+  onClose,
+  meal,
+  timezone,
+}: {
+  mode: "move" | "copy" | null;
+  onClose: () => void;
+  meal: MealCardData;
+  timezone: string;
+}) {
+  return (
+    <Dialog open={mode !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        {mode && (
+          <TransferMealForm
+            key={mode}
+            mode={mode}
+            meal={meal}
+            timezone={timezone}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TransferMealForm({
+  mode,
+  meal,
+  timezone,
+  onClose,
+}: {
+  mode: "move" | "copy";
+  meal: MealCardData;
+  timezone: string;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState(() => dayKeyInTz(timezone, new Date(meal.loggedAt)));
+  const [time, setTime] = useState(() => timeInputValueInTz(meal.loggedAt, timezone));
+  const [pending, startTransition] = useTransition();
+
+  // Can't log into the future — clamp the date picker to today.
+  const todayKey = dayKeyInTz(timezone, new Date());
+  const isCopy = mode === "copy";
+  const label = meal.name ?? "Meal";
+  const submitLabel = pending
+    ? isCopy
+      ? "Copying…"
+      : "Moving…"
+    : isCopy
+      ? "Copy"
+      : "Move";
+
+  function onSubmit() {
+    if (!date || date > todayKey) return;
+    startTransition(async () => {
+      if (isCopy) await copyMeal(meal.id, date, time);
+      else await moveMeal(meal.id, date, time);
+      onClose();
+    });
+  }
+
+  return (
+    <>
+      <DialogTitle className="text-base font-semibold">
+        {isCopy ? "Copy meal" : "Move meal"}
+      </DialogTitle>
+      <DialogDescription className="text-xs text-muted-foreground">
+        {isCopy
+          ? `Duplicate “${label}” and its food to another day and time.`
+          : `Move “${label}” to another day and time.`}
+      </DialogDescription>
+
+      <div className="mt-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label
+              htmlFor="transfer-date"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
+              Date
+            </Label>
+            <Input
+              id="transfer-date"
+              type="date"
+              value={date}
+              max={todayKey}
+              onChange={(e) => setDate(e.target.value)}
+              className="tabular-nums"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label
+              htmlFor="transfer-time"
+              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            >
+              Time
+            </Label>
+            <Input
+              id="transfer-time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="tabular-nums"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <DialogClose
+            render={<Button variant="ghost" className="flex-1 rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onSubmit}
+            disabled={pending || !date || date > todayKey}
+            className="flex-1 rounded-full"
+          >
+            {submitLabel}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 

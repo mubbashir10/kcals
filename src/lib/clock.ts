@@ -120,6 +120,23 @@ export function timeInputValueInTz(date: Date | string, tz: string): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+// UTC instant that lands on the calendar day `dayKey` at local time `hhmm`
+// in `tz`. The building block for moving/copying a meal to an explicit
+// date + time.
+export function instantOnDayInTz(
+  tz: string,
+  dayKey: string,
+  hhmm: string
+): Date {
+  const { year, month, day } = parseDayKey(dayKey);
+  const [hStr, mStr] = hhmm.split(":");
+  const hour = Math.max(0, Math.min(23, parseInt(hStr ?? "0", 10) || 0));
+  const minute = Math.max(0, Math.min(59, parseInt(mStr ?? "0", 10) || 0));
+  const asUtc = Date.UTC(year, month - 1, day, hour, minute);
+  const offset = tzOffsetMs(new Date(asUtc), tz);
+  return new Date(asUtc - offset);
+}
+
 // Given a reference date (whose calendar day in `tz` we want to keep) and an
 // "HH:mm" string, return the UTC Date that lands on that local day at that
 // local time.
@@ -128,13 +145,7 @@ export function setTimeOnDateInTz(
   tz: string,
   hhmm: string
 ): Date {
-  const [hStr, mStr] = hhmm.split(":");
-  const hour = Math.max(0, Math.min(23, parseInt(hStr ?? "0", 10) || 0));
-  const minute = Math.max(0, Math.min(59, parseInt(mStr ?? "0", 10) || 0));
-  const { year, month, day } = getDateParts(new Date(ref), tz);
-  const asUtc = Date.UTC(year, month - 1, day, hour, minute);
-  const offset = tzOffsetMs(new Date(asUtc), tz);
-  return new Date(asUtc - offset);
+  return instantOnDayInTz(tz, dayKeyInTz(tz, new Date(ref)), hhmm);
 }
 
 export function autoMealNameInTz(d: Date, tz: string): string {

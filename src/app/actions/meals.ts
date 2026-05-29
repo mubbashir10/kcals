@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import {
   autoMealNameInTz,
+  instantOnDayInTz,
   instantWithinDayInTz,
   isFutureDayKey,
 } from "@/lib/clock";
@@ -63,5 +64,58 @@ export async function updateMeal(
 export async function deleteMeal(id: number) {
   const userId = await requireUserId();
   await db.meal.deleteMany({ where: { id, userId } });
+  revalidateMeals();
+}
+
+// Move a meal to another calendar day and/or time. `dayKey` is "YYYY-MM-DD"
+// and `hhmm` is "HH:mm", both interpreted in the user's timezone.
+export async function moveMeal(id: number, dayKey: string, hhmm: string) {
+  const userId = await requireUserId();
+  const tz = await getProfileTimezone(userId);
+  if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
+  const loggedAt = instantOnDayInTz(tz, dayKey, hhmm);
+  await db.meal.updateMany({ where: { id, userId }, data: { loggedAt } });
+  revalidateMeals();
+}
+
+// Duplicate a meal (and all its foods) onto `dayKey` at `hhmm`. The same day
+// is allowed — that's how you clone a meal you eat regularly. Food nutrient
+// values are stored as snapshots, so a straight copy stays correct.
+export async function copyMeal(id: number, dayKey: string, hhmm: string) {
+  const userId = await requireUserId();
+  const tz = await getProfileTimezone(userId);
+  if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
+  const loggedAt = instantOnDayInTz(tz, dayKey, hhmm);
+
+  const source = await db.meal.findFirst({
+    where: { id, userId },
+    include: { foods: { orderBy: { loggedAt: "asc" } } },
+  });
+  if (!source) throw new Error("Meal not found");
+
+  // Stamp the copied foods at the new time, nudged a millisecond apart so they
+  // keep their original order. Staying within the same minute keeps every food
+  // on the meal's calendar day (daily-history buckets foods by their own day).
+  await db.meal.create({
+    data: {
+      userId,
+      name: source.name,
+      loggedAt,
+      foods: {
+        create: source.foods.map((f, i) => ({
+          fdcId: f.fdcId,
+          recipeId: f.recipeId,
+          name: f.name,
+          brand: f.brand,
+          grams: f.grams,
+          kcal: f.kcal,
+          proteinG: f.proteinG,
+          carbsG: f.carbsG,
+          fatG: f.fatG,
+          loggedAt: new Date(loggedAt.getTime() + i),
+        })),
+      },
+    },
+  });
   revalidateMeals();
 }
