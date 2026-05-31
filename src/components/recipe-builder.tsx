@@ -128,7 +128,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
       try {
         await addRecipeIngredient(recipe.id, {
           fdcId: food.fdcId,
-          name: titleCase(food.name),
+          name: food.dataType === "Recipe" ? food.name : titleCase(food.name),
           brand: food.brand,
           per100Kcal: food.per100g.kcal,
           per100ProteinG: food.per100g.proteinG,
@@ -301,6 +301,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
         <IngredientSearch
           onSelect={onSearchSelect}
           approvingAiId={approvingAiId}
+          currentRecipeId={recipe.id}
         />
       </section>
 
@@ -403,12 +404,14 @@ function InlineRecipeName({
 function IngredientSearch({
   onSelect,
   approvingAiId,
+  currentRecipeId,
 }: {
   onSelect: (food: SearchFood) => void;
   approvingAiId: number | null;
+  currentRecipeId: number;
 }) {
   const { query, setQuery, results, loading, error, aiResult, aiLoading } =
-    useFoodSearch({ excludeRecipes: true });
+    useFoodSearch({ excludeRecipeId: currentRecipeId });
 
   return (
     <div>
@@ -434,16 +437,17 @@ function IngredientSearch({
 
       <div className="mt-4">
         {loading && (
-          // Source ladder for the ingredient search. Same idea as /add,
-          // minus "My recipes" — Recipe rows are filtered out below so a
-          // recipe can't be an ingredient of another recipe.
+          // Source ladder for the ingredient search. Same as /add — other
+          // recipes show too (added as frozen snapshots, e.g. a gravy
+          // recipe inside a biryani); only the recipe being edited is
+          // filtered out so it can't reference itself.
           <div className="space-y-2 px-1">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Searching
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {["Community", "USDA", "Open Food Facts"].map((s) => (
+              {["My recipes", "Reference", "Community", "USDA", "Open Food Facts"].map((s) => (
                 <span
                   key={s}
                   className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
@@ -521,7 +525,7 @@ function IngredientSearch({
                 >
                   <div className="min-w-0 flex-1 pr-4">
                     <p className="truncate text-sm font-medium">
-                      {titleCase(f.name)}
+                      {f.dataType === "Recipe" ? f.name : titleCase(f.name)}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {f.brand ? `${f.brand} · ` : ""}

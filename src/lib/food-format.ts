@@ -13,6 +13,7 @@ export function dataTypeLabel(t: string): string {
   if (t === "OpenFoodFacts") return "Branded";
   if (t === "Foundation") return "Whole food";
   if (t === "SR Legacy") return "Reference";
+  if (t === "Reference") return "Reference";
   if (t === "Custom") return "Community";
   if (t === "AI") return "AI estimate";
   if (t === "Recipe") return "Recipe";

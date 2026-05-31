@@ -22,9 +22,11 @@ export type SearchFood = {
 };
 
 export type UseFoodSearchOptions = {
-  /** Drop `dataType === "Recipe"` rows. Set this in the recipe builder
-   *  so users don't nest recipes inside recipes. */
-  excludeRecipes?: boolean;
+  /** Drop the row for this recipe id. Set in the recipe builder to the
+   *  recipe being edited so it can't be added as an ingredient of itself.
+   *  Other recipes still surface — they're added as frozen snapshots, so
+   *  there's no recursion (e.g. a gravy recipe inside a biryani recipe). */
+  excludeRecipeId?: number;
 };
 
 export type UseFoodSearchState = {
@@ -46,7 +48,7 @@ export type UseFoodSearchState = {
 export function useFoodSearch(
   opts: UseFoodSearchOptions = {}
 ): UseFoodSearchState {
-  const { excludeRecipes = false } = opts;
+  const { excludeRecipeId } = opts;
 
   const [query, setQueryState] = useState("");
   const [results, setResults] = useState<SearchFood[]>([]);
@@ -89,8 +91,8 @@ export function useFoodSearch(
           return;
         }
         let foods: SearchFood[] = json.foods ?? [];
-        if (excludeRecipes) {
-          foods = foods.filter((f) => f.dataType !== "Recipe");
+        if (excludeRecipeId != null) {
+          foods = foods.filter((f) => f.recipeId !== excludeRecipeId);
         }
         setResults(foods);
 
@@ -127,7 +129,7 @@ export function useFoodSearch(
       clearTimeout(t);
       controller.abort();
     };
-  }, [query, excludeRecipes]);
+  }, [query, excludeRecipeId]);
 
   return { query, setQuery, results, loading, error, aiResult, aiLoading };
 }

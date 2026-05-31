@@ -236,6 +236,9 @@ export function AddFoodClient({
             // result came from, even when only one group matched.
             const showLabels = true;
 
+            // Reference (brand-free whole foods) leads after the user's own
+            // recipes, then community, then brands, with AI-added rows last
+            // — AI is the last resort even once it's been saved.
             return (
               <div className="space-y-6">
                 {recipes.length > 0 && (
@@ -245,10 +248,10 @@ export function AddFoodClient({
                     onSelect={onResultSelect}
                   />
                 )}
-                {aiCommunity.length > 0 && (
+                {whole.length > 0 && (
                   <ResultGroup
-                    label={showLabels ? "AI-added" : null}
-                    foods={aiCommunity}
+                    label={showLabels ? "Reference" : null}
+                    foods={whole}
                     onSelect={onResultSelect}
                   />
                 )}
@@ -259,17 +262,17 @@ export function AddFoodClient({
                     onSelect={onResultSelect}
                   />
                 )}
-                {whole.length > 0 && (
-                  <ResultGroup
-                    label={showLabels ? "Whole foods" : null}
-                    foods={whole}
-                    onSelect={onResultSelect}
-                  />
-                )}
                 {branded.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Branded" : null}
                     foods={branded}
+                    onSelect={onResultSelect}
+                  />
+                )}
+                {aiCommunity.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "AI-added" : null}
+                    foods={aiCommunity}
                     onSelect={onResultSelect}
                   />
                 )}
@@ -611,7 +614,7 @@ function AiResultRow({
  * tier with non-local latency worth a distinct UX.
  */
 function SourceLadder() {
-  const sources = ["My recipes", "Community", "USDA", "Open Food Facts"];
+  const sources = ["My recipes", "Reference", "Community", "USDA", "Open Food Facts"];
   return (
     <div className="space-y-2 px-1">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -639,7 +642,8 @@ function EmptyState() {
         Search foods
       </p>
       <p className="mt-1 text-xs text-muted-foreground/70">
-        USDA, Open Food Facts, and community-added foods.
+        Whole foods, South Asian dishes, USDA, Open Food Facts, and
+        community-added foods.
       </p>
     </Card>
   );

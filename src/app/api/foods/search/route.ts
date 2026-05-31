@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { searchLocalFoods } from "@/lib/local-foods";
 import { searchOpenFoodFacts } from "@/lib/openfoodfacts";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { requireUserId } from "@/lib/session";
@@ -38,6 +39,12 @@ export async function GET(req: Request) {
   }));
 
   try {
+    // Curated local rows (whole foods + South Asian dishes) — synchronous,
+    // zero-latency, brand-free. Surfaced ahead of USDA so a search for
+    // "apple" or "biryani" lands a clean reference hit instead of a wall
+    // of branded products.
+    const localFoods = searchLocalFoods(q);
+
     // User recipes (private) + Custom foods (community) + USDA + Open
     // Food Facts in parallel. OFF fills the gap for regional packaged
     // brands (e.g. Dawn, Olper's) that USDA doesn't carry. The AI
@@ -111,10 +118,19 @@ export async function GET(req: Request) {
       createdAtIso: c.createdAt.toISOString(),
     }));
 
-    // Recipes first (the user's own stuff, most relevant), then
-    // Community Custom, then USDA, then OFF.
+    // Order = relevance ladder the UI groups on: the user's own recipes,
+    // then brand-free reference (local curated rows lead, USDA whole foods
+    // follow), then community customs, then branded (USDA + OFF). The
+    // client re-groups by dataType, but this order sets the within-group
+    // sequence so local reference rows lead the whole-foods group.
     return NextResponse.json({
-      foods: [...recipeAsResults, ...customAsResults, ...usdaFoods, ...offFoods],
+      foods: [
+        ...recipeAsResults,
+        ...localFoods,
+        ...customAsResults,
+        ...usdaFoods,
+        ...offFoods,
+      ],
     });
   } catch (err) {
     console.error("Food search failed", err);
