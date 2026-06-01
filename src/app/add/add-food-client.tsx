@@ -958,6 +958,10 @@ function QuickAddDialog({
           },
           logOptions(target, dayKey)
         );
+        // Closing via the open prop doesn't fire onOpenChange, so clear the
+        // fields here — otherwise the next "quick add" reopens pre-filled with
+        // what was just logged.
+        reset();
         onLogged(result);
       } catch (err) {
         // Surface a failed add so it isn't mistaken for "nothing happened."
