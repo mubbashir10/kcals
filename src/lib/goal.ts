@@ -63,6 +63,12 @@ export function computeKcalOffset(
 // `minKcal` is an extra hard floor applied to every mode (track included) —
 // used by the lactation feature to keep a nursing mother's target above the
 // minimum that protects milk supply. Defaults to 0 (no extra floor).
+//
+// The floor is capped at TDEE so it can only ever lift a *deficit* back up —
+// it never pushes the target above maintenance. Otherwise a petite nursing
+// mother whose maintenance already sits below the floor (e.g. TDEE 1,660 vs a
+// 1,800 floor) would be told to eat *above* maintenance, which would make her
+// gain. Eating at maintenance is already safe, so that's as high as we go.
 export function computeEffectiveTarget(
   tdee: number,
   bmr: number,
@@ -71,13 +77,14 @@ export function computeEffectiveTarget(
   trackKcal: number | null = null,
   minKcal: number = 0
 ): number {
+  const floor = Math.min(minKcal, Math.round(tdee));
   if (type === "track") {
     const target =
       trackKcal != null && trackKcal > 0 ? trackKcal : tdee;
-    return Math.max(Math.round(target), minKcal);
+    return Math.max(Math.round(target), floor);
   }
   const target = tdee + computeKcalOffset(type, pace);
-  return Math.max(Math.round(bmr), Math.round(target), minKcal);
+  return Math.max(Math.round(bmr), Math.round(target), floor);
 }
 
 export function goalTypeLabel(type: GoalType): string {
