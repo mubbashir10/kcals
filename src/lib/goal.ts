@@ -59,20 +59,25 @@ export function computeKcalOffset(
 // requirements. For track, the user picks a number directly — we respect it
 // verbatim (no BMR floor; if they set it, they own it). Falls back to TDEE
 // when track is selected but no number is set yet.
+//
+// `minKcal` is an extra hard floor applied to every mode (track included) —
+// used by the lactation feature to keep a nursing mother's target above the
+// minimum that protects milk supply. Defaults to 0 (no extra floor).
 export function computeEffectiveTarget(
   tdee: number,
   bmr: number,
   type: GoalType,
   pace: GoalPace | null,
-  trackKcal: number | null = null
+  trackKcal: number | null = null,
+  minKcal: number = 0
 ): number {
   if (type === "track") {
-    return trackKcal != null && trackKcal > 0
-      ? Math.round(trackKcal)
-      : Math.round(tdee);
+    const target =
+      trackKcal != null && trackKcal > 0 ? trackKcal : tdee;
+    return Math.max(Math.round(target), minKcal);
   }
   const target = tdee + computeKcalOffset(type, pace);
-  return Math.max(Math.round(bmr), Math.round(target));
+  return Math.max(Math.round(bmr), Math.round(target), minKcal);
 }
 
 export function goalTypeLabel(type: GoalType): string {

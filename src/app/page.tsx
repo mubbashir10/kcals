@@ -69,6 +69,7 @@ export default async function Home() {
     bmr,
     active,
     tdee,
+    lactationKcal,
     calorieGoal,
     goalType,
     kcalOffset,
@@ -219,6 +220,7 @@ export default async function Home() {
               node: (
                 <MaintenanceCard
                   tdee={tdee}
+                  lactationKcal={lactationKcal}
                   breakdown={
                     active.source === "override"
                       ? {

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Baby,
   Dumbbell,
   Flame,
   Footprints,
@@ -33,9 +34,13 @@ type Breakdown =
 export function MaintenanceCard({
   tdee,
   breakdown,
+  lactationKcal = 0,
 }: {
   tdee: number;
   breakdown: Breakdown;
+  /** Energy cost of making milk, already included in `tdee`. When > 0 we
+   *  surface it as its own line so the breakdown still adds up. */
+  lactationKcal?: number;
 }) {
   return (
     <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
@@ -55,7 +60,9 @@ export function MaintenanceCard({
         </span>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        What you burn on a typical day — eat this to maintain weight.
+        {lactationKcal > 0
+          ? "What you burn plus the energy to make milk — eat this to maintain weight while nursing."
+          : "What you burn on a typical day — eat this to maintain weight."}
       </p>
 
       <div
@@ -102,6 +109,21 @@ export function MaintenanceCard({
           </>
         )}
       </div>
+
+      {lactationKcal > 0 && (
+        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-muted/60 px-4 py-2.5">
+          <Baby className="h-3.5 w-3.5 shrink-0 text-fuchsia-500/80" />
+          <span className="text-xs text-muted-foreground">
+            Breastfeeding
+          </span>
+          <span className="ml-auto text-sm font-semibold tabular-nums">
+            +{Math.round(lactationKcal).toLocaleString()}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              kcal
+            </span>
+          </span>
+        </div>
+      )}
     </Card>
   );
 }

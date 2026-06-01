@@ -112,6 +112,14 @@ model Profile {
   goalPace  String? // "mild" | "moderate" | "aggressive" — only set when goalType is loss/gain
   trackKcal Int? // user-chosen daily kcal target; only read when goalType is "track"
 
+  // Lactation (breastfeeding) — adds the energy cost of making milk on top
+  // of TDEE so a nursing mother's maintenance holds her weight. Applies
+  // forward like the goal (computed live, not snapshotted). Only meaningful
+  // when sex is "female". See src/lib/lactation.ts for the math.
+  lactationStatus String  @default("none") // "none" | "exclusive" | "partial"
+  lactationStage  String? // "0-6mo" | "6-12mo" | "12mo+" — only set when breastfeeding
+  lactationBasis  String  @default("maintain") // "maintain" (full milk cost) | "iom" (gentle loss)
+
   // Macro goals — three modes per macro:
   //   "auto"   → derived from calorie target × default split (30/40/30 P/C/F)
   //   "custom" → use the corresponding *GoalG column (in grams)

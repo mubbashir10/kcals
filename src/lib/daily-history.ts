@@ -21,6 +21,7 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import { lactationKcal, lactationFloor } from "@/lib/lactation";
 
 export type DayConsumed = {
   kcal: number;
@@ -142,6 +143,10 @@ export async function loadDailyHistory(
     ? profile.goalPace
     : null;
   const kcalOffset = computeKcalOffset(goalType, goalPace);
+  // Lactation bump + safety floor — applied to every day's target, forward
+  // from the current profile (same non-retroactive treatment as the goal).
+  const lactExtra = lactationKcal(profile);
+  const lactFloor = lactationFloor(profile);
 
   const allKeys = new Set<string>([
     ...foodByDay.keys(),
@@ -160,13 +165,14 @@ export async function loadDailyHistory(
 
       const tdeeSnap = tdeeByDay.get(dayKey);
       const bmrKcal = tdeeSnap?.bmr ?? fallbackBmr.kcal;
-      const tdeeKcal = tdeeSnap?.tdee ?? fallbackTdee;
+      const tdeeKcal = (tdeeSnap?.tdee ?? fallbackTdee) + lactExtra;
       const calorieGoal = computeEffectiveTarget(
         tdeeKcal,
         bmrKcal,
         goalType,
         goalPace,
-        profile.trackKcal
+        profile.trackKcal,
+        lactFloor
       );
       const macroGoals = computeMacroGoals(calorieGoal, profile);
       const weightKg = weightByDay.get(dayKey) ?? null;

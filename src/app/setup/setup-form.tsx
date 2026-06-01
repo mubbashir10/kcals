@@ -8,6 +8,12 @@ import { Label } from "@/components/ui/label";
 import { cn, isNextRedirectError, round1 } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb, type Sex, type Units } from "@/lib/bmr";
 import type { ActivityMode } from "@/lib/tdee";
+import {
+  lactationKcal,
+  type LactationStatus,
+  type LactationStage,
+  type LactationBasis,
+} from "@/lib/lactation";
 import { saveProfile } from "./actions";
 
 export type InitialProfile = {
@@ -25,6 +31,9 @@ export type InitialProfile = {
   cardioSessionsPerWeek: number | null;
   cardioMinutesPerSession: number | null;
   activeKcalOverride: number | null;
+  lactationStatus: string;
+  lactationStage: string | null;
+  lactationBasis: string;
 } | null;
 
 export function SetupForm({ initial }: { initial: InitialProfile }) {
@@ -106,6 +115,16 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     initial?.activeKcalOverride != null
       ? String(initial.activeKcalOverride)
       : ""
+  );
+
+  const [lactationStatus, setLactationStatus] = useState<LactationStatus>(
+    (initial?.lactationStatus as LactationStatus) ?? "none"
+  );
+  const [lactationStage, setLactationStage] = useState<LactationStage>(
+    (initial?.lactationStage as LactationStage) ?? "0-6mo"
+  );
+  const [lactationBasis, setLactationBasis] = useState<LactationBasis>(
+    (initial?.lactationBasis as LactationBasis) ?? "maintain"
   );
 
   const [error, setError] = useState<string | null>(null);
@@ -239,6 +258,13 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           cardioSessionsPerWeek: cardio,
           cardioMinutesPerSession: cardioMinNum,
           activeKcalOverride: activeOverride,
+          // Lactation only applies to female profiles; otherwise force "none".
+          lactationStatus: sex === "female" ? lactationStatus : "none",
+          lactationStage:
+            sex === "female" && lactationStatus !== "none"
+              ? lactationStage
+              : null,
+          lactationBasis: sex === "female" ? lactationBasis : "maintain",
         });
       } catch (err) {
         // redirect() throws on success — ignore it, surface real failures.
@@ -368,6 +394,99 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           onChange={(e) => setBodyFat(e.target.value)}
         />
       </Field>
+
+      {/* Adds the energy cost of making milk to maintenance. */}
+      {sex === "female" && (
+        <div className="space-y-5 pt-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Breastfeeding
+            </span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Are you nursing?
+            </Label>
+            <SegmentedToggle<LactationStatus>
+              value={lactationStatus}
+              onChange={setLactationStatus}
+              fullWidth
+              options={[
+                { value: "none", label: "No" },
+                { value: "exclusive", label: "Exclusively" },
+                { value: "partial", label: "Partially" },
+              ]}
+            />
+            <p className="text-[11px] text-muted-foreground/70">
+              {lactationStatus === "none"
+                ? "Making milk burns extra energy — turn this on and we'll add it to your maintenance calories."
+                : lactationStatus === "exclusive"
+                ? "Breast milk only — no formula or solids yet."
+                : "Combo-feeding (breast + formula/solids) — roughly half the milk, so half the calories."}
+            </p>
+          </div>
+
+          {lactationStatus !== "none" && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Baby&rsquo;s age
+                </Label>
+                <SegmentedToggle<LactationStage>
+                  value={lactationStage}
+                  onChange={setLactationStage}
+                  fullWidth
+                  options={[
+                    { value: "0-6mo", label: "0–6 mo" },
+                    { value: "6-12mo", label: "6–12 mo" },
+                    { value: "12mo+", label: "12+ mo" },
+                  ]}
+                />
+                <p className="text-[11px] text-muted-foreground/70">
+                  Milk production — and the calories it costs — tapers as your
+                  baby grows and starts solids.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  What&rsquo;s your aim?
+                </Label>
+                <SegmentedToggle<LactationBasis>
+                  value={lactationBasis}
+                  onChange={setLactationBasis}
+                  fullWidth
+                  options={[
+                    { value: "maintain", label: "Hold weight" },
+                    { value: "iom", label: "Gentle loss" },
+                  ]}
+                />
+                <p className="text-[11px] text-muted-foreground/70">
+                  {lactationBasis === "maintain"
+                    ? "Covers the full cost of making milk so your weight stays steady. Pick a Lose goal later if you want a deficit."
+                    : "Follows the IOM guideline — assumes you gently use up pregnancy fat stores, so it builds in a small daily deficit (first 6 months)."}
+                </p>
+              </div>
+
+              <p className="rounded-2xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
+                We&rsquo;ll add{" "}
+                <span className="font-semibold text-foreground tabular-nums">
+                  +
+                  {lactationKcal({
+                    lactationStatus,
+                    lactationStage,
+                    lactationBasis,
+                  }).toLocaleString()}{" "}
+                  kcal/day
+                </span>{" "}
+                to your maintenance calories.
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Activity — used for maintenance-calorie (TDEE) calculation */}
       <div className="space-y-5 pt-2">

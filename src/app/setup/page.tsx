@@ -28,6 +28,9 @@ export default async function SetupPage() {
         cardioSessionsPerWeek: existing.cardioSessionsPerWeek,
         cardioMinutesPerSession: existing.cardioMinutesPerSession,
         activeKcalOverride: existing.activeKcalOverride,
+        lactationStatus: existing.lactationStatus,
+        lactationStage: existing.lactationStage,
+        lactationBasis: existing.lactationBasis,
       }
     : null;
 

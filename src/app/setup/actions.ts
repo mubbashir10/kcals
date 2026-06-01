@@ -26,6 +26,9 @@ export type SaveProfileInput = {
   cardioSessionsPerWeek: number | null;
   cardioMinutesPerSession: number | null;
   activeKcalOverride: number | null;
+  lactationStatus: string;
+  lactationStage: string | null;
+  lactationBasis: string;
 };
 
 export async function saveProfile(input: SaveProfileInput) {

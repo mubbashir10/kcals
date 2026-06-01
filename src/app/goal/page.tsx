@@ -6,7 +6,13 @@ import { requireUserId } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { isGoalPace, isGoalType } from "@/lib/goal";
 import { isMacroMode } from "@/lib/macros";
+import {
+  isLactationBasis,
+  isLactationStage,
+  isLactationStatus,
+} from "@/lib/lactation";
 import { GoalSettings } from "@/components/goal-settings";
+import { LactationSettings } from "@/components/lactation-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +84,27 @@ export default async function GoalPage() {
           }}
           unitsLabel={profile.units === "imperial" ? "lb" : "kg"}
         />
+
+        {profile.sex === "female" && (
+          <div className="mt-8 space-y-3">
+            <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Breastfeeding
+            </h2>
+            <LactationSettings
+              initial={{
+                status: isLactationStatus(profile.lactationStatus)
+                  ? profile.lactationStatus
+                  : "none",
+                stage: isLactationStage(profile.lactationStage)
+                  ? profile.lactationStage
+                  : "0-6mo",
+                basis: isLactationBasis(profile.lactationBasis)
+                  ? profile.lactationBasis
+                  : "maintain",
+              }}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

@@ -18,6 +18,7 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import { lactationKcal } from "@/lib/lactation";
 
 const DAY_MS = 86_400_000;
 
@@ -136,8 +137,11 @@ export async function loadWeekSummary(
   }
 
   // Fallback TDEE for days without a snapshot row — the same "typical day"
-  // estimate buildDailySnapshot computes from the current profile.
-  const fallbackTdee = buildDailySnapshot(profile, null).tdeeKcal;
+  // estimate buildDailySnapshot computes from the current profile. Lactation
+  // is real expended energy (milk), so it's folded into every day's burn
+  // below for an accurate net / predicted-weight.
+  const lactExtra = lactationKcal(profile);
+  const fallbackTdee = buildDailySnapshot(profile, null).tdeeKcal + lactExtra;
 
   const goalType: GoalType = isGoalType(profile.goalType)
     ? profile.goalType
@@ -150,7 +154,8 @@ export async function loadWeekSummary(
   const days: WeekDay[] = dayKeys.map((dayKey) => {
     const hasFood = consumedByDay.has(dayKey);
     const consumedKcal = consumedByDay.get(dayKey) ?? 0;
-    const tdeeKcal = tdeeByDay.get(dayKey) ?? fallbackTdee;
+    const snapTdee = tdeeByDay.get(dayKey);
+    const tdeeKcal = snapTdee != null ? snapTdee + lactExtra : fallbackTdee;
     return {
       dayKey,
       isToday: dayKey === todayKey,

@@ -24,6 +24,7 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import { lactationKcal, lactationFloor } from "@/lib/lactation";
 import { computeMacroGoals } from "@/lib/macros";
 import {
   activeKcal,
@@ -114,7 +115,9 @@ export default async function DayPage({
   const fallbackTdee = calculateTdee(fallbackBmr.kcal, fallbackActive);
 
   const bmrKcal = activityLog?.bmrKcal ?? fallbackBmr.kcal;
-  const tdeeKcal = activityLog?.tdeeKcal ?? fallbackTdee;
+  // Lactation adds the milk-production cost on top of burned energy (applies
+  // forward from the current profile, same as the goal — not snapshotted).
+  const tdeeKcal = (activityLog?.tdeeKcal ?? fallbackTdee) + lactationKcal(profile);
 
   const goalType: GoalType = isGoalType(profile.goalType)
     ? profile.goalType
@@ -127,7 +130,8 @@ export default async function DayPage({
     bmrKcal,
     goalType,
     goalPace,
-    profile.trackKcal
+    profile.trackKcal,
+    lactationFloor(profile)
   );
   const macroGoals = computeMacroGoals(calorieGoal, profile);
 

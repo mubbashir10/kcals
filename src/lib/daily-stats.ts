@@ -20,6 +20,7 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import { lactationKcal, lactationFloor } from "@/lib/lactation";
 import { computeMacroGoals } from "@/lib/macros";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
@@ -156,10 +157,16 @@ export async function loadDailyStats(
       });
 
   // TDEE comes from the stored snapshot when available, otherwise compute.
-  const tdee =
+  const baseTdee =
     todayActivity?.tdeeKcal != null
       ? todayActivity.tdeeKcal
       : calculateTdee(bmr.kcal, active);
+
+  // Lactation: the energy cost of making milk, added on top of what she
+  // burns so "maintenance" actually holds a nursing mother's weight. Like
+  // the goal, this lives on Profile and applies forward (not snapshotted).
+  const lactationExtra = lactationKcal(profile);
+  const tdee = baseTdee + lactationExtra;
 
   // Goal-aware target. Goal lives on Profile and changes apply forward —
   // we deliberately don't snapshot it per-day yet (would let historical
@@ -177,7 +184,8 @@ export async function loadDailyStats(
     bmr.kcal,
     goalType,
     goalPace,
-    profile.trackKcal
+    profile.trackKcal,
+    lactationFloor(profile)
   );
 
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -218,6 +226,7 @@ export async function loadDailyStats(
     bmr,
     active,
     tdee,
+    lactationKcal: lactationExtra,
     calorieGoal,
     goalType,
     goalPace,

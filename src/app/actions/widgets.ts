@@ -11,6 +11,14 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import {
+  isLactationBasis,
+  isLactationStage,
+  isLactationStatus,
+  type LactationBasis,
+  type LactationStage,
+  type LactationStatus,
+} from "@/lib/lactation";
 import { isMacroMode, MACROS, type Macro, type MacroMode } from "@/lib/macros";
 import {
   REORDERABLE_WIDGETS,
@@ -120,6 +128,38 @@ export async function setGoal(type: GoalType, pace: GoalPace | null) {
   await db.profile.updateMany({
     where: { userId },
     data: { goalType: type, goalPace: normalizedPace },
+  });
+  revalidatePath("/");
+  revalidatePath("/goal");
+  revalidatePath("/settings");
+}
+
+// Breastfeeding settings. status drives the milk-cost bump added to TDEE;
+// stage is only meaningful while nursing (cleared otherwise so no stale
+// state lingers), and basis chooses full-cost ("maintain") vs the IOM
+// gentle-loss figure. See lib/lactation.ts.
+export async function setLactation(
+  status: LactationStatus,
+  stage: LactationStage | null,
+  basis: LactationBasis
+) {
+  if (!isLactationStatus(status)) {
+    throw new Error(`Unknown lactation status: ${status}`);
+  }
+  if (stage != null && !isLactationStage(stage)) {
+    throw new Error(`Unknown lactation stage: ${stage}`);
+  }
+  if (!isLactationBasis(basis)) {
+    throw new Error(`Unknown lactation basis: ${basis}`);
+  }
+  const userId = await requireUserId();
+  await db.profile.updateMany({
+    where: { userId },
+    data: {
+      lactationStatus: status,
+      lactationStage: status === "none" ? null : stage ?? "0-6mo",
+      lactationBasis: basis,
+    },
   });
   revalidatePath("/");
   revalidatePath("/goal");

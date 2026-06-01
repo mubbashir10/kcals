@@ -10,6 +10,7 @@ import {
   type GoalPace,
   type GoalType,
 } from "@/lib/goal";
+import { lactationKcal, lactationFloor } from "@/lib/lactation";
 import type { ActivityMode } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
 
@@ -152,7 +153,10 @@ export async function listFriendSummaries(
         : null
     );
     const bmrKcal = activity?.bmrKcal ?? snapshot.bmrKcal;
-    const tdeeKcal = activity?.tdeeKcal ?? snapshot.tdeeKcal;
+    // Add the friend's lactation bump on top of burned energy (forward from
+    // their current profile, mirroring loadDailyStats).
+    const tdeeKcal =
+      (activity?.tdeeKcal ?? snapshot.tdeeKcal) + lactationKcal(profile);
 
     const goalType: GoalType = isGoalType(profile.goalType)
       ? profile.goalType
@@ -165,7 +169,8 @@ export async function listFriendSummaries(
       bmrKcal,
       goalType,
       goalPace,
-      profile.trackKcal
+      profile.trackKcal,
+      lactationFloor(profile)
     );
 
     const todaysFoods = meals
