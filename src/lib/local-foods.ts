@@ -30,8 +30,10 @@ export type LocalFood = {
 
 // Synthetic fdcId range for local rows. Sits below the AI-preview floor
 // (-2e9) so it never collides with USDA (positive), CustomFood (-1 to
-// -1e9), OFF (< -1e9), recipes (< -1e9), or AI previews (-2e9). The id is a
-// React key + a stored snapshot reference; it is never looked up remotely.
+// -1e9), OFF (< -1e9), recipes (< -1e9), or AI previews (-2e9). This is a
+// display-only React key, never persisted: it falls below PostgreSQL int4's
+// minimum, so `persistableFdcId` drops it to null when a local food is
+// logged (a logged food keeps its own nutrient snapshot, not a reference).
 const LOCAL_FOOD_FLOOR = -3_000_000_000;
 
 // --- South Asian / Pakistani ----------------------------------------------

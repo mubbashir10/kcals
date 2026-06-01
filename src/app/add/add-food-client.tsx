@@ -849,7 +849,9 @@ function PortionForm({
         </div>
 
         {error && (
-          <p className="text-center text-xs text-destructive">{error}</p>
+          <p role="alert" className="text-center text-xs text-destructive">
+            {error}
+          </p>
         )}
 
         <div className="flex gap-2">
@@ -1031,7 +1033,9 @@ function QuickAddDialog({
           </div>
 
           {error && (
-            <p className="text-center text-xs text-destructive">{error}</p>
+            <p role="alert" className="text-center text-xs text-destructive">
+              {error}
+            </p>
           )}
 
           <div className="flex gap-2">
