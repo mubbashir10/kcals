@@ -11,7 +11,7 @@ import {
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
-import { round1 } from "@/lib/utils";
+import { persistableFdcId, round1 } from "@/lib/utils";
 import { revalidateDiary } from "@/lib/revalidate";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -56,66 +56,70 @@ export async function logFood(
 ) {
   const userId = await requireUserId();
   const dayKey = options.dayKey ?? null;
-  let mealId: number;
 
-  if (options.mealId) {
-    // Confirm the meal belongs to this user.
-    const owned = await db.meal.findFirst({
-      where: { id: options.mealId, userId },
-      select: { id: true },
-    });
-    if (!owned) {
-      throw new Error("Meal not found");
-    }
-    mealId = owned.id;
-  } else if (typeof options.newMealName === "string") {
-    const tz = await getProfileTimezone(userId);
-    if (dayKey && isFutureDayKey(tz, dayKey)) {
-      throw new Error("Cannot log a future date");
-    }
-    const loggedAt = dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
-    const meal = await db.meal.create({
-      data: {
-        userId,
-        name:
-          options.newMealName.trim() ||
-          autoMealNameInTz(loggedAt ?? new Date(), tz),
-        loggedAt,
-      },
-    });
-    mealId = meal.id;
-  } else {
-    // auto-grouping (default). Only joins a recent meal when logging "today" —
-    // the 2h window is relative to now, so a past day never matches and we
-    // open a fresh meal pinned to that day instead.
-    let meal = dayKey
-      ? null
-      : await db.meal.findFirst({
-          where: {
-            userId,
-            loggedAt: { gte: new Date(Date.now() - MEAL_JOIN_WINDOW_MS) },
-          },
-          orderBy: { loggedAt: "desc" },
-        });
-    if (!meal) {
-      const tz = await getProfileTimezone(userId);
-      if (dayKey && isFutureDayKey(tz, dayKey)) {
-        throw new Error("Cannot log a future date");
-      }
-      const loggedAt = dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
-      meal = await db.meal.create({
-        data: {
-          userId,
-          name: autoMealNameInTz(loggedAt ?? new Date(), tz),
-          loggedAt,
-        },
-      });
-    }
-    mealId = meal.id;
+  // Everything a new meal needs — timezone, the future-date guard, the
+  // pinned instant, the name — is resolved up front. These are reads that
+  // don't depend on the mutation, so keeping them out of the transaction
+  // below keeps it short and off a second connection. Only needed when we
+  // might open a meal (appending to an existing one carries its own day).
+  const tz = options.mealId ? null : await getProfileTimezone(userId);
+  if (tz && dayKey && isFutureDayKey(tz, dayKey)) {
+    throw new Error("Cannot log a future date");
   }
+  const loggedAt = tz && dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
+  const mealName = tz
+    ? (typeof options.newMealName === "string" ? options.newMealName.trim() : "") ||
+      autoMealNameInTz(loggedAt ?? new Date(), tz)
+    : "";
 
-  await db.food.create({
-    data: { mealId, ...input },
+  // Resolving/creating the meal and inserting the food run in one transaction
+  // so a failed food insert can never leave behind an empty orphan meal — the
+  // exact failure mode that, with a silent client error, made retries pile up
+  // duplicate empty meals.
+  await db.$transaction(async (tx) => {
+    let mealId: number;
+
+    if (options.mealId) {
+      // Confirm the meal belongs to this user.
+      const owned = await tx.meal.findFirst({
+        where: { id: options.mealId, userId },
+        select: { id: true },
+      });
+      if (!owned) {
+        throw new Error("Meal not found");
+      }
+      mealId = owned.id;
+    } else if (typeof options.newMealName === "string") {
+      const meal = await tx.meal.create({
+        data: { userId, name: mealName, loggedAt },
+      });
+      mealId = meal.id;
+    } else {
+      // auto-grouping (default). Only joins a recent meal when logging "today" —
+      // the 2h window is relative to now, so a past day never matches and we
+      // open a fresh meal pinned to that day instead.
+      let meal = dayKey
+        ? null
+        : await tx.meal.findFirst({
+            where: {
+              userId,
+              loggedAt: { gte: new Date(Date.now() - MEAL_JOIN_WINDOW_MS) },
+            },
+            orderBy: { loggedAt: "desc" },
+          });
+      if (!meal) {
+        meal = await tx.meal.create({
+          data: { userId, name: mealName, loggedAt },
+        });
+      }
+      mealId = meal.id;
+    }
+
+    await tx.food.create({
+      // Drop synthetic display-only fdcIds (local "Reference" rows sit below
+      // int4's minimum and would throw on insert) — store null for those.
+      data: { ...input, mealId, fdcId: persistableFdcId(input.fdcId) },
+    });
   });
 
   revalidateDiary();

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
-import { round1 } from "@/lib/utils";
+import { persistableFdcId, round1 } from "@/lib/utils";
 
 export type RecipeIngredientInput = {
   // Positive = USDA fdcId, negative = -customFoodId, null = manual.
@@ -61,7 +61,9 @@ function validateIngredient(input: RecipeIngredientInput): RecipeIngredientInput
     throw new Error("Invalid kcal/100g");
   }
   return {
-    fdcId: Number.isFinite(input.fdcId as number) ? (input.fdcId as number) : null,
+    // Synthetic display-only ids (local "Reference" rows) fall below int4's
+    // minimum and would throw on insert — keep only real, storable refs.
+    fdcId: persistableFdcId(input.fdcId),
     name,
     brand: input.brand?.trim() || null,
     per100Kcal: round1(input.per100Kcal),

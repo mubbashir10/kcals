@@ -10,6 +10,36 @@ export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+// PostgreSQL `Int` (int4) bounds. Search results carry synthetic negative
+// fdcIds as display-only React keys (recipes, Open Food Facts, AI previews,
+// and curated local "Reference" rows). Local rows sit near -3e9, which is
+// BELOW int4's minimum — writing one to Food.fdcId / RecipeIngredient.fdcId
+// throws "value out of range for type integer". These synthetic ids are
+// never resolved back to a real source, so anything outside int4 is dropped
+// to null (the column's "no real reference" value) at the write boundary.
+const INT4_MIN = -2_147_483_648;
+const INT4_MAX = 2_147_483_647;
+
+/**
+ * Returns `fdcId` only when it's a real, storable reference (a positive USDA
+ * id or a `-customFoodId` pointer that fits int4). Out-of-range synthetic
+ * display ids become null. Apply before persisting a logged food/ingredient.
+ */
+export function persistableFdcId(fdcId: number | null): number | null {
+  if (fdcId == null || !Number.isInteger(fdcId)) return null;
+  if (fdcId < INT4_MIN || fdcId > INT4_MAX) return null;
+  return fdcId;
+}
+
+/**
+ * True when `err` is the control-flow throw from a server action's
+ * `redirect()` — i.e. the success path, not a failure. Use to skip
+ * error-reporting on the happy path inside a server-action `catch`.
+ */
+export function isNextRedirectError(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("NEXT_REDIRECT");
+}
+
 /** Round to `dp` decimal places. */
 export function roundN(n: number, dp: number): number {
   const f = 10 ** dp;

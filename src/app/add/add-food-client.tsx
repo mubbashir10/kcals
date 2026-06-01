@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn, round1 } from "@/lib/utils";
+import { cn, isNextRedirectError, round1 } from "@/lib/utils";
 import {
   dataTypeLabel,
   extractUnitName,
@@ -697,6 +697,7 @@ function PortionForm({
   );
   const [qtyStr, setQtyStr] = useState<string>(() => (servingG ? "1" : ""));
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function onGramsChange(s: string) {
     setGrams(s);
@@ -731,6 +732,7 @@ function PortionForm({
   function onLog() {
     if (!valid) return;
     const isRecipe = food.dataType === "Recipe";
+    setError(null);
     startTransition(async () => {
       try {
         await logFood(
@@ -752,9 +754,13 @@ function PortionForm({
           logOptions(target, dayKey)
         );
       } catch (err) {
-        if (err instanceof Error && !err.message.includes("NEXT_REDIRECT")) {
-          console.error(err);
-        }
+        // A successful log throws NEXT_REDIRECT (the redirect back to the
+        // diary) — that's the happy path. Anything else means the food
+        // didn't save; show it so the user doesn't retry blindly and pile
+        // up empty meals.
+        if (isNextRedirectError(err)) return;
+        console.error(err);
+        setError("Couldn't log that food. Please try again.");
       }
     });
   }
@@ -842,6 +848,10 @@ function PortionForm({
           <Stat label="F" value={round1(computed.fatG)} unit="g" />
         </div>
 
+        {error && (
+          <p className="text-center text-xs text-destructive">{error}</p>
+        )}
+
         <div className="flex gap-2">
           <DialogClose
             render={
@@ -880,6 +890,7 @@ function QuickAddDialog({
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const k = parseFloat(kcal);
   const validKcal = Number.isFinite(k) && k > 0 && k < 10000;
@@ -890,6 +901,7 @@ function QuickAddDialog({
     setProtein("");
     setCarbs("");
     setFat("");
+    setError(null);
   }
 
   function onOpenChange(next: boolean) {
@@ -902,6 +914,7 @@ function QuickAddDialog({
   function submit() {
     if (!validKcal) return;
     const trimmedLabel = label.trim();
+    setError(null);
     startTransition(async () => {
       try {
         await logFood(
@@ -920,9 +933,11 @@ function QuickAddDialog({
           logOptions(target, dayKey)
         );
       } catch (err) {
-        if (err instanceof Error && !err.message.includes("NEXT_REDIRECT")) {
-          console.error(err);
-        }
+        // NEXT_REDIRECT is the success path (redirect to the diary); surface
+        // anything else so a failed add isn't mistaken for "nothing happened."
+        if (isNextRedirectError(err)) return;
+        console.error(err);
+        setError("Couldn't add that. Please try again.");
       }
     });
   }
@@ -1014,6 +1029,10 @@ function QuickAddDialog({
               />
             </div>
           </div>
+
+          {error && (
+            <p className="text-center text-xs text-destructive">{error}</p>
+          )}
 
           <div className="flex gap-2">
             <DialogClose

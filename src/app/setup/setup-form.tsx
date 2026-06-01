@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn, round1 } from "@/lib/utils";
+import { cn, isNextRedirectError, round1 } from "@/lib/utils";
 import { inToCm, lbToKg, cmToIn, kgToLb, type Sex, type Units } from "@/lib/bmr";
 import type { ActivityMode } from "@/lib/tdee";
 import { saveProfile } from "./actions";
@@ -241,11 +241,8 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           activeKcalOverride: activeOverride,
         });
       } catch (err) {
-        // redirect() throws — Next swallows it. Ignore.
-        if (
-          err instanceof Error &&
-          err.message.includes("NEXT_REDIRECT") === false
-        ) {
+        // redirect() throws on success — ignore it, surface real failures.
+        if (!isNextRedirectError(err)) {
           setError("Couldn't save. Please try again.");
         }
       }
