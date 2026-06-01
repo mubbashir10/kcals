@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -37,7 +36,7 @@ export type LogFoodOptions = {
   /**
    * Calendar day (YYYY-MM-DD) for a newly-created meal. `null`/omitted means
    * today. Ignored when appending to an existing meal — that meal already has
-   * its day. Also controls where we redirect back to after logging.
+   * its day.
    */
   dayKey?: string | null;
 };
@@ -53,7 +52,7 @@ export type LogFoodOptions = {
 export async function logFood(
   input: LogFoodInput,
   options: LogFoodOptions = {}
-) {
+): Promise<{ mealId: number; createdMeal: boolean }> {
   const userId = await requireUserId();
   const dayKey = options.dayKey ?? null;
 
@@ -76,8 +75,9 @@ export async function logFood(
   // so a failed food insert can never leave behind an empty orphan meal — the
   // exact failure mode that, with a silent client error, made retries pile up
   // duplicate empty meals.
-  await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     let mealId: number;
+    let createdMeal = false;
 
     if (options.mealId) {
       // Confirm the meal belongs to this user.
@@ -94,6 +94,7 @@ export async function logFood(
         data: { userId, name: mealName, loggedAt },
       });
       mealId = meal.id;
+      createdMeal = true;
     } else {
       // auto-grouping (default). Only joins a recent meal when logging "today" —
       // the 2h window is relative to now, so a past day never matches and we
@@ -111,6 +112,7 @@ export async function logFood(
         meal = await tx.meal.create({
           data: { userId, name: mealName, loggedAt },
         });
+        createdMeal = true;
       }
       mealId = meal.id;
     }
@@ -120,10 +122,17 @@ export async function logFood(
       // int4's minimum and would throw on insert) — store null for those.
       data: { ...input, mealId, fdcId: persistableFdcId(input.fdcId) },
     });
+
+    return { mealId, createdMeal };
   });
 
   revalidateDiary();
-  redirect(dayKey ? `/day/${dayKey}` : "/");
+  // No redirect: the user often logs several foods in a row, so the client
+  // keeps them on the search page and just closes the dialog. We hand back the
+  // meal id so a follow-up add can append to this same meal instead of opening
+  // a duplicate one — and whether a meal was created, so the client only
+  // refetches the meal picker when there's actually a new chip to show.
+  return result;
 }
 
 export type ApproveAiFoodInput = {

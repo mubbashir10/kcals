@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -23,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn, isNextRedirectError, round1 } from "@/lib/utils";
+import { cn, round1 } from "@/lib/utils";
 import {
   dataTypeLabel,
   extractUnitName,
@@ -37,6 +38,8 @@ import { CustomFoodDialog } from "@/components/custom-food-dialog";
 import { approveAiFood, logFood } from "./actions";
 
 type Food = SearchFood;
+
+type LoggedResult = Awaited<ReturnType<typeof logFood>>;
 
 export type MealOption = {
   id: number;
@@ -72,6 +75,7 @@ export function AddFoodClient({
   dayKey?: string | null;
 }) {
   const backHref = dayKey ? `/day/${dayKey}` : "/";
+  const router = useRouter();
   const {
     query,
     setQuery: updateQuery,
@@ -95,6 +99,19 @@ export function AddFoodClient({
   // Which AI preview is mid-approval — keeps a spinner on just that row
   // while we persist it to CustomFood.
   const [approvingAiId, setApprovingAiId] = useState<number | null>(null);
+
+  // A food was logged. Close whatever dialog was open and stay put so the user
+  // can keep adding. Point the target at the meal we just wrote to — for a
+  // brand-new meal that means the *next* food appends here instead of opening
+  // another meal with the same name. Only refetch the server-rendered meal list
+  // when a meal was actually created (the picker shows a chip per meal but no
+  // per-meal totals, so appends leave it unchanged).
+  function handleLogged({ mealId, createdMeal }: LoggedResult) {
+    setSelected(null);
+    setQuickOpen(false);
+    setTarget({ kind: "existing", mealId });
+    if (createdMeal) router.refresh();
+  }
 
   async function onResultSelect(food: Food) {
     if (food.dataType !== "AI" || food.aiModel == null) {
@@ -289,6 +306,7 @@ export function AddFoodClient({
         target={target}
         dayKey={dayKey}
         onClose={() => setSelected(null)}
+        onLogged={handleLogged}
       />
 
       <QuickAddDialog
@@ -296,6 +314,7 @@ export function AddFoodClient({
         target={target}
         dayKey={dayKey}
         onClose={() => setQuickOpen(false)}
+        onLogged={handleLogged}
       />
 
       <CustomFoodDialog
@@ -654,11 +673,13 @@ function PortionDialog({
   target,
   dayKey,
   onClose,
+  onLogged,
 }: {
   food: Food | null;
   target: Target;
   dayKey: string | null;
   onClose: () => void;
+  onLogged: (result: LoggedResult) => void;
 }) {
   return (
     <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
@@ -669,6 +690,7 @@ function PortionDialog({
             food={food}
             target={target}
             dayKey={dayKey}
+            onLogged={onLogged}
           />
         )}
       </DialogContent>
@@ -680,10 +702,12 @@ function PortionForm({
   food,
   target,
   dayKey,
+  onLogged,
 }: {
   food: Food;
   target: Target;
   dayKey: string | null;
+  onLogged: (result: LoggedResult) => void;
 }) {
   const servingG =
     food.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
@@ -735,7 +759,7 @@ function PortionForm({
     setError(null);
     startTransition(async () => {
       try {
-        await logFood(
+        const result = await logFood(
           {
             // Recipes use a synthetic display-only fdcId; the real link
             // back is the separate recipeId field.
@@ -753,12 +777,10 @@ function PortionForm({
           },
           logOptions(target, dayKey)
         );
+        onLogged(result);
       } catch (err) {
-        // A successful log throws NEXT_REDIRECT (the redirect back to the
-        // diary) — that's the happy path. Anything else means the food
-        // didn't save; show it so the user doesn't retry blindly and pile
-        // up empty meals.
-        if (isNextRedirectError(err)) return;
+        // A failed log means the food didn't save; show it so the user doesn't
+        // retry blindly and pile up empty meals.
         console.error(err);
         setError("Couldn't log that food. Please try again.");
       }
@@ -880,11 +902,13 @@ function QuickAddDialog({
   target,
   dayKey,
   onClose,
+  onLogged,
 }: {
   open: boolean;
   target: Target;
   dayKey: string | null;
   onClose: () => void;
+  onLogged: (result: LoggedResult) => void;
 }) {
   const [kcal, setKcal] = useState("");
   const [label, setLabel] = useState("");
@@ -919,7 +943,7 @@ function QuickAddDialog({
     setError(null);
     startTransition(async () => {
       try {
-        await logFood(
+        const result = await logFood(
           {
             fdcId: null,
             // Save with name = label if given, otherwise the generic
@@ -934,10 +958,9 @@ function QuickAddDialog({
           },
           logOptions(target, dayKey)
         );
+        onLogged(result);
       } catch (err) {
-        // NEXT_REDIRECT is the success path (redirect to the diary); surface
-        // anything else so a failed add isn't mistaken for "nothing happened."
-        if (isNextRedirectError(err)) return;
+        // Surface a failed add so it isn't mistaken for "nothing happened."
         console.error(err);
         setError("Couldn't add that. Please try again.");
       }
