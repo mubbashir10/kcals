@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   Check,
+  ChevronDown,
   Copy,
   CornerUpRight,
   MoreHorizontal,
@@ -51,10 +52,11 @@ import {
 type MealOption = Awaited<ReturnType<typeof listMealsOnDay>>[number];
 import {
   deleteFood,
+  deleteFoods,
   updateFoodGrams,
   updateFoodQuickAdd,
-  moveFood,
-  copyFood,
+  moveFoods,
+  copyFoods,
 } from "@/app/actions/foods";
 import { createRecipeFromFoods } from "@/app/actions/recipes";
 
@@ -87,20 +89,23 @@ export function MealCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [transferMode, setTransferMode] = useState<"move" | "copy" | null>(null);
   const [editingFood, setEditingFood] = useState<MealCardFood | null>(null);
-  const [transferFood, setTransferFood] = useState<{
+  // Move/copy of one-or-more foods. `label` is what the dialog shows ("foo"
+  // for a single row, "3 foods" in bulk).
+  const [transfer, setTransfer] = useState<{
     mode: "move" | "copy";
-    food: MealCardFood;
+    foodIds: number[];
+    label: string;
   } | null>(null);
-  // Selection mode: pick a subset of foods to turn into a recipe. Empty set
+  // Selection mode: tick a subset of foods to run a bulk action on. Empty set
   // and `selecting === false` means the card behaves normally.
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [recipePending, startRecipe] = useTransition();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  function startSelecting() {
-    setSelectedIds(new Set());
-    setSelecting(true);
-  }
+  const selectedFoodIds = [...selectedIds];
+  const allSelected =
+    meal.foods.length > 0 && selectedIds.size === meal.foods.length;
 
   function stopSelecting() {
     setSelecting(false);
@@ -116,11 +121,27 @@ export function MealCard({
     });
   }
 
+  function toggleAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(meal.foods.map((f) => f.id)));
+  }
+
+  function startTransfer(mode: "move" | "copy", foodIds: number[], label: string) {
+    if (foodIds.length > 0) setTransfer({ mode, foodIds, label });
+  }
+
   // The server action redirects, so this navigates away on success.
   function makeRecipe(foodIds: number[]) {
     if (foodIds.length === 0) return;
-    startRecipe(async () => {
+    startTransition(async () => {
       await createRecipeFromFoods(foodIds, meal.name);
+    });
+  }
+
+  function bulkDelete() {
+    startTransition(async () => {
+      await deleteFoods(selectedFoodIds);
+      stopSelecting();
+      setBulkDeleteOpen(false);
     });
   }
 
@@ -195,7 +216,10 @@ export function MealCard({
                     {meal.foods.length > 1 && (
                       <DropdownMenuItem
                         className="cursor-pointer rounded-lg text-sm"
-                        onClick={startSelecting}
+                        onClick={() => {
+                          setSelectedIds(new Set());
+                          setSelecting(true);
+                        }}
                       >
                         <Check className="mr-2 h-3.5 w-3.5 opacity-70" />
                         Select foods…
@@ -258,34 +282,73 @@ export function MealCard({
             selected={selectedIds.has(f.id)}
             onToggleSelect={() => toggleSelected(f.id)}
             onEdit={() => setEditingFood(f)}
-            onMove={() => setTransferFood({ mode: "move", food: f })}
-            onCopy={() => setTransferFood({ mode: "copy", food: f })}
+            onMove={() => startTransfer("move", [f.id], f.name)}
+            onCopy={() => startTransfer("copy", [f.id], f.name)}
           />
         ))}
       </ul>
 
       {selecting && (
-        <div className="flex items-center gap-2 border-t border-border/60 px-3 py-2.5">
+        <div className="flex items-center gap-2 border-t border-border/60 px-3 py-2">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="flex items-center gap-2 rounded-full px-1.5 py-1 text-[11px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Checkbox checked={allSelected} />
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : "Select all"}
+          </button>
+          <div className="flex-1" />
           <Button
             variant="ghost"
             onClick={stopSelecting}
-            disabled={recipePending}
+            disabled={pending}
             className="rounded-full text-xs"
           >
             Cancel
           </Button>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {selectedIds.size} selected
-          </span>
-          <div className="flex-1" />
-          <Button
-            onClick={() => makeRecipe([...selectedIds])}
-            disabled={selectedIds.size === 0 || recipePending}
-            className="rounded-full text-xs"
-          >
-            <Utensils className="mr-1 h-3.5 w-3.5" />
-            {recipePending ? "Creating…" : "Create recipe"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              disabled={selectedIds.size === 0 || pending}
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-foreground px-4 text-xs font-medium text-background outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40"
+            >
+              Actions
+              <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl p-1.5">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => startTransfer("move", selectedFoodIds, foodCountLabel(selectedIds.size))}
+                >
+                  <CornerUpRight className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Move to…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => startTransfer("copy", selectedFoodIds, foodCountLabel(selectedIds.size))}
+                >
+                  <Copy className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Copy to…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => makeRecipe(selectedFoodIds)}
+                >
+                  <Utensils className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Save as recipe
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={() => setBulkDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
 
@@ -321,14 +384,43 @@ export function MealCard({
         onClose={() => setEditingFood(null)}
       />
       <FoodTransferDialog
-        transfer={transferFood}
+        transfer={transfer}
         currentMealId={meal.id}
         currentDayKey={dayKeyInTz(timezone, new Date(meal.loggedAt))}
         timezone={timezone}
-        onClose={() => setTransferFood(null)}
+        onClose={() => setTransfer(null)}
+        onSuccess={stopSelecting}
+      />
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={selectedIds.size}
+        pending={pending}
+        onConfirm={bulkDelete}
       />
     </Card>
   );
+}
+
+// Small ticked-box used by the selection checkboxes (food rows + select-all).
+function Checkbox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+        checked
+          ? "border-foreground bg-foreground text-background"
+          : "border-border/70"
+      )}
+    >
+      {checked && <Check className="h-3 w-3" />}
+    </span>
+  );
+}
+
+function foodCountLabel(n: number): string {
+  return `${n} ${n === 1 ? "food" : "foods"}`;
 }
 
 function FoodRow({
@@ -379,19 +471,7 @@ function FoodRow({
           deletePending && "opacity-50"
         )}
       >
-        {selecting && (
-          <span
-            aria-hidden
-            className={cn(
-              "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-              selected
-                ? "border-foreground bg-foreground text-background"
-                : "border-border/70"
-            )}
-          >
-            {selected && <Check className="h-3 w-3" />}
-          </span>
-        )}
+        {selecting && <Checkbox checked={selected} />}
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] leading-tight">{f.name}</div>
           {(f.brand || f.grams > 0) && (
@@ -703,25 +783,29 @@ function FoodTransferDialog({
   currentDayKey,
   timezone,
   onClose,
+  onSuccess,
 }: {
-  transfer: { mode: "move" | "copy"; food: MealCardFood } | null;
+  transfer: { mode: "move" | "copy"; foodIds: number[]; label: string } | null;
   currentMealId: number;
   currentDayKey: string;
   timezone: string;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   return (
     <Dialog open={transfer !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="rounded-2xl sm:max-w-sm">
         {transfer && (
           <FoodTransferForm
-            key={`${transfer.mode}-${transfer.food.id}`}
+            key={`${transfer.mode}-${transfer.foodIds.join(",")}`}
             mode={transfer.mode}
-            food={transfer.food}
+            foodIds={transfer.foodIds}
+            label={transfer.label}
             currentMealId={currentMealId}
             currentDayKey={currentDayKey}
             timezone={timezone}
             onClose={onClose}
+            onSuccess={onSuccess}
           />
         )}
       </DialogContent>
@@ -731,18 +815,22 @@ function FoodTransferDialog({
 
 function FoodTransferForm({
   mode,
-  food,
+  foodIds,
+  label,
   currentMealId,
   currentDayKey,
   timezone,
   onClose,
+  onSuccess,
 }: {
   mode: "move" | "copy";
-  food: MealCardFood;
+  foodIds: number[];
+  label: string;
   currentMealId: number;
   currentDayKey: string;
   timezone: string;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [date, setDate] = useState(currentDayKey);
   const [meals, setMeals] = useState<MealOption[] | null>(null);
@@ -779,7 +867,7 @@ function FoodTransferForm({
     setDate(next);
   }
 
-  // Moving into the food's own meal is a no-op, so it can't be a target.
+  // Moving into the foods' own meal is a no-op, so it can't be a target.
   function isDisabled(mealId: number) {
     return !isCopy && mealId === currentMealId;
   }
@@ -787,8 +875,9 @@ function FoodTransferForm({
   function onSubmit() {
     if (selectedMealId == null) return;
     startTransition(async () => {
-      if (isCopy) await copyFood(food.id, selectedMealId);
-      else await moveFood(food.id, selectedMealId);
+      if (isCopy) await copyFoods(foodIds, selectedMealId);
+      else await moveFoods(foodIds, selectedMealId);
+      onSuccess();
       onClose();
     });
   }
@@ -799,7 +888,7 @@ function FoodTransferForm({
         {isCopy ? "Copy food" : "Move food"}
       </DialogTitle>
       <DialogDescription className="text-xs text-muted-foreground">
-        {isCopy ? "Duplicate" : "Move"} “{food.name}” into another meal.
+        {isCopy ? "Duplicate" : "Move"} “{label}” into another meal.
       </DialogDescription>
 
       <div className="mt-4 space-y-4">
@@ -928,6 +1017,50 @@ function DeleteDialog({
           </DialogClose>
           <Button
             onClick={onDelete}
+            disabled={pending}
+            variant="destructive"
+            className="flex-1 rounded-full"
+          >
+            {pending ? "Deleting…" : "Delete"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkDeleteDialog({
+  open,
+  onOpenChange,
+  count,
+  pending,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  count: number;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        <DialogTitle className="text-base font-semibold">
+          Delete {foodCountLabel(count)}?
+        </DialogTitle>
+        <DialogDescription className="text-xs text-muted-foreground">
+          This removes the selected food{count === 1 ? "" : "s"} from this meal.
+          Can&apos;t be undone.
+        </DialogDescription>
+
+        <div className="mt-4 flex gap-2">
+          <DialogClose
+            render={<Button variant="ghost" className="flex-1 rounded-full" />}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            onClick={onConfirm}
             disabled={pending}
             variant="destructive"
             className="flex-1 rounded-full"

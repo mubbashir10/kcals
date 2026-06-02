@@ -91,16 +91,27 @@ export async function updateFoodGrams(id: number, grams: number) {
 }
 
 export async function deleteFood(id: number) {
-  const userId = await requireUserId();
-  await db.food.deleteMany({ where: { id, meal: { userId } } });
-  revalidatePath("/");
+  return deleteFoods([id]);
 }
 
-// Shared lookup: the food (ownership-checked) and the destination meal with
-// just enough to compute where the row should land.
-async function loadFoodAndTarget(foodId: number, targetMealId: number, userId: string) {
-  const [food, target] = await Promise.all([
-    db.food.findFirst({ where: { id: foodId, meal: { userId } } }),
+export async function deleteFoods(foodIds: number[]) {
+  const userId = await requireUserId();
+  if (foodIds.length === 0) return;
+  await db.food.deleteMany({ where: { id: { in: foodIds }, meal: { userId } } });
+  // Bulk delete is reachable from the meal card on every diary surface, so
+  // refresh them all — not just "/".
+  revalidateDiary("/diary");
+}
+
+// Shared lookup: the owned foods (in the order the caller passed) and the
+// destination meal with just enough to compute where rows should land.
+async function loadFoodsAndTarget(
+  foodIds: number[],
+  targetMealId: number,
+  userId: string
+) {
+  const [foods, target] = await Promise.all([
+    db.food.findMany({ where: { id: { in: foodIds }, meal: { userId } } }),
     db.meal.findFirst({
       where: { id: targetMealId, userId },
       select: {
@@ -112,44 +123,62 @@ async function loadFoodAndTarget(foodId: number, targetMealId: number, userId: s
       },
     }),
   ]);
-  if (!food || !target) throw new Error("Food or target meal not found");
-  return { food, target };
+  if (!target) throw new Error("Target meal not found");
+  // findMany doesn't guarantee order; restore the caller's order so the moved
+  // rows keep their relative sequence in the destination.
+  const rank = new Map(foodIds.map((id, i) => [id, i]));
+  foods.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return { foods, target };
 }
 
-// Move a single food into another (existing) meal — same day or a different
-// one. The food adopts the target meal's day via a fresh loggedAt.
-export async function moveFood(foodId: number, targetMealId: number) {
+// Move foods into another (existing) meal — same day or a different one. They
+// adopt the target meal's day via fresh, sequential loggedAt stamps so their
+// order is preserved.
+export async function moveFoods(foodIds: number[], targetMealId: number) {
   const userId = await requireUserId();
-  const { food, target } = await loadFoodAndTarget(foodId, targetMealId, userId);
-  if (food.mealId === target.id) return; // already there — no-op
+  if (foodIds.length === 0) return;
+  const { foods, target } = await loadFoodsAndTarget(foodIds, targetMealId, userId);
+  const movable = foods.filter((f) => f.mealId !== target.id); // already-there = no-op
+  if (movable.length === 0) return;
   const tz = await getProfileTimezone(userId);
-  await db.food.update({
-    where: { id: food.id },
-    data: { mealId: target.id, loggedAt: landingInstant(target, tz) },
-  });
+  const base = landingInstant(target, tz).getTime();
+  await db.$transaction(
+    movable.map((f, i) =>
+      db.food.update({
+        where: { id: f.id },
+        data: { mealId: target.id, loggedAt: new Date(base + i) },
+      })
+    )
+  );
   revalidateDiary("/diary");
 }
 
-// Duplicate a single food into another (existing) meal.
-export async function copyFood(foodId: number, targetMealId: number) {
+// Duplicate foods into another (existing) meal.
+export async function copyFoods(foodIds: number[], targetMealId: number) {
   const userId = await requireUserId();
-  const { food, target } = await loadFoodAndTarget(foodId, targetMealId, userId);
+  if (foodIds.length === 0) return;
+  const { foods, target } = await loadFoodsAndTarget(foodIds, targetMealId, userId);
   const tz = await getProfileTimezone(userId);
-  await db.food.create({
-    data: {
-      mealId: target.id,
-      fdcId: food.fdcId,
-      recipeId: food.recipeId,
-      name: food.name,
-      brand: food.brand,
-      grams: food.grams,
-      kcal: food.kcal,
-      proteinG: food.proteinG,
-      carbsG: food.carbsG,
-      fatG: food.fatG,
-      loggedAt: landingInstant(target, tz),
-    },
-  });
+  const base = landingInstant(target, tz).getTime();
+  await db.$transaction(
+    foods.map((f, i) =>
+      db.food.create({
+        data: {
+          mealId: target.id,
+          fdcId: f.fdcId,
+          recipeId: f.recipeId,
+          name: f.name,
+          brand: f.brand,
+          grams: f.grams,
+          kcal: f.kcal,
+          proteinG: f.proteinG,
+          carbsG: f.carbsG,
+          fatG: f.fatG,
+          loggedAt: new Date(base + i),
+        },
+      })
+    )
+  );
   revalidateDiary("/diary");
 }
 
