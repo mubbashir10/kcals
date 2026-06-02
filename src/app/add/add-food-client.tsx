@@ -51,13 +51,15 @@ export type MealOption = {
 
 type Target =
   | { kind: "existing"; mealId: number }
-  | { kind: "new"; name: string };
+  // `time` (HH:MM) pins the new meal at a scheduled time — set when the
+  // target came from a default-meal placeholder.
+  | { kind: "new"; name: string; time?: string };
 
 // Map the picker's target + edited day into logFood's options shape.
 function logOptions(target: Target, dayKey: string | null) {
   return target.kind === "existing"
     ? { mealId: target.mealId, dayKey }
-    : { newMealName: target.name, dayKey };
+    : { newMealName: target.name, newMealTime: target.time ?? null, dayKey };
 }
 
 export function AddFoodClient({
@@ -67,6 +69,7 @@ export function AddFoodClient({
   timezone,
   dayKey = null,
   preselected = null,
+  initialNewMeal = null,
 }: {
   meals: MealOption[];
   autoTargetId: number | null;
@@ -77,6 +80,9 @@ export function AddFoodClient({
   /** Food to open the portion sheet for on mount (an "Add to meal"
    *  deep-link from a recipe or custom food). */
   preselected?: Food | null;
+  /** Pre-target a new meal at a scheduled time — set when arriving from a
+   *  default-meal placeholder's "Add food". */
+  initialNewMeal?: { name: string; time: string } | null;
 }) {
   const backHref = dayKey ? `/day/${dayKey}` : "/";
   const router = useRouter();
@@ -104,9 +110,11 @@ export function AddFoodClient({
   }, [preselected]);
 
   const [target, setTarget] = useState<Target>(() =>
-    autoTargetId != null
-      ? { kind: "existing", mealId: autoTargetId }
-      : { kind: "new", name: suggestedNewMealName }
+    initialNewMeal
+      ? { kind: "new", name: initialNewMeal.name, time: initialNewMeal.time }
+      : autoTargetId != null
+        ? { kind: "existing", mealId: autoTargetId }
+        : { kind: "new", name: suggestedNewMealName }
   );
 
   const [quickOpen, setQuickOpen] = useState(false);
@@ -417,10 +425,11 @@ function MealTargetPicker({
         <button
           type="button"
           onClick={() =>
-            onChange({
-              kind: "new",
-              name: target.kind === "new" ? target.name : suggestedNewMealName,
-            })
+            onChange(
+              target.kind === "new"
+                ? target
+                : { kind: "new", name: suggestedNewMealName }
+            )
           }
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
@@ -438,7 +447,7 @@ function MealTargetPicker({
         <div className="pt-1">
           <Input
             value={target.name}
-            onChange={(e) => onChange({ kind: "new", name: e.target.value })}
+            onChange={(e) => onChange({ ...target, name: e.target.value })}
             placeholder={suggestedNewMealName}
             className="h-9 rounded-full border-border/60 bg-card text-sm"
           />

@@ -5,8 +5,11 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import {
   autoMealNameInTz,
+  dayKeyInTz,
+  instantOnDayInTz,
   instantWithinDayInTz,
   isFutureDayKey,
+  isHhmm,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
@@ -33,6 +36,12 @@ export type LogFoodOptions = {
   mealId?: number | null;
   /** Create a brand-new meal with this name (only used when mealId is null/undefined). */
   newMealName?: string | null;
+  /**
+   * Local time (HH:MM) to pin a newly-created meal at — used when logging into
+   * a default-meal placeholder so the meal lands at its scheduled time rather
+   * than the current wall-clock. Ignored unless a new meal is created.
+   */
+  newMealTime?: string | null;
   /**
    * Calendar day (YYYY-MM-DD) for a newly-created meal. `null`/omitted means
    * today. Ignored when appending to an existing meal — that meal already has
@@ -65,7 +74,19 @@ export async function logFood(
   if (tz && dayKey && isFutureDayKey(tz, dayKey)) {
     throw new Error("Cannot log a future date");
   }
-  const loggedAt = tz && dayKey ? instantWithinDayInTz(tz, dayKey) : undefined;
+  // A scheduled time (from a default-meal placeholder) pins the new meal at
+  // HH:MM on its day; otherwise a past day lands at the current time-of-day,
+  // and "today" falls back to now().
+  const newMealTime =
+    typeof options.newMealTime === "string" && isHhmm(options.newMealTime)
+      ? options.newMealTime
+      : null;
+  let loggedAt: Date | undefined;
+  if (tz && newMealTime) {
+    loggedAt = instantOnDayInTz(tz, dayKey ?? dayKeyInTz(tz, new Date()), newMealTime);
+  } else if (tz && dayKey) {
+    loggedAt = instantWithinDayInTz(tz, dayKey);
+  }
   const mealName = tz
     ? (typeof options.newMealName === "string" ? options.newMealName.trim() : "") ||
       autoMealNameInTz(loggedAt ?? new Date(), tz)

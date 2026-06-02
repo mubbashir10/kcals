@@ -7,6 +7,7 @@ import { computeRecipeTotals } from "@/lib/recipe-totals";
 import {
   autoMealNameInTz,
   dayKeyInTz,
+  isHhmm,
   startOfDayForDayKey,
   startOfDayInTz,
 } from "@/lib/clock";
@@ -98,6 +99,8 @@ export default async function AddPage({
     day?: string;
     recipeId?: string;
     customFoodId?: string;
+    newMeal?: string;
+    time?: string;
   }>;
 }) {
   const { userId, profile } = await requireProfile();
@@ -113,6 +116,12 @@ export default async function AddPage({
     Number.isFinite(recipeId) ? recipeId : null,
     Number.isFinite(customFoodId) ? customFoodId : null
   );
+
+  // Default-meal placeholder deep-link: pre-target a new meal at its time.
+  const initialNewMeal =
+    sp.newMeal && sp.newMeal.trim() && sp.time && isHhmm(sp.time)
+      ? { name: sp.newMeal.trim().slice(0, 60), time: sp.time }
+      : null;
 
   // Which day are we adding to? A valid `?day=` that isn't today scopes the
   // whole flow to that past day; otherwise we're logging for today.
@@ -170,6 +179,7 @@ export default async function AddPage({
         timezone={tz}
         dayKey={dayParam}
         preselected={preselected}
+        initialNewMeal={initialNewMeal}
       />
     </div>
   );

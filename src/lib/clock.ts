@@ -120,6 +120,13 @@ export function timeInputValueInTz(date: Date | string, tz: string): string {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+// True for a 24-hour "HH:MM" string — the value shape of <input type="time">
+// and the format meals/default-meals store and parse.
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+export function isHhmm(s: string): boolean {
+  return HHMM_RE.test(s);
+}
+
 // UTC instant that lands on the calendar day `dayKey` at local time `hhmm`
 // in `tz`. The building block for moving/copying a meal to an explicit
 // date + time.

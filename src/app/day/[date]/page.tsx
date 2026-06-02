@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MacroCard } from "@/components/macro-card";
-import { MealCard } from "@/components/meal-card";
+import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { DayActivityTile, DayWeightTile } from "@/components/day-editors";
 import { db } from "@/lib/db";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/clock";
 import { shiftDayKey } from "@/lib/calendar-build";
 import { normalizeMealSort } from "@/lib/widget-order";
+import { loadDayMealItems } from "@/lib/default-meals";
 import {
   computeEffectiveTarget,
   isGoalPace,
@@ -156,6 +157,17 @@ export default async function DayPage({
   const nextKey = shiftDayKey(dayKey, 1);
   const canGoNext = nextKey <= todayKey;
   const isToday = dayKey === todayKey;
+
+  // Real meals + today's default-meal placeholders (past days stay as logged —
+  // loadDayMealItems only adds placeholders when dayKey === todayKey).
+  const mealItems = await loadDayMealItems({
+    userId,
+    meals,
+    dayKey,
+    todayKey,
+    tz,
+    sortDir: normalizeMealSort(profile.mealSortDir),
+  });
 
   const dateLabel = formatLongDateInTz(dayStart, tz);
   const delta = Math.round(consumed.kcal - calorieGoal);
@@ -319,18 +331,14 @@ export default async function DayPage({
                 : `${meals.length} ${meals.length === 1 ? "meal" : "meals"} · ${allFoods.length} ${allFoods.length === 1 ? "food" : "foods"}`}
             </span>
           </div>
-          {meals.length === 0 ? (
+          {mealItems.length === 0 ? (
             <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-10 text-center shadow-none">
               <p className="text-sm text-muted-foreground">
                 No meals logged this day.
               </p>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {meals.map((m) => (
-                <MealCard key={m.id} meal={m} timezone={tz} />
-              ))}
-            </div>
+            <DayMealList items={mealItems} timezone={tz} />
           )}
           <div className="mt-4 flex justify-center">
             <NewMealButton

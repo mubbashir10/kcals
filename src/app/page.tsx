@@ -11,7 +11,7 @@ import { IncomingInviteBanner } from "@/components/incoming-invite-banner";
 import { Logo } from "@/components/logo";
 import { MacrosWidget } from "@/components/macros-widget";
 import { MaintenanceCard } from "@/components/maintenance-card";
-import { MealCard } from "@/components/meal-card";
+import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { UserMenu } from "@/components/user-menu";
@@ -41,6 +41,7 @@ import {
   formatLongDateInTz,
   greetingInTz,
 } from "@/lib/clock";
+import { loadDayMealItems } from "@/lib/default-meals";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,18 @@ export default async function Home() {
   // markers for the 6×7 grid containing today's month.
   const todayKey = dayKeyInTz(tz, now);
   const monthKey = todayKey.slice(0, 7);
+
+  // Real meals + today's default-meal placeholders, merged and time-sorted.
+  // The query is skipped when the meals section is hidden.
+  const mealItems = await loadDayMealItems({
+    userId,
+    meals,
+    dayKey: todayKey,
+    todayKey,
+    tz,
+    sortDir: normalizeMealSort(profile.mealSortDir),
+    enabled: mealsState !== "hidden",
+  });
   const calendarPromise =
     calendarState === "hidden"
       ? Promise.resolve(null)
@@ -357,7 +370,7 @@ export default async function Home() {
                       />
                     </div>
 
-                    {meals.length === 0 ? (
+                    {mealItems.length === 0 ? (
                       <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-12 text-center shadow-none">
                         <p className="text-sm text-muted-foreground">
                           No meals logged yet.
@@ -372,11 +385,7 @@ export default async function Home() {
                       </Card>
                     ) : (
                       <>
-                        <div className="space-y-3">
-                          {meals.map((m) => (
-                            <MealCard key={m.id} meal={m} timezone={tz} />
-                          ))}
-                        </div>
+                        <DayMealList items={mealItems} timezone={tz} />
                         <div className="mt-4 flex justify-center">
                           <NewMealButton
                             suggestedName={autoMealNameInTz(now, tz)}

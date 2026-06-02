@@ -29,6 +29,7 @@ model User {
   weightLogs   WeightLog[]
   activityLogs ActivityLog[]
   meals        Meal[]
+  defaultMeals DefaultMeal[]
   recipes      Recipe[]
   // Custom foods this user contributed to the shared library.
   createdCustomFoods CustomFood[] @relation("CustomFoodCreatedBy")
@@ -226,6 +227,25 @@ model Meal {
   foods Food[]
 
   @@index([userId, loggedAt])
+}
+
+// A user's recurring meal template. These are scaffolding, not data: each
+// day, defaults with no matching real meal show as placeholder cards, and
+// only become real Meal rows once food is logged into them. A user with no
+// defaults sees the app behave exactly as before.
+model DefaultMeal {
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name     String // "Breakfast", "Lunch", "Dinner", "Snack"
+  timeHhmm String // local 24-hour time, "HH:MM" (e.g. "08:00")
+  position Int    @default(0) // stable display order
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, position])
 }
 
 // A community-contributed custom food — the ones USDA doesn't have
