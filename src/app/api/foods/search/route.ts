@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { friendRecipesOf } from "@/lib/friends";
 import { searchLocalFoods } from "@/lib/local-foods";
 import { searchOpenFoodFacts } from "@/lib/openfoodfacts";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
@@ -16,8 +17,9 @@ const RECIPE_FDC_OFFSET = -1_000_000_000;
 
 // Recipe rows are augmented with an explicit recipeId so the log path
 // knows to set Food.recipeId rather than treating the synthetic fdcId
-// as a USDA reference.
-type RecipeResult = UsdaFood & { recipeId: number };
+// as a USDA reference. A friend's recipe instead carries `ownerName` and
+// no recipeId — it's logged as a snapshot, not linked back to their row.
+type RecipeResult = UsdaFood & { recipeId?: number; ownerName?: string };
 
 export async function GET(req: Request) {
   const userId = await requireUserId();
@@ -51,27 +53,39 @@ export async function GET(req: Request) {
     // fallback is its own endpoint (/api/foods/search/ai) so the client
     // can show a distinct "searching the web with AI…" indicator after
     // this returns empty.
-    const [usdaFoods, customFoods, offFoods, recipes] = await Promise.all([
-      searchFoods(q, { pageSize: 20 }),
-      db.customFood.findMany({
-        where: { AND: nameTokensAnd },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
-      searchOpenFoodFacts(q, { pageSize: 15 }),
-      db.recipe.findMany({
-        where: { userId, AND: nameTokensAnd },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: { ingredients: true },
-      }),
-    ]);
+    const [usdaFoods, customFoods, offFoods, recipes, friendRecipes] =
+      await Promise.all([
+        searchFoods(q, { pageSize: 20 }),
+        db.customFood.findMany({
+          where: { AND: nameTokensAnd },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        }),
+        searchOpenFoodFacts(q, { pageSize: 15 }),
+        db.recipe.findMany({
+          where: { userId, AND: nameTokensAnd },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { ingredients: true },
+        }),
+        friendRecipesOf(userId, { nameTokensAnd, take: 20 }),
+      ]);
 
-    // Map recipes to the same Food row shape used elsewhere. per-100g
-    // is derived from ingredient snapshots + the recipe's effective
-    // total weight (user-set, or sum of ingredient grams). Empty recipes
-    // just show 0 — the UI handles that gracefully.
-    const recipeAsResults: RecipeResult[] = recipes.map((r) => {
+    // Map a recipe (own or a friend's) to the shared Food row shape.
+    // per-100g is derived from ingredient snapshots + the recipe's
+    // effective total weight. `ownerName` set → it's a friend's recipe:
+    // read-only, logged as a snapshot (no recipeId link-back).
+    const toRecipeResult = (
+      r: {
+        id: number;
+        name: string;
+        totalWeightG: number | null;
+        servings: number | null;
+        createdAt: Date;
+        ingredients: Parameters<typeof computeRecipeTotals>[0]["ingredients"];
+      },
+      ownerName?: string
+    ): RecipeResult => {
       const totals = computeRecipeTotals(r);
       // Default a recipe with no explicit `servings` to "1 serving = whole
       // recipe" so logging it from /add lands one diary row of the full
@@ -81,7 +95,7 @@ export async function GET(req: Request) {
         (totals.effectiveTotalWeightG > 0 ? totals.effectiveTotalWeightG : null);
       return {
         fdcId: RECIPE_FDC_OFFSET - r.id,
-        recipeId: r.id,
+        ...(ownerName ? { ownerName } : { recipeId: r.id }),
         name: r.name,
         brand: null,
         dataType: "Recipe",
@@ -95,7 +109,12 @@ export async function GET(req: Request) {
         servingLabel: defaultServingG != null ? "1 serving" : null,
         createdAtIso: r.createdAt.toISOString(),
       };
-    });
+    };
+
+    const recipeAsResults: RecipeResult[] = recipes.map((r) => toRecipeResult(r));
+    const friendRecipeResults: RecipeResult[] = friendRecipes.map((r) =>
+      toRecipeResult(r, r.ownerName)
+    );
 
     // Map custom foods into the same shape as a USDA result so the UI
     // renders them with a single rowtype. We use negative fdcId so they
@@ -126,6 +145,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       foods: [
         ...recipeAsResults,
+        ...friendRecipeResults,
         ...localFoods,
         ...customAsResults,
         ...usdaFoods,

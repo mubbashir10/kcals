@@ -31,10 +31,59 @@ export type RecipeListItemData = {
   weightIsDerived: boolean;
   servings: number | null;
   per100Kcal: number;
+  /** Set when this is a friend's recipe — read-only (add-to-meal only). */
+  ownerName?: string | null;
 };
 
 export function RecipeListItem({ recipe }: { recipe: RecipeListItemData }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const isFriend = !!recipe.ownerName;
+
+  const meta = (
+    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+      {isFriend && <>{recipe.ownerName} · </>}
+      {recipe.ingredientCount}{" "}
+      {recipe.ingredientCount === 1 ? "ingredient" : "ingredients"}
+      {recipe.effectiveTotalWeightG > 0 && (
+        <>
+          {" · "}
+          {Math.round(recipe.effectiveTotalWeightG)}g
+          {recipe.weightIsDerived ? " (sum)" : " total"}
+        </>
+      )}
+      {recipe.servings != null && <> · {formatServings(recipe.servings)}</>}
+    </p>
+  );
+
+  const stats = (
+    <div className="shrink-0 text-right">
+      <div className="text-sm font-semibold tabular-nums">
+        {Math.round(recipe.per100Kcal)}
+      </div>
+      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        kcal/100g
+      </div>
+    </div>
+  );
+
+  // A friend's recipe can't be edited or deleted — the whole row is a
+  // single "add to meal" link, no options menu.
+  if (isFriend) {
+    return (
+      <li className="group flex items-stretch rounded-2xl border border-border/60 bg-card transition-all hover:border-border hover:shadow-sm">
+        <AppLink
+          href={`/add?recipeId=${recipe.id}`}
+          className="flex min-w-0 flex-1 items-center justify-between p-4"
+        >
+          <div className="min-w-0 flex-1 pr-4">
+            <p className="truncate text-sm font-medium">{recipe.name}</p>
+            {meta}
+          </div>
+          {stats}
+        </AppLink>
+      </li>
+    );
+  }
 
   return (
     <li className="group flex items-stretch rounded-2xl border border-border/60 bg-card transition-all hover:border-border hover:shadow-sm">
@@ -44,29 +93,9 @@ export function RecipeListItem({ recipe }: { recipe: RecipeListItemData }) {
       >
         <div className="min-w-0 flex-1 pr-4">
           <p className="truncate text-sm font-medium">{recipe.name}</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {recipe.ingredientCount}{" "}
-            {recipe.ingredientCount === 1 ? "ingredient" : "ingredients"}
-            {recipe.effectiveTotalWeightG > 0 && (
-              <>
-                {" · "}
-                {Math.round(recipe.effectiveTotalWeightG)}g
-                {recipe.weightIsDerived ? " (sum)" : " total"}
-              </>
-            )}
-            {recipe.servings != null && (
-              <> · {formatServings(recipe.servings)}</>
-            )}
-          </p>
+          {meta}
         </div>
-        <div className="shrink-0 text-right">
-          <div className="text-sm font-semibold tabular-nums">
-            {Math.round(recipe.per100Kcal)}
-          </div>
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            kcal/100g
-          </div>
-        </div>
+        {stats}
       </AppLink>
 
       <DropdownMenu>

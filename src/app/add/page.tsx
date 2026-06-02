@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
+import { areFriends } from "@/lib/friends";
 import { AddFoodClient, type MealOption } from "./add-food-client";
 import type { SearchFood } from "@/lib/use-food-search";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
@@ -28,17 +29,27 @@ async function loadPreselected(
   customFoodId: number | null
 ): Promise<SearchFood | null> {
   if (recipeId != null) {
-    const recipe = await db.recipe.findFirst({
-      where: { id: recipeId, userId },
-      include: { ingredients: true },
+    const recipe = await db.recipe.findUnique({
+      where: { id: recipeId },
+      include: {
+        ingredients: true,
+        user: { select: { name: true, email: true } },
+      },
     });
     if (!recipe) return null;
+    // Own recipe → link back via recipeId. A friend's recipe → allowed if
+    // confirmed friends, but logged as a snapshot (ownerName, no recipeId).
+    const isOwn = recipe.userId === userId;
+    if (!isOwn && !(await areFriends(userId, recipe.userId))) return null;
+    const ownerName = isOwn
+      ? undefined
+      : recipe.user.name ?? recipe.user.email.split("@")[0];
     const t = computeRecipeTotals(recipe);
     const servingG =
       t.servingG ?? (t.effectiveTotalWeightG > 0 ? t.effectiveTotalWeightG : null);
     return {
       fdcId: RECIPE_FDC_OFFSET - recipe.id,
-      recipeId: recipe.id,
+      ...(isOwn ? { recipeId: recipe.id } : { ownerName }),
       name: recipe.name,
       brand: null,
       dataType: "Recipe",

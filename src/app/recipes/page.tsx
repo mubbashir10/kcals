@@ -2,9 +2,13 @@ import { ArrowLeft, ChefHat, Plus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
-import { RecipeListItem } from "@/components/recipe-list-item";
+import {
+  RecipeListItem,
+  type RecipeListItemData,
+} from "@/components/recipe-list-item";
 import { createBlankRecipe } from "@/app/actions/recipes";
 import { db } from "@/lib/db";
+import { friendRecipesOf } from "@/lib/friends";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { requireProfile } from "@/lib/session";
 
@@ -13,15 +17,28 @@ export const dynamic = "force-dynamic";
 export default async function RecipesPage() {
   const { userId } = await requireProfile();
 
-  const recipes = await db.recipe.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: { ingredients: true },
-  });
+  const [recipes, friendRecipes] = await Promise.all([
+    db.recipe.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { ingredients: true },
+    }),
+    friendRecipesOf(userId),
+  ]);
 
   // Pre-compute totals for the list view. Recipes whose totalWeightG is
-  // null fall back to summing ingredient grams.
-  const rows = recipes.map((r) => {
+  // null fall back to summing ingredient grams. `ownerName` tags a friend's
+  // recipe (read-only).
+  const toRow = (
+    r: {
+      id: number;
+      name: string;
+      totalWeightG: number | null;
+      servings: number | null;
+      ingredients: Parameters<typeof computeRecipeTotals>[0]["ingredients"];
+    },
+    ownerName?: string
+  ): RecipeListItemData => {
     const totals = computeRecipeTotals(r);
     return {
       id: r.id,
@@ -31,8 +48,12 @@ export default async function RecipesPage() {
       weightIsDerived: totals.weightIsDerived,
       servings: r.servings,
       per100Kcal: totals.per100Kcal,
+      ...(ownerName ? { ownerName } : {}),
     };
-  });
+  };
+
+  const rows = recipes.map((r) => toRow(r));
+  const friendRows = friendRecipes.map((r) => toRow(r, r.ownerName));
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -65,7 +86,7 @@ export default async function RecipesPage() {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        {rows.length === 0 ? (
+        {rows.length === 0 && friendRows.length === 0 ? (
           <Card className="rounded-2xl border-dashed border-border/60 bg-card/40 px-6 py-16 text-center shadow-none">
             <ChefHat className="mx-auto h-6 w-6 text-muted-foreground/50" />
             <p className="mt-4 text-sm text-muted-foreground">
@@ -87,11 +108,31 @@ export default async function RecipesPage() {
             </form>
           </Card>
         ) : (
-          <ul className="space-y-2">
-            {rows.map((r) => (
-              <RecipeListItem key={r.id} recipe={r} />
-            ))}
-          </ul>
+          <div className="space-y-8">
+            {rows.length > 0 && (
+              <ul className="space-y-2">
+                {rows.map((r) => (
+                  <RecipeListItem key={r.id} recipe={r} />
+                ))}
+              </ul>
+            )}
+
+            {friendRows.length > 0 && (
+              <section>
+                <div className="mb-3 flex items-center gap-2 px-1">
+                  <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    Friends&rsquo; recipes
+                  </span>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                <ul className="space-y-2">
+                  {friendRows.map((r) => (
+                    <RecipeListItem key={`f-${r.id}`} recipe={r} />
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
         )}
       </main>
     </div>

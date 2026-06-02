@@ -117,10 +117,23 @@ export async function logFood(
       mealId = meal.id;
     }
 
+    // A recipeId back-link is only valid for the user's own recipe. Friend
+    // recipes are logged as snapshots (recipeId null); drop any recipeId we
+    // don't own so a crafted request can't attach a diary row to someone
+    // else's Recipe.foods. Nutrients on the row stand alone either way.
+    let recipeId = input.recipeId ?? null;
+    if (recipeId != null) {
+      const owned = await tx.recipe.findFirst({
+        where: { id: recipeId, userId },
+        select: { id: true },
+      });
+      if (!owned) recipeId = null;
+    }
+
     await tx.food.create({
       // Drop synthetic display-only fdcIds (local "Reference" rows sit below
       // int4's minimum and would throw on insert) — store null for those.
-      data: { ...input, mealId, fdcId: persistableFdcId(input.fdcId) },
+      data: { ...input, recipeId, mealId, fdcId: persistableFdcId(input.fdcId) },
     });
 
     return { mealId, createdMeal };

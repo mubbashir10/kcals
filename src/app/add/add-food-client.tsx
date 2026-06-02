@@ -250,7 +250,12 @@ export function AddFoodClient({
           )}
 
           {!loading && results.length > 0 && (() => {
-            const recipes = results.filter((f) => f.dataType === "Recipe");
+            const recipes = results.filter(
+              (f) => f.dataType === "Recipe" && !f.ownerName
+            );
+            const friendRecipes = results.filter(
+              (f) => f.dataType === "Recipe" && f.ownerName
+            );
             const custom = results.filter((f) => f.dataType === "Custom");
             const branded = results.filter(
               (f) => f.dataType === "Branded" || f.dataType === "OpenFoodFacts"
@@ -278,6 +283,13 @@ export function AddFoodClient({
                   <ResultGroup
                     label={showLabels ? "My recipes" : null}
                     foods={recipes}
+                    onSelect={onResultSelect}
+                  />
+                )}
+                {friendRecipes.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "Friends' recipes" : null}
+                    foods={friendRecipes}
                     onSelect={onResultSelect}
                   />
                 )}
@@ -492,7 +504,7 @@ function ResultRow({
             </p>
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {f.brand ? `${f.brand} · ` : ""}
+            {f.ownerName ? `${f.ownerName} · ` : f.brand ? `${f.brand} · ` : ""}
             {dataTypeLabel(f.dataType)}
             {f.createdAtIso && (f.dataType === "Custom" || f.dataType === "AI") && (
               <> · added {formatAddedAt(f.createdAtIso)}</>

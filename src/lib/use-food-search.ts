@@ -16,6 +16,9 @@ export type SearchFood = {
   servingLabel: string | null;
   createdAtIso?: string;
   recipeId?: number;
+  /** Set on a friend's recipe (read-only) — the owner's display name.
+   *  Friend recipes carry no recipeId; they're logged as a snapshot. */
+  ownerName?: string;
   aiModel?: string;
   aiSources?: string[];
   aiConfidence?: "low" | "medium" | "high";

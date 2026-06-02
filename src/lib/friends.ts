@@ -40,6 +40,71 @@ export async function areFriends(a: string, b: string): Promise<boolean> {
   return Boolean(row);
 }
 
+// A friend's recipe, with its ingredients (for totals) and the owner's
+// display name. Read-only to the viewer — logged as a snapshot, never
+// linked back via Food.recipeId (which would leak the viewer's diary rows
+// into the friend's Recipe.foods).
+export type FriendRecipe = {
+  id: number;
+  name: string;
+  totalWeightG: number | null;
+  servings: number | null;
+  createdAt: Date;
+  ownerId: string;
+  ownerName: string;
+  ingredients: {
+    grams: number;
+    per100Kcal: number;
+    per100ProteinG: number;
+    per100CarbsG: number;
+    per100FatG: number;
+  }[];
+};
+
+// Recipes owned by the viewer's accepted friends. `nameTokensAnd` (when
+// given) AND-matches each token against the recipe name, matching the
+// search route's own-recipe query.
+export async function friendRecipesOf(
+  userId: string,
+  opts: {
+    nameTokensAnd?: { name: { contains: string; mode: "insensitive" } }[];
+    take?: number;
+  } = {}
+): Promise<FriendRecipe[]> {
+  const friendIds = await friendIdsOf(userId);
+  if (friendIds.length === 0) return [];
+
+  const recipes = await db.recipe.findMany({
+    where: {
+      userId: { in: friendIds },
+      ...(opts.nameTokensAnd ? { AND: opts.nameTokensAnd } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: opts.take,
+    include: { ingredients: true },
+  });
+  if (recipes.length === 0) return [];
+
+  const owners = await db.user.findMany({
+    where: { id: { in: [...new Set(recipes.map((r) => r.userId))] } },
+    select: { id: true, name: true, email: true },
+  });
+  const nameById = new Map(
+    owners.map((u) => [u.id, u.name ?? u.email.split("@")[0]])
+  );
+
+  return recipes.map((r) => ({
+    id: r.id,
+    name: r.name,
+    totalWeightG: r.totalWeightG,
+    servings: r.servings,
+    createdAt: r.createdAt,
+    ownerId: r.userId,
+    ownerName: nameById.get(r.userId) ?? "Friend",
+    ingredients: r.ingredients,
+  }));
+}
+
 // Compact summary used in the home FriendsStrip and the /friends list.
 export type FriendSummary = {
   id: string;
