@@ -129,6 +129,13 @@ export function MealCard({
     if (foodIds.length > 0) setTransfer({ mode, foodIds, label });
   }
 
+  // Enter selection mode seeded with `ids` (used by both the meal menu's
+  // "Select foods…" and a single food row's "Select").
+  function startSelecting(ids: number[]) {
+    setSelectedIds(new Set(ids));
+    setSelecting(true);
+  }
+
   // The server action redirects, so this navigates away on success.
   function makeRecipe(foodIds: number[]) {
     if (foodIds.length === 0) return;
@@ -216,10 +223,7 @@ export function MealCard({
                     {meal.foods.length > 1 && (
                       <DropdownMenuItem
                         className="cursor-pointer rounded-lg text-sm"
-                        onClick={() => {
-                          setSelectedIds(new Set());
-                          setSelecting(true);
-                        }}
+                        onClick={() => startSelecting([])}
                       >
                         <Check className="mr-2 h-3.5 w-3.5 opacity-70" />
                         Select foods…
@@ -282,6 +286,7 @@ export function MealCard({
             selected={selectedIds.has(f.id)}
             onToggleSelect={() => toggleSelected(f.id)}
             onEdit={() => setEditingFood(f)}
+            onSelect={() => startSelecting([f.id])}
             onMove={() => startTransfer("move", [f.id], f.name)}
             onCopy={() => startTransfer("copy", [f.id], f.name)}
           />
@@ -429,6 +434,7 @@ function FoodRow({
   selected,
   onToggleSelect,
   onEdit,
+  onSelect,
   onMove,
   onCopy,
 }: {
@@ -437,6 +443,7 @@ function FoodRow({
   selected: boolean;
   onToggleSelect: () => void;
   onEdit: () => void;
+  onSelect: () => void;
   onMove: () => void;
   onCopy: () => void;
 }) {
@@ -507,6 +514,13 @@ function FoodRow({
                 >
                   <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
                   Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={onSelect}
+                >
+                  <Check className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Select
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer rounded-lg text-sm"
