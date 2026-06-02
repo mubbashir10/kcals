@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -89,7 +89,19 @@ export function AddFoodClient({
     aiResult,
     aiLoading,
   } = useFoodSearch();
-  const [selected, setSelected] = useState<Food | null>(preselected);
+  const [selected, setSelected] = useState<Food | null>(null);
+
+  // Deep-link "Add to meal" preselect. Open the portion sheet via an effect
+  // (a closed→open transition) rather than initial state — a dialog mounted
+  // already-open doesn't reliably appear. The ref opens it once per mount so
+  // a later router.refresh() (after logging) doesn't reopen it.
+  const didPreselect = useRef(false);
+  useEffect(() => {
+    if (preselected && !didPreselect.current) {
+      didPreselect.current = true;
+      setSelected(preselected);
+    }
+  }, [preselected]);
 
   const [target, setTarget] = useState<Target>(() =>
     autoTargetId != null
@@ -311,6 +323,14 @@ export function AddFoodClient({
         dayKey={dayKey}
         onClose={() => setSelected(null)}
         onLogged={handleLogged}
+        // When the sheet was opened from an "Add to meal" deep-link, the
+        // page's meal picker is hidden behind it — surface one inside so the
+        // user can still pick or create the destination meal.
+        mealPicker={
+          selected != null && selected === preselected
+            ? { meals, onChange: setTarget, suggestedNewMealName, timezone }
+            : null
+        }
       />
 
       <QuickAddDialog
@@ -672,18 +692,27 @@ function EmptyState() {
   );
 }
 
+type MealPicker = {
+  meals: MealOption[];
+  onChange: (t: Target) => void;
+  suggestedNewMealName: string;
+  timezone: string;
+};
+
 function PortionDialog({
   food,
   target,
   dayKey,
   onClose,
   onLogged,
+  mealPicker,
 }: {
   food: Food | null;
   target: Target;
   dayKey: string | null;
   onClose: () => void;
   onLogged: (result: LoggedResult) => void;
+  mealPicker?: MealPicker | null;
 }) {
   return (
     <Dialog open={!!food} onOpenChange={(o) => !o && onClose()}>
@@ -695,6 +724,7 @@ function PortionDialog({
             target={target}
             dayKey={dayKey}
             onLogged={onLogged}
+            mealPicker={mealPicker}
           />
         )}
       </DialogContent>
@@ -707,11 +737,13 @@ function PortionForm({
   target,
   dayKey,
   onLogged,
+  mealPicker,
 }: {
   food: Food;
   target: Target;
   dayKey: string | null;
   onLogged: (result: LoggedResult) => void;
+  mealPicker?: MealPicker | null;
 }) {
   const servingG =
     food.servingSizeG && food.servingSizeG > 0 ? food.servingSizeG : null;
@@ -810,6 +842,16 @@ function PortionForm({
       )}
 
       <div className="mt-4 space-y-5">
+        {mealPicker && (
+          <MealTargetPicker
+            meals={mealPicker.meals}
+            target={target}
+            onChange={mealPicker.onChange}
+            suggestedNewMealName={mealPicker.suggestedNewMealName}
+            timezone={mealPicker.timezone}
+          />
+        )}
+
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <Label
