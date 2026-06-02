@@ -25,10 +25,15 @@ export default async function WeightPage() {
   const units = profile.units as Units;
   const tz = profile.timezone || "UTC";
 
-  const logs = await db.weightLog.findMany({
-    where: { userId },
-    orderBy: { loggedAt: "desc" },
-  });
+  // Independent — run together. loadDailyHistory (used only for the expected
+  // line) parallelizes its own queries internally.
+  const [logs, history] = await Promise.all([
+    db.weightLog.findMany({
+      where: { userId },
+      orderBy: { loggedAt: "desc" },
+    }),
+    loadDailyHistory(userId),
+  ]);
 
   const latest = logs[0] ?? null;
   const nowMs = new Date().getTime();
@@ -69,7 +74,6 @@ export default async function WeightPage() {
   // (consumed − maintenance). Anchor at the earliest weigh-in that falls
   // INSIDE the history window — anchoring older would drop the energy balance
   // of the days before the window and skew the whole projection's baseline.
-  const history = await loadDailyHistory(userId);
   const historyStartKey =
     history && history.entries.length > 0
       ? history.entries.reduce(

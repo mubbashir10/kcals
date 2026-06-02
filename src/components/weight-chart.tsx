@@ -4,8 +4,6 @@ import { kgToLb, type Units } from "@/lib/bmr";
 import { formatShortDateInTz } from "@/lib/clock";
 import type { WeightPoint } from "@/lib/weight-trend";
 
-export type { WeightPoint };
-
 type Props = {
   /** Raw scale weigh-ins (one per logged entry). */
   scale: WeightPoint[];
