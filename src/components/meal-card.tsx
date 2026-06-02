@@ -467,6 +467,9 @@ function FoodRow({
         aria-pressed={selecting ? selected : undefined}
         onClick={onActivate}
         onKeyDown={(e) => {
+          // Only act on the row's own key events — not ones bubbling up from
+          // the menu (React propagates portal events to the React parent).
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             onActivate();
@@ -506,7 +509,14 @@ function FoodRow({
             >
               <MoreHorizontal className="h-3 w-3" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl p-1.5">
+            {/* Stop item clicks from bubbling (via React's portal event
+                propagation) to the row's onClick, which would otherwise also
+                fire the row's edit/select action. */}
+            <DropdownMenuContent
+              align="end"
+              className="rounded-xl p-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   className="cursor-pointer rounded-lg text-sm"
