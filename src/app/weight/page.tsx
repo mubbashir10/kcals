@@ -4,8 +4,14 @@ import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { kgToLb, type Units } from "@/lib/bmr";
-import { formatShortDateInTz } from "@/lib/clock";
+import { dayKeyInTz, formatShortDateInTz } from "@/lib/clock";
+import { loadDailyHistory } from "@/lib/daily-history";
 import { round1 } from "@/lib/utils";
+import {
+  dailyWeights,
+  expectedSeries,
+  trendSeries,
+} from "@/lib/weight-trend";
 import { WeightChart } from "@/components/weight-chart";
 import {
   WeightHistory,
@@ -43,13 +49,51 @@ export default async function WeightPage() {
       ? latest.weightKg - logs[logs.length - 1].weightKg
       : null;
 
-  const chartPoints = logs
-    .slice()
-    .reverse()
-    .map((l) => ({
-      date: l.loggedAt.toISOString(),
+  // Oldest→newest for all the series math.
+  const ascLogs = logs.slice().reverse();
+
+  // Scale: every raw weigh-in. Trend: EWMA over one value per day.
+  const scalePoints = ascLogs.map((l) => ({
+    date: l.loggedAt.toISOString(),
+    weightKg: l.weightKg,
+  }));
+  const daily = dailyWeights(
+    ascLogs.map((l) => ({
+      dayKey: dayKeyInTz(tz, l.loggedAt),
       weightKg: l.weightKg,
-    }));
+    }))
+  );
+  const trendPoints = trendSeries(daily);
+
+  // Expected: project from a weigh-in using each logged day's energy balance
+  // (consumed − maintenance). Anchor at the earliest weigh-in that falls
+  // INSIDE the history window — anchoring older would drop the energy balance
+  // of the days before the window and skew the whole projection's baseline.
+  const history = await loadDailyHistory(userId);
+  const historyStartKey =
+    history && history.entries.length > 0
+      ? history.entries.reduce(
+          (min, e) => (e.dayKey < min ? e.dayKey : min),
+          history.entries[0].dayKey
+        )
+      : null;
+  const anchor =
+    historyStartKey == null
+      ? null
+      : daily.find((d) => d.dayKey >= historyStartKey) ?? null;
+  const expectedPoints =
+    anchor && history
+      ? expectedSeries({
+          anchorDayKey: anchor.dayKey,
+          anchorWeightKg: anchor.weightKg,
+          netByDay: history.entries
+            .filter((e) => e.hasFood)
+            .map((e) => ({
+              dayKey: e.dayKey,
+              netKcal: e.consumed.kcal - e.tdeeKcal,
+            })),
+        })
+      : [];
 
   const historyEntries: WeightHistoryEntry[] = logs.map((l) => ({
     id: l.id,
@@ -118,7 +162,22 @@ export default async function WeightPage() {
           <h2 className="mb-3 px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
             Trend
           </h2>
-          <WeightChart points={chartPoints} units={units} timezone={tz} />
+          <WeightChart
+            scale={scalePoints}
+            trend={trendPoints}
+            expected={expectedPoints}
+            units={units}
+            timezone={tz}
+          />
+          {expectedPoints.length > 1 && (
+            <p className="mt-2 px-1 text-[11px] leading-relaxed text-muted-foreground/70">
+              <span className="font-medium text-foreground/70">Expected</span>{" "}
+              projects your logged calories against estimated maintenance
+              (7700 kcal/kg). It assumes every day is logged and that the
+              estimates are right — treat it as a directional guide, not a
+              second scale.
+            </p>
+          )}
         </section>
 
         {/* History */}
