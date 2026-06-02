@@ -130,6 +130,83 @@ export async function deleteRecipe(id: number) {
   revalidatePath("/recipes");
 }
 
+/**
+ * Build a recipe from already-logged diary foods and open its builder.
+ * Used by the meal card to turn a selection of foods — or a whole meal —
+ * into a reusable recipe. Each food's logged nutrients (already scaled to
+ * its portion) are converted back to a per-100g snapshot so the recipe
+ * builder's portion math works the same as any other ingredient.
+ *
+ * `foodIds` order is preserved as the ingredient display order. `name`
+ * is the source meal's name (falls back to a placeholder), so the recipe
+ * lands pre-named and editable in the builder.
+ */
+export async function createRecipeFromFoods(
+  foodIds: number[],
+  name: string | null
+): Promise<never> {
+  const userId = await requireUserId();
+  if (foodIds.length === 0) throw new Error("Select at least one food");
+
+  const foods = await db.food.findMany({
+    where: { id: { in: foodIds }, meal: { userId } },
+    select: {
+      id: true,
+      fdcId: true,
+      name: true,
+      brand: true,
+      grams: true,
+      kcal: true,
+      proteinG: true,
+      carbsG: true,
+      fatG: true,
+    },
+  });
+  if (foods.length === 0) throw new Error("No foods found");
+
+  // findMany doesn't guarantee order; restore the order the caller passed.
+  const rank = new Map(foodIds.map((id, i) => [id, i]));
+  foods.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+
+  const recipeName = (name?.trim() || "Untitled recipe").slice(0, 120);
+
+  // One transaction so a failed ingredient insert doesn't leave an orphan
+  // empty recipe in the user's list.
+  const recipe = await db.$transaction(async (tx) => {
+    const created = await tx.recipe.create({
+      data: { userId, name: recipeName, totalWeightG: null },
+    });
+    await tx.recipeIngredient.createMany({
+      data: foods.map((f, i) => {
+        // Quick-add rows (grams = 0) carry no real weight; treat them as a
+        // 100g basis so the snapshot equals the logged amounts and totals
+        // are preserved. We skip validateIngredient's input-sanity caps here:
+        // these values come from real logged data, not free-form entry.
+        const basis = f.grams > 0 ? f.grams : 100;
+        const per100 = (v: number) => round1((v / basis) * 100);
+        return {
+          recipeId: created.id,
+          fdcId: persistableFdcId(f.fdcId),
+          name: f.name,
+          brand: f.brand,
+          per100Kcal: per100(f.kcal),
+          per100ProteinG: per100(f.proteinG),
+          per100CarbsG: per100(f.carbsG),
+          per100FatG: per100(f.fatG),
+          grams: round1(basis),
+          position: i,
+        };
+      }),
+    });
+    return created;
+  });
+
+  revalidatePath("/recipes");
+  // Outside the transaction: redirect() throws a control-flow signal that
+  // would otherwise abort the tx.
+  redirect(`/recipes/${recipe.id}`);
+}
+
 export async function addRecipeIngredient(
   recipeId: number,
   input: RecipeIngredientInput

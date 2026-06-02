@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import {
+  Check,
   Copy,
   CornerUpRight,
   MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
+  Utensils,
 } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
@@ -54,6 +56,7 @@ import {
   moveFood,
   copyFood,
 } from "@/app/actions/foods";
+import { createRecipeFromFoods } from "@/app/actions/recipes";
 
 export type MealCardFood = {
   id: number;
@@ -88,6 +91,38 @@ export function MealCard({
     mode: "move" | "copy";
     food: MealCardFood;
   } | null>(null);
+  // Selection mode: pick a subset of foods to turn into a recipe. Empty set
+  // and `selecting === false` means the card behaves normally.
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [recipePending, startRecipe] = useTransition();
+
+  function startSelecting() {
+    setSelectedIds(new Set());
+    setSelecting(true);
+  }
+
+  function stopSelecting() {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // The server action redirects, so this navigates away on success.
+  function makeRecipe(foodIds: number[]) {
+    if (foodIds.length === 0) return;
+    startRecipe(async () => {
+      await createRecipeFromFoods(foodIds, meal.name);
+    });
+  }
 
   const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
   const mealProtein = meal.foods.reduce((a, f) => a + f.proteinG, 0);
@@ -148,6 +183,26 @@ export function MealCard({
                   <Copy className="mr-2 h-3.5 w-3.5 opacity-70" />
                   Copy to…
                 </DropdownMenuItem>
+                {meal.foods.length > 0 && (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer rounded-lg text-sm"
+                      onClick={() => makeRecipe(meal.foods.map((f) => f.id))}
+                    >
+                      <Utensils className="mr-2 h-3.5 w-3.5 opacity-70" />
+                      Save as recipe
+                    </DropdownMenuItem>
+                    {meal.foods.length > 1 && (
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-lg text-sm"
+                        onClick={startSelecting}
+                      >
+                        <Check className="mr-2 h-3.5 w-3.5 opacity-70" />
+                        Select foods…
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
                 <DropdownMenuItem
                   variant="destructive"
                   className="cursor-pointer rounded-lg text-sm"
@@ -199,6 +254,9 @@ export function MealCard({
           <FoodRow
             key={f.id}
             food={f}
+            selecting={selecting}
+            selected={selectedIds.has(f.id)}
+            onToggleSelect={() => toggleSelected(f.id)}
             onEdit={() => setEditingFood(f)}
             onMove={() => setTransferFood({ mode: "move", food: f })}
             onCopy={() => setTransferFood({ mode: "copy", food: f })}
@@ -206,7 +264,32 @@ export function MealCard({
         ))}
       </ul>
 
-      {meal.foods.length > 0 && (
+      {selecting && (
+        <div className="flex items-center gap-2 border-t border-border/60 px-3 py-2.5">
+          <Button
+            variant="ghost"
+            onClick={stopSelecting}
+            disabled={recipePending}
+            className="rounded-full text-xs"
+          >
+            Cancel
+          </Button>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex-1" />
+          <Button
+            onClick={() => makeRecipe([...selectedIds])}
+            disabled={selectedIds.size === 0 || recipePending}
+            className="rounded-full text-xs"
+          >
+            <Utensils className="mr-1 h-3.5 w-3.5" />
+            {recipePending ? "Creating…" : "Create recipe"}
+          </Button>
+        </div>
+      )}
+
+      {!selecting && meal.foods.length > 0 && (
         <AppLink
           href={addHref}
           className="flex items-center justify-center gap-1.5 border-t border-border/60 px-5 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
@@ -250,11 +333,17 @@ export function MealCard({
 
 function FoodRow({
   food: f,
+  selecting,
+  selected,
+  onToggleSelect,
   onEdit,
   onMove,
   onCopy,
 }: {
   food: MealCardFood;
+  selecting: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
   onEdit: () => void;
   onMove: () => void;
   onCopy: () => void;
@@ -268,23 +357,41 @@ function FoodRow({
     });
   }
 
+  // In selecting mode the row is a checkbox toggle; otherwise it opens edit.
+  const onActivate = selecting ? onToggleSelect : onEdit;
+
   return (
     <li>
       <div
         role="button"
         tabIndex={0}
-        onClick={onEdit}
+        aria-pressed={selecting ? selected : undefined}
+        onClick={onActivate}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onEdit();
+            onActivate();
           }
         }}
         className={cn(
           "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40",
+          selecting && selected && "bg-accent/40",
           deletePending && "opacity-50"
         )}
       >
+        {selecting && (
+          <span
+            aria-hidden
+            className={cn(
+              "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+              selected
+                ? "border-foreground bg-foreground text-background"
+                : "border-border/70"
+            )}
+          >
+            {selected && <Check className="h-3 w-3" />}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] leading-tight">{f.name}</div>
           {(f.brand || f.grams > 0) && (
@@ -303,7 +410,7 @@ function FoodRow({
           <span className="ml-1 text-[10px] text-muted-foreground">kcal</span>
         </div>
 
-        <div className="flex items-center gap-0.5">
+        <div className={cn("flex items-center gap-0.5", selecting && "hidden")}>
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Food options"
