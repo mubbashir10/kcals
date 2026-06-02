@@ -350,6 +350,13 @@ function InlineRecipeName({
   const lastSaved = useRef(initialName);
 
   useEffect(() => {
+    // Re-sync when the name changes server-side (e.g. via the Edit recipe
+    // dialog → router.refresh). Skip this component's own saves — lastSaved
+    // already matches — so we don't clobber in-progress typing.
+    if (initialName !== lastSaved.current) {
+      setValue(initialName);
+      lastSaved.current = initialName;
+    }
     // Auto-focus & select for fresh drafts so typing over works
     // immediately. The literal matches the placeholder name used by
     // createBlankRecipe.
