@@ -1,4 +1,5 @@
 import {
+  Apple,
   CalendarRange,
   ChefHat,
   Check,
@@ -134,6 +135,17 @@ export async function UserMenu() {
           >
             <ChefHat className="mr-2 h-3.5 w-3.5 opacity-70" />
             Recipes
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            render={
+              <AppLink
+                href="/foods"
+                className="cursor-pointer rounded-lg text-sm"
+              />
+            }
+          >
+            <Apple className="mr-2 h-3.5 w-3.5 opacity-70" />
+            My foods
           </DropdownMenuItem>
           <DropdownMenuItem
             render={

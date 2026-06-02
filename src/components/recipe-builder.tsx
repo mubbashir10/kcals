@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 
+import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -181,6 +182,17 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="rounded-xl p-1.5">
             <DropdownMenuGroup>
+              <DropdownMenuItem
+                render={
+                  <AppLink
+                    href={`/add?recipeId=${recipe.id}`}
+                    className="cursor-pointer rounded-lg text-sm"
+                  />
+                }
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Add to meal
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer rounded-lg text-sm"
                 // setTimeout 0 defers the dialog open until after Base UI

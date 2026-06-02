@@ -66,6 +66,7 @@ export function AddFoodClient({
   suggestedNewMealName,
   timezone,
   dayKey = null,
+  preselected = null,
 }: {
   meals: MealOption[];
   autoTargetId: number | null;
@@ -73,6 +74,9 @@ export function AddFoodClient({
   timezone: string;
   /** Past day being edited. `null` means today. */
   dayKey?: string | null;
+  /** Food to open the portion sheet for on mount (an "Add to meal"
+   *  deep-link from a recipe or custom food). */
+  preselected?: Food | null;
 }) {
   const backHref = dayKey ? `/day/${dayKey}` : "/";
   const router = useRouter();
@@ -85,7 +89,7 @@ export function AddFoodClient({
     aiResult,
     aiLoading,
   } = useFoodSearch();
-  const [selected, setSelected] = useState<Food | null>(null);
+  const [selected, setSelected] = useState<Food | null>(preselected);
 
   const [target, setTarget] = useState<Target>(() =>
     autoTargetId != null

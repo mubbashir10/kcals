@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { AddFoodClient, type MealOption } from "./add-food-client";
+import type { SearchFood } from "@/lib/use-food-search";
+import { computeRecipeTotals } from "@/lib/recipe-totals";
 import {
   autoMealNameInTz,
   dayKeyInTz,
@@ -12,6 +14,64 @@ export const dynamic = "force-dynamic";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000;
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Mirrors the synthetic recipe id the search API emits (see
+// /api/foods/search). Only used here as a stable React key — logging a
+// recipe keys off `recipeId`, not this.
+const RECIPE_FDC_OFFSET = -1_000_000_000;
+
+// Build the preselected food for an "Add to meal" deep-link (?recipeId= or
+// ?customFoodId=), so the portion sheet opens straight away. Returns null
+// when the id is missing or doesn't resolve to one of the user's items.
+async function loadPreselected(
+  userId: string,
+  recipeId: number | null,
+  customFoodId: number | null
+): Promise<SearchFood | null> {
+  if (recipeId != null) {
+    const recipe = await db.recipe.findFirst({
+      where: { id: recipeId, userId },
+      include: { ingredients: true },
+    });
+    if (!recipe) return null;
+    const t = computeRecipeTotals(recipe);
+    const servingG =
+      t.servingG ?? (t.effectiveTotalWeightG > 0 ? t.effectiveTotalWeightG : null);
+    return {
+      fdcId: RECIPE_FDC_OFFSET - recipe.id,
+      recipeId: recipe.id,
+      name: recipe.name,
+      brand: null,
+      dataType: "Recipe",
+      per100g: {
+        kcal: t.per100Kcal,
+        proteinG: t.per100ProteinG,
+        carbsG: t.per100CarbsG,
+        fatG: t.per100FatG,
+      },
+      servingSizeG: servingG,
+      servingLabel: servingG != null ? "1 serving" : null,
+    };
+  }
+  if (customFoodId != null) {
+    const c = await db.customFood.findUnique({ where: { id: customFoodId } });
+    if (!c) return null;
+    return {
+      fdcId: -c.id,
+      name: c.name,
+      brand: c.brand,
+      dataType: c.source === "AI" ? "AI" : "Custom",
+      per100g: {
+        kcal: c.kcal,
+        proteinG: c.proteinG ?? 0,
+        carbsG: c.carbsG ?? 0,
+        fatG: c.fatG ?? 0,
+      },
+      servingSizeG: c.servingSizeG,
+      servingLabel: c.servingLabel,
+    };
+  }
+  return null;
+}
 
 // UTC window [start, end) covering `dayKey`'s calendar day in `tz`.
 function dayWindow(tz: string, dayKey: string): { start: Date; end: Date } {
@@ -22,7 +82,12 @@ function dayWindow(tz: string, dayKey: string): { start: Date; end: Date } {
 export default async function AddPage({
   searchParams,
 }: {
-  searchParams: Promise<{ meal?: string; day?: string }>;
+  searchParams: Promise<{
+    meal?: string;
+    day?: string;
+    recipeId?: string;
+    customFoodId?: string;
+  }>;
 }) {
   const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
@@ -30,6 +95,13 @@ export default async function AddPage({
 
   const sp = await searchParams;
   const requestedMealId = sp.meal ? parseInt(sp.meal, 10) : null;
+  const recipeId = sp.recipeId ? parseInt(sp.recipeId, 10) : null;
+  const customFoodId = sp.customFoodId ? parseInt(sp.customFoodId, 10) : null;
+  const preselected = await loadPreselected(
+    userId,
+    Number.isFinite(recipeId) ? recipeId : null,
+    Number.isFinite(customFoodId) ? customFoodId : null
+  );
 
   // Which day are we adding to? A valid `?day=` that isn't today scopes the
   // whole flow to that past day; otherwise we're logging for today.
@@ -86,6 +158,7 @@ export default async function AddPage({
         suggestedNewMealName={autoMealNameInTz(now, tz)}
         timezone={tz}
         dayKey={dayParam}
+        preselected={preselected}
       />
     </div>
   );

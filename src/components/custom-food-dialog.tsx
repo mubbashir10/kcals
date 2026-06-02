@@ -13,22 +13,43 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCustomFood } from "@/app/actions/custom-foods";
+import { createCustomFood, updateCustomFood } from "@/app/actions/custom-foods";
+
+// An existing custom food being edited. Macros are per-100g (as stored).
+export type EditableCustomFood = {
+  id: number;
+  name: string;
+  brand: string | null;
+  kcal: number;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  fiberG: number | null;
+  sugarG: number | null;
+  saturatedFatG: number | null;
+  sodiumMg: number | null;
+  cholesterolMg: number | null;
+  servingSizeG: number | null;
+  servingLabel: string | null;
+};
 
 export function CustomFoodDialog({
   open,
   onOpenChange,
   initialName,
+  editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialName?: string;
+  /** When set, the dialog edits this food instead of creating a new one. */
+  editing?: EditableCustomFood;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-md">
         <DialogTitle className="text-base font-semibold">
-          Save a custom food
+          {editing ? "Edit food" : "Save a custom food"}
         </DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
           Visible to everyone — share food that USDA doesn&apos;t have.
@@ -37,8 +58,9 @@ export function CustomFoodDialog({
         {/* key forces a remount each time the dialog opens, so all the
             local field state resets cleanly without an effect. */}
         <CustomFoodForm
-          key={open ? `open:${initialName ?? ""}` : "closed"}
+          key={open ? `open:${editing?.id ?? initialName ?? ""}` : "closed"}
           initialName={initialName}
+          editing={editing}
           onSaved={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -46,32 +68,44 @@ export function CustomFoodDialog({
   );
 }
 
+// Stringify a stored per-100g value for an input ("" for null/absent).
+function fieldValue(n: number | null | undefined): string {
+  return n == null ? "" : String(n);
+}
+
 function CustomFoodForm({
   initialName,
+  editing,
   onSaved,
 }: {
   initialName?: string;
+  editing?: EditableCustomFood;
   onSaved: () => void;
 }) {
-  const [name, setName] = useState(initialName ?? "");
-  const [brand, setBrand] = useState("");
-  // Most labels are per-serving; we convert to per-100g on save.
-  const [mode, setMode] = useState<"per100" | "perServing">("perServing");
-  const [servingG, setServingG] = useState("");
-  const [servingLabel, setServingLabel] = useState("");
+  const [name, setName] = useState(editing?.name ?? initialName ?? "");
+  const [brand, setBrand] = useState(editing?.brand ?? "");
+  // New foods default to per-serving entry (most labels are); editing shows
+  // the stored per-100g values directly.
+  const [mode, setMode] = useState<"per100" | "perServing">(
+    editing ? "per100" : "perServing"
+  );
+  const [servingG, setServingG] = useState(fieldValue(editing?.servingSizeG));
+  const [servingLabel, setServingLabel] = useState(editing?.servingLabel ?? "");
 
-  const [kcal, setKcal] = useState("");
-  const [protein, setProtein] = useState("");
-  const [carbs, setCarbs] = useState("");
-  const [fat, setFat] = useState("");
+  const [kcal, setKcal] = useState(editing ? String(editing.kcal) : "");
+  const [protein, setProtein] = useState(fieldValue(editing?.proteinG));
+  const [carbs, setCarbs] = useState(fieldValue(editing?.carbsG));
+  const [fat, setFat] = useState(fieldValue(editing?.fatG));
 
   // Optional, collapsed by default
   const [moreOpen, setMoreOpen] = useState(false);
-  const [fiber, setFiber] = useState("");
-  const [sugar, setSugar] = useState("");
-  const [satFat, setSatFat] = useState("");
-  const [sodium, setSodium] = useState("");
-  const [cholesterol, setCholesterol] = useState("");
+  const [fiber, setFiber] = useState(fieldValue(editing?.fiberG));
+  const [sugar, setSugar] = useState(fieldValue(editing?.sugarG));
+  const [satFat, setSatFat] = useState(fieldValue(editing?.saturatedFatG));
+  const [sodium, setSodium] = useState(fieldValue(editing?.sodiumMg));
+  const [cholesterol, setCholesterol] = useState(
+    fieldValue(editing?.cholesterolMg)
+  );
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -101,6 +135,11 @@ function CustomFoodForm({
       }
       scale = 100 / grams;
       savedServingG = grams;
+    } else {
+      // Per-100g entry needs no scaling, but preserve an existing serving
+      // size (prefilled when editing) so saving doesn't wipe it.
+      const grams = parseFloat(servingG);
+      savedServingG = Number.isFinite(grams) && grams > 0 ? grams : null;
     }
 
     const per100 = {
@@ -120,15 +159,17 @@ function CustomFoodForm({
       return;
     }
 
+    const input = {
+      name: trimmedName,
+      brand: brand.trim() || null,
+      ...per100,
+      servingSizeG: savedServingG,
+      servingLabel: servingLabel.trim() || null,
+    };
     startTransition(async () => {
       try {
-        await createCustomFood({
-          name: trimmedName,
-          brand: brand.trim() || null,
-          ...per100,
-          servingSizeG: savedServingG,
-          servingLabel: servingLabel.trim() || null,
-        });
+        if (editing) await updateCustomFood(editing.id, input);
+        else await createCustomFood(input);
         onSaved();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't save");
@@ -325,7 +366,7 @@ function CustomFoodForm({
           disabled={pending}
           className="flex-1 rounded-full"
         >
-          {pending ? "Saving…" : "Save food"}
+          {pending ? "Saving…" : editing ? "Save changes" : "Save food"}
         </Button>
       </div>
     </div>
