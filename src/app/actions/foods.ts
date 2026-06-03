@@ -8,6 +8,7 @@ import { getProfileTimezone } from "@/lib/clock.server";
 import { dayKeyInTz } from "@/lib/clock";
 import { revalidateDiary } from "@/lib/revalidate";
 import { round1 } from "@/lib/utils";
+import { computeRecipeTotals } from "@/lib/recipe-totals";
 
 // A loggedAt for a food landing in `target`: just after the meal's latest
 // food, so it sorts last in the list. We only consider foods already on the
@@ -100,6 +101,90 @@ export async function deleteFoods(foodIds: number[]) {
   await db.food.deleteMany({ where: { id: { in: foodIds }, meal: { userId } } });
   // Bulk delete is reachable from the meal card on every diary surface, so
   // refresh them all — not just "/".
+  revalidateDiary("/diary");
+}
+
+// Replace a logged recipe with one diary row per ingredient, scaled to the
+// portion that was logged. e.g. a 300g serving of a 1200g recipe explodes
+// into each ingredient at a quarter of the amount that went into the recipe.
+// The original recipe row is removed in the same transaction. New rows are
+// plain foods (no recipeId) so they edit independently from here on.
+export async function explodeRecipeFood(foodId: number) {
+  const userId = await requireUserId();
+
+  const food = await db.food.findFirst({
+    where: { id: foodId, meal: { userId } },
+    select: {
+      id: true,
+      mealId: true,
+      recipeId: true,
+      grams: true,
+      kcal: true,
+      loggedAt: true,
+    },
+  });
+  if (!food || food.recipeId == null) return;
+
+  const recipe = await db.recipe.findFirst({
+    where: { id: food.recipeId, userId },
+    select: {
+      totalWeightG: true,
+      servings: true,
+      ingredients: {
+        orderBy: { position: "asc" },
+        select: {
+          fdcId: true,
+          name: true,
+          brand: true,
+          per100Kcal: true,
+          per100ProteinG: true,
+          per100CarbsG: true,
+          per100FatG: true,
+          grams: true,
+        },
+      },
+    },
+  });
+  // Recipe deleted, or has no ingredients to expand into — leave the row as is.
+  if (!recipe || recipe.ingredients.length === 0) return;
+
+  const totals = computeRecipeTotals(recipe);
+  // What fraction of the whole recipe this row represents. Prefer the logged
+  // weight against the recipe's cooked weight; fall back to the kcal ratio for
+  // quick-add rows (grams = 0) or a weightless recipe.
+  const fraction =
+    food.grams > 0 && totals.effectiveTotalWeightG > 0
+      ? food.grams / totals.effectiveTotalWeightG
+      : totals.totalKcal > 0
+        ? food.kcal / totals.totalKcal
+        : 1;
+
+  // Keep the exploded rows in the original's slot: same base instant, then
+  // +1ms per ingredient so they stay in recipe order.
+  const base = food.loggedAt.getTime();
+
+  await db.$transaction([
+    ...recipe.ingredients.map((ing, i) => {
+      const grams = ing.grams * fraction;
+      const scale = grams / 100;
+      return db.food.create({
+        data: {
+          mealId: food.mealId,
+          fdcId: ing.fdcId,
+          name: ing.name,
+          brand: ing.brand,
+          grams: round1(grams),
+          kcal: round1(ing.per100Kcal * scale),
+          proteinG: round1(ing.per100ProteinG * scale),
+          carbsG: round1(ing.per100CarbsG * scale),
+          fatG: round1(ing.per100FatG * scale),
+          loggedAt: new Date(base + i),
+        },
+      });
+    }),
+    db.food.delete({ where: { id: food.id } }),
+  ]);
+
   revalidateDiary("/diary");
 }
 

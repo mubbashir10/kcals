@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Split,
   Trash2,
   Utensils,
 } from "lucide-react";
@@ -57,6 +58,7 @@ import {
   updateFoodQuickAdd,
   moveFoods,
   copyFoods,
+  explodeRecipeFood,
 } from "@/app/actions/foods";
 import { createRecipeFromFoods } from "@/app/actions/recipes";
 
@@ -69,6 +71,9 @@ export type MealCardFood = {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  // Set when this row was logged from a recipe — enables "Break into
+  // ingredients" on the row menu.
+  recipeId: number | null;
 };
 
 export type MealCardData = {
@@ -448,11 +453,18 @@ function FoodRow({
   onCopy: () => void;
 }) {
   const [deletePending, startDelete] = useTransition();
+  const [explodePending, startExplode] = useTransition();
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
     startDelete(async () => {
       await deleteFood(f.id);
+    });
+  }
+
+  function handleExplode() {
+    startExplode(async () => {
+      await explodeRecipeFood(f.id);
     });
   }
 
@@ -478,7 +490,7 @@ function FoodRow({
         className={cn(
           "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40",
           selecting && selected && "bg-accent/40",
-          deletePending && "opacity-50"
+          (deletePending || explodePending) && "opacity-50"
         )}
       >
         {selecting && <Checkbox checked={selected} />}
@@ -546,6 +558,15 @@ function FoodRow({
                   <Copy className="mr-2 h-3.5 w-3.5 opacity-70" />
                   Copy to…
                 </DropdownMenuItem>
+                {f.recipeId != null && (
+                  <DropdownMenuItem
+                    className="cursor-pointer rounded-lg text-sm"
+                    onClick={handleExplode}
+                  >
+                    <Split className="mr-2 h-3.5 w-3.5 opacity-70" />
+                    Break into ingredients
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>

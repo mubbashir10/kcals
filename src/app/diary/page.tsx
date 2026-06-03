@@ -110,6 +110,7 @@ function DaySection({
         proteinG: number;
         carbsG: number;
         fatG: number;
+        recipeId: number | null;
       }[];
     }[];
     kcal: number;
