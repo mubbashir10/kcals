@@ -4,6 +4,7 @@ import { ArrowLeft, Flame } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { CaloriesChart } from "@/components/calories-chart";
 import { CaloriesHistory } from "@/components/calories-history";
+import { CaloriesImportExport } from "@/components/calories-import-export";
 import { loadDailyHistory } from "@/lib/daily-history";
 import { dayKeyInTz } from "@/lib/clock";
 import { requireUserId } from "@/lib/session";
@@ -57,6 +58,9 @@ export default async function CaloriesPage() {
           <span className="text-sm font-semibold tracking-tight">
             Calories & macros
           </span>
+          <div className="ml-auto">
+            <CaloriesImportExport />
+          </div>
         </div>
       </header>
 
