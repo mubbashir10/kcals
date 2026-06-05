@@ -66,7 +66,10 @@ export function CalorieRingWidget({
         aria-label="View calorie history"
         className="absolute inset-0 rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       />
-      <div className="relative flex items-center justify-between gap-2">
+      {/* The row/ring below sit above the inset-0 link, so they'd swallow its
+          clicks. Make the wrappers transparent to pointer events and re-enable
+          only the genuine controls, so clicking anywhere else opens /calories. */}
+      <div className="pointer-events-none relative flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={toggle}
@@ -75,19 +78,19 @@ export function CalorieRingWidget({
               ? "Switch to showing consumed"
               : "Switch to showing remaining"
           }
-          className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="pointer-events-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeftRight className="h-3 w-3" />
           {mode === "remaining" ? "Remaining" : "Consumed"}
         </button>
 
-        <div className="flex items-center gap-1.5">
+        <div className="pointer-events-auto flex items-center gap-1.5">
           <GoalChip type={goalType} offset={kcalOffset} />
           <WidgetMenu widgetId="calorie" label="Calorie ring" />
         </div>
       </div>
 
-      <div className="relative mt-8 flex flex-col items-center sm:mt-10">
+      <div className="pointer-events-none relative mt-8 flex flex-col items-center sm:mt-10">
         <CalorieRing consumed={consumed} goal={goal} mode={mode} />
 
         {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
