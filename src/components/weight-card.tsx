@@ -82,7 +82,10 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
           aria-label="View weight history"
           className="absolute inset-0 rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         />
-        <div className="relative flex items-center justify-between">
+        {/* The rows below sit above the inset-0 link, so they'd swallow its
+            clicks. Make the wrappers transparent to pointer events and
+            re-enable only the menu, so clicking anywhere else opens /weight. */}
+        <div className="pointer-events-none relative flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Scale className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -92,7 +95,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Weight options"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              className="pointer-events-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
@@ -163,7 +166,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
 
         {display ? (
           <>
-            <div className="relative mt-3 flex items-baseline gap-3">
+            <div className="pointer-events-none relative mt-3 flex items-baseline gap-3">
               <div className="text-3xl font-semibold leading-none tabular-nums tracking-tight">
                 {display.value}
                 <span className="ml-1 text-base font-normal text-muted-foreground">
@@ -194,13 +197,13 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
                 </span>
               )}
             </div>
-            <p className="relative mt-3 text-xs text-muted-foreground">
+            <p className="pointer-events-none relative mt-3 text-xs text-muted-foreground">
               {formatTimeAgo(latest!.loggedAt, timezone)}
               {delta7dKg == null && " · log again next week for trend"}
             </p>
           </>
         ) : (
-          <div className="relative mt-3">
+          <div className="pointer-events-none relative mt-3">
             <p className="text-sm text-foreground/80">No weigh-ins yet.</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Track your weight daily to see trends.
