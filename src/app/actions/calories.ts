@@ -122,29 +122,46 @@ export async function importCalorieDays(rows: CaloriesCsvRow[]) {
   const { toCreate, existingDays, invalid } = await classify(userId, tz, rows);
 
   if (toCreate.length > 0) {
+    const days = toCreate.map((day) => ({
+      ...day,
+      loggedAt: instantOnDayInTz(tz, day.dayKey, "12:00"),
+    }));
+
+    // Bulk insert via createMany, not a per-day meal.create fan-out: a year of
+    // days is ~365 round-trips, which blows past the 5s default transaction
+    // timeout (P2028). createMany collapses each table to one statement. Foods
+    // are linked by matching meals back on their loggedAt — safe because every
+    // "Imported" meal is created here *with* a food, so a noon-local "Imported"
+    // meal can only exist on a day that has food, and such days are skipped.
     await db.$transaction(
-      toCreate.map((day) => {
-        const loggedAt = instantOnDayInTz(tz, day.dayKey, "12:00");
-        return db.meal.create({
-          data: {
+      async (tx) => {
+        await tx.meal.createMany({
+          data: days.map((d) => ({ userId, name: "Imported", loggedAt: d.loggedAt })),
+        });
+        const meals = await tx.meal.findMany({
+          where: {
             userId,
             name: "Imported",
-            loggedAt,
-            foods: {
-              create: {
-                fdcId: null,
-                name: "Imported",
-                grams: 0,
-                kcal: day.kcal,
-                proteinG: day.proteinG,
-                carbsG: day.carbsG,
-                fatG: day.fatG,
-                loggedAt,
-              },
-            },
+            loggedAt: { in: days.map((d) => d.loggedAt) },
           },
+          select: { id: true, loggedAt: true },
         });
-      })
+        const mealIdByTime = new Map(meals.map((m) => [m.loggedAt.getTime(), m.id]));
+        await tx.food.createMany({
+          data: days.map((d) => ({
+            mealId: mealIdByTime.get(d.loggedAt.getTime())!,
+            fdcId: null,
+            name: "Imported",
+            grams: 0,
+            kcal: d.kcal,
+            proteinG: d.proteinG,
+            carbsG: d.carbsG,
+            fatG: d.fatG,
+            loggedAt: d.loggedAt,
+          })),
+        });
+      },
+      { timeout: 30000 }
     );
     revalidateDiary("/calories", "/diary");
   }
