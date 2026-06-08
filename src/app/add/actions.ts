@@ -12,6 +12,7 @@ import {
   isHhmm,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
+import { titleCase } from "@/lib/food-format";
 import { requireUserId } from "@/lib/session";
 import { persistableFdcId, round1 } from "@/lib/utils";
 import { revalidateDiary } from "@/lib/revalidate";
@@ -193,7 +194,11 @@ export type ApproveAiFoodInput = {
 export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> {
   const userId = await requireUserId();
 
-  const name = input.name.trim();
+  // Title-case on the way in so AI foods live in the library looking like
+  // the manually-entered ones ("Qalmi Date", not "qalmi date") — the model
+  // is told to return a lowercase canonical name, so this is the gate that
+  // normalizes it for storage.
+  const name = titleCase(input.name.trim());
   if (name.length === 0 || name.length > 120) {
     throw new Error("Invalid name");
   }

@@ -1,4 +1,5 @@
-// Display helpers for food/recipe rows. UI-only — no DB access.
+// Formatting helpers for food/recipe rows. Pure functions, no DB access —
+// used in the UI for display and server-side to normalize names on write.
 
 export function titleCase(s: string): string {
   return s
