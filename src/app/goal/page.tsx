@@ -24,7 +24,7 @@ export default async function GoalPage() {
   const stats = await loadDailyStats(userId);
   // Onboarding must finish first.
   if (!stats) redirect("/setup");
-  const { profile, tdee } = stats;
+  const { profile, tdee, calorieGoal } = stats;
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -61,6 +61,7 @@ export default async function GoalPage() {
             pace: isGoalPace(profile.goalPace) ? profile.goalPace : null,
             trackKcal: profile.trackKcal,
             tdee,
+            effectiveTarget: calorieGoal,
             macros: {
               protein: {
                 mode: isMacroMode(profile.proteinGoalMode)

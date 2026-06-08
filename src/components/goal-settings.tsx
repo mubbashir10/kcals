@@ -39,6 +39,10 @@ type Props = {
     pace: GoalPace | null;
     trackKcal: number | null;
     tdee: number | null;
+    // The goal's computed daily calorie target (TDEE ± deficit, floored).
+    // Used to reconcile custom macros outside Track mode, where the user
+    // doesn't type a kcal number directly.
+    effectiveTarget: number | null;
     macros: Record<Macro, MacroState>;
   };
   unitsLabel: "kg" | "lb";
@@ -83,6 +87,23 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
   const [type, setType] = useState<GoalType>(initial.type);
   const [pace, setPace] = useState<GoalPace | null>(initial.pace);
   const [, startTransition] = useTransition();
+
+  // Macro state lives here, not in MacroEditor: the editor renders in two tree
+  // positions (inside TrackEditor vs the non-track card), so switching goal
+  // type remounts it. setMacroGoal doesn't revalidate /goal, so a remount would
+  // otherwise reset to the stale server-loaded macros and drop unsaved-looking
+  // edits. Keeping it on GoalSettings (which survives the type switch) holds it.
+  const [macros, setMacros] = useState<Record<Macro, MacroState>>(
+    initial.macros
+  );
+
+  function updateMacro(macro: Macro, next: MacroState) {
+    setMacros((prev) => ({ ...prev, [macro]: next }));
+    setMacroGoal(macro, next.mode, next.g).catch(() => {
+      // Roll back to the last-loaded value if the action rejects.
+      setMacros((prev) => ({ ...prev, [macro]: initial.macros[macro] }));
+    });
+  }
 
   function save(nextType: GoalType, nextPace: GoalPace | null) {
     setType(nextType);
@@ -199,11 +220,25 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
         <MaintainCard tdee={initial.tdee} />
       )}
 
-      {type === "track" && (
+      {type === "track" ? (
         <TrackEditor
           initialKcal={initial.trackKcal}
-          initialMacros={initial.macros}
+          macros={macros}
+          onMacroChange={updateMacro}
         />
+      ) : (
+        <Card className="space-y-3 rounded-2xl border-border/60 p-4 shadow-card">
+          <p className="px-1 text-[11px] text-muted-foreground/80">
+            Macros default to a 30 / 40 / 30 split of your target. Switch any to{" "}
+            <span className="font-medium text-foreground/80">custom</span> to
+            lock your own grams.
+          </p>
+          <MacroEditor
+            macros={macros}
+            onMacroChange={updateMacro}
+            kcalTarget={initial.effectiveTarget}
+          />
+        </Card>
       )}
     </div>
   );
@@ -233,16 +268,17 @@ function MaintainCard({ tdee }: { tdee: number }) {
 
 function TrackEditor({
   initialKcal,
-  initialMacros,
+  macros,
+  onMacroChange,
 }: {
   initialKcal: number | null;
-  initialMacros: Record<Macro, MacroState>;
+  macros: Record<Macro, MacroState>;
+  onMacroChange: (macro: Macro, next: MacroState) => void;
 }) {
   const [kcal, setKcal] = useState<string>(
     initialKcal != null ? String(initialKcal) : ""
   );
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [macros, setMacros] = useState<Record<Macro, MacroState>>(initialMacros);
 
   const trimmedKcal = kcal.trim();
   const parsedKcal =
@@ -271,29 +307,8 @@ function TrackEditor({
     return () => clearTimeout(t);
   }, [trimmedKcal, parsedKcal, kcalInvalid]);
 
-  function updateMacro(macro: Macro, next: MacroState) {
-    setMacros((prev) => ({ ...prev, [macro]: next }));
-    setMacroGoal(macro, next.mode, next.g).catch(() => {
-      // Roll back if the action rejects.
-      setMacros((prev) => ({ ...prev, [macro]: initialMacros[macro] }));
-    });
-  }
-
-  const kcalTarget = (() => {
-    const n = parseInt(kcal.trim(), 10);
-    return Number.isFinite(n) ? n : null;
-  })();
-  const macroKcal = (MACROS as readonly Macro[]).reduce((sum, m) => {
-    const { mode, g } = macros[m];
-    if (mode !== "custom" || g == null) return sum;
-    return sum + g * KCAL_PER_G[m];
-  }, 0);
-  const allCustom = (MACROS as readonly Macro[]).every(
-    (m) => macros[m].mode === "custom" && macros[m].g != null
-  );
-  const diff =
-    kcalTarget != null && allCustom ? macroKcal - kcalTarget : null;
-  const matches = diff != null && Math.abs(diff) <= MACRO_MATCH_TOLERANCE;
+  const kcalTarget =
+    parsedKcal != null && Number.isFinite(parsedKcal) ? parsedKcal : null;
 
   return (
     <Card className="space-y-4 rounded-2xl border-border/60 p-4 shadow-card">
@@ -329,29 +344,65 @@ function TrackEditor({
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Macros
-        </div>
-        <div className="space-y-2 rounded-xl border border-border/60 p-2.5">
-          {MACROS.map((m) => (
-            <MacroRow
-              key={m}
-              macro={m}
-              state={macros[m]}
-              onChange={(next) => updateMacro(m, next)}
-            />
-          ))}
-        </div>
-        <Reconciliation
-          kcalTarget={kcalTarget}
-          macroKcal={macroKcal}
-          allCustom={allCustom}
-          diff={diff}
-          matches={matches}
-        />
-      </div>
+      <MacroEditor
+        macros={macros}
+        onMacroChange={onMacroChange}
+        kcalTarget={kcalTarget}
+      />
     </Card>
+  );
+}
+
+// The auto/custom/off macro editor + reconciliation. Shared across every goal
+// type: in Track mode it reconciles against the kcal the user typed; in
+// loss/maintain/gain it reconciles against the goal's computed target. The
+// underlying macro fields live on Profile and apply regardless of goal type,
+// so editing here always feeds the dashboard's macro rings. State is owned by
+// GoalSettings so it survives the remount when the goal type switches.
+function MacroEditor({
+  macros,
+  onMacroChange,
+  kcalTarget,
+}: {
+  macros: Record<Macro, MacroState>;
+  onMacroChange: (macro: Macro, next: MacroState) => void;
+  kcalTarget: number | null;
+}) {
+  const macroKcal = (MACROS as readonly Macro[]).reduce((sum, m) => {
+    const { mode, g } = macros[m];
+    if (mode !== "custom" || g == null) return sum;
+    return sum + g * KCAL_PER_G[m];
+  }, 0);
+  const allCustom = (MACROS as readonly Macro[]).every(
+    (m) => macros[m].mode === "custom" && macros[m].g != null
+  );
+  const diff =
+    kcalTarget != null && allCustom ? macroKcal - kcalTarget : null;
+  const matches = diff != null && Math.abs(diff) <= MACRO_MATCH_TOLERANCE;
+
+  return (
+    <div className="space-y-2">
+      <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        Macros
+      </div>
+      <div className="space-y-2 rounded-xl border border-border/60 p-2.5">
+        {MACROS.map((m) => (
+          <MacroRow
+            key={m}
+            macro={m}
+            state={macros[m]}
+            onChange={(next) => onMacroChange(m, next)}
+          />
+        ))}
+      </div>
+      <Reconciliation
+        kcalTarget={kcalTarget}
+        macroKcal={macroKcal}
+        allCustom={allCustom}
+        diff={diff}
+        matches={matches}
+      />
+    </div>
   );
 }
 
