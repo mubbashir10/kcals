@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCustomFood, updateCustomFood } from "@/app/actions/custom-foods";
+import { roundN } from "@/lib/utils";
 
 // An existing custom food being edited. Macros are per-100g (as stored).
 export type EditableCustomFood = {
@@ -84,31 +85,64 @@ function CustomFoodForm({
 }) {
   const [name, setName] = useState(editing?.name ?? initialName ?? "");
   const [brand, setBrand] = useState(editing?.brand ?? "");
-  // New foods default to per-serving entry (most labels are); editing shows
-  // the stored per-100g values directly.
+  // A food saved with a serving size reopens in per-serving mode, showing its
+  // values scaled to that serving (values are stored per-100g). New foods also
+  // default to per-serving entry (most labels are); editing a food without a
+  // serving size shows the per-100g values directly.
+  const editingServingG =
+    editing?.servingSizeG != null && editing.servingSizeG > 0
+      ? editing.servingSizeG
+      : null;
   const [mode, setMode] = useState<"per100" | "perServing">(
-    editing ? "per100" : "perServing"
+    !editing || editingServingG != null ? "perServing" : "per100"
   );
   const [servingG, setServingG] = useState(fieldValue(editing?.servingSizeG));
   const [servingLabel, setServingLabel] = useState(editing?.servingLabel ?? "");
 
-  const [kcal, setKcal] = useState(editing ? String(editing.kcal) : "");
-  const [protein, setProtein] = useState(fieldValue(editing?.proteinG));
-  const [carbs, setCarbs] = useState(fieldValue(editing?.carbsG));
-  const [fat, setFat] = useState(fieldValue(editing?.fatG));
+  // In per-serving mode the stored per-100g values are shown scaled to the
+  // serving size (e.g. 386 kcal/100g → 309 kcal for an 80g serving).
+  const initialFactor = editingServingG != null ? editingServingG / 100 : 1;
+  const initialField = (n: number | null | undefined): string =>
+    n == null ? "" : String(roundN(n * initialFactor, 2));
+
+  const [kcal, setKcal] = useState(initialField(editing?.kcal));
+  const [protein, setProtein] = useState(initialField(editing?.proteinG));
+  const [carbs, setCarbs] = useState(initialField(editing?.carbsG));
+  const [fat, setFat] = useState(initialField(editing?.fatG));
 
   // Optional, collapsed by default
   const [moreOpen, setMoreOpen] = useState(false);
-  const [fiber, setFiber] = useState(fieldValue(editing?.fiberG));
-  const [sugar, setSugar] = useState(fieldValue(editing?.sugarG));
-  const [satFat, setSatFat] = useState(fieldValue(editing?.saturatedFatG));
-  const [sodium, setSodium] = useState(fieldValue(editing?.sodiumMg));
+  const [fiber, setFiber] = useState(initialField(editing?.fiberG));
+  const [sugar, setSugar] = useState(initialField(editing?.sugarG));
+  const [satFat, setSatFat] = useState(initialField(editing?.saturatedFatG));
+  const [sodium, setSodium] = useState(initialField(editing?.sodiumMg));
   const [cholesterol, setCholesterol] = useState(
-    fieldValue(editing?.cholesterolMg)
+    initialField(editing?.cholesterolMg)
   );
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Switching mode rescales the displayed values so their meaning is preserved
+  // (per-serving 309 ⇄ per-100g 386). Without a valid serving size there's
+  // nothing to scale by, so the toggle just relabels.
+  function changeMode(next: "per100" | "perServing") {
+    if (next === mode) return;
+    const grams = parseFloat(servingG);
+    if (Number.isFinite(grams) && grams > 0) {
+      const factor = next === "perServing" ? grams / 100 : 100 / grams;
+      setKcal((v) => convertField(v, factor));
+      setProtein((v) => convertField(v, factor));
+      setCarbs((v) => convertField(v, factor));
+      setFat((v) => convertField(v, factor));
+      setFiber((v) => convertField(v, factor));
+      setSugar((v) => convertField(v, factor));
+      setSatFat((v) => convertField(v, factor));
+      setSodium((v) => convertField(v, factor));
+      setCholesterol((v) => convertField(v, factor));
+    }
+    setMode(next);
+  }
 
   function onSave() {
     setError(null);
@@ -220,7 +254,7 @@ function CustomFoodForm({
               <button
                 key={opt.v}
                 type="button"
-                onClick={() => setMode(opt.v)}
+                onClick={() => changeMode(opt.v)}
                 className={
                   "flex-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all " +
                   (active
@@ -449,6 +483,14 @@ function NutrientField({
       </div>
     </Field>
   );
+}
+
+// Rescale a field's displayed value when toggling modes. Empty/invalid as-is.
+function convertField(s: string, factor: number): string {
+  if (s.trim() === "") return "";
+  const n = parseFloat(s);
+  if (!Number.isFinite(n)) return s;
+  return String(roundN(n * factor, 2));
 }
 
 function scaledOrNull(s: string, scale: number): number | null {
