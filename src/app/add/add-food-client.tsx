@@ -258,6 +258,8 @@ export function AddFoodClient({
           )}
 
           {!loading && results.length > 0 && (() => {
+            const recent = results.filter((f) => f.dataType === "Recent");
+            const myFoods = results.filter((f) => f.dataType === "MyFood");
             const recipes = results.filter(
               (f) => f.dataType === "Recipe" && !f.ownerName
             );
@@ -270,6 +272,8 @@ export function AddFoodClient({
             );
             const whole = results.filter(
               (f) =>
+                f.dataType !== "Recent" &&
+                f.dataType !== "MyFood" &&
                 f.dataType !== "Recipe" &&
                 f.dataType !== "Custom" &&
                 f.dataType !== "Branded" &&
@@ -282,11 +286,26 @@ export function AddFoodClient({
             // result came from, even when only one group matched.
             const showLabels = true;
 
-            // Reference (brand-free whole foods) leads after the user's own
-            // recipes, then community, then brands, with AI-added rows last
-            // — AI is the last resort even once it's been saved.
+            // "Closest to the user" first: foods they've logged before,
+            // then their saved foods, their recipes, friends' recipes, the
+            // shared databases (reference → community → branded), and AI
+            // rows last — AI is the last resort even once it's been saved.
             return (
               <div className="space-y-6">
+                {recent.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "Recently logged" : null}
+                    foods={recent}
+                    onSelect={onResultSelect}
+                  />
+                )}
+                {myFoods.length > 0 && (
+                  <ResultGroup
+                    label={showLabels ? "My foods" : null}
+                    foods={myFoods}
+                    onSelect={onResultSelect}
+                  />
+                )}
                 {recipes.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "My recipes" : null}
@@ -518,6 +537,9 @@ function ResultRow({
             {f.createdAtIso && (f.dataType === "Custom" || f.dataType === "AI") && (
               <> · added {formatAddedAt(f.createdAtIso)}</>
             )}
+            {f.createdAtIso && f.dataType === "Recent" && (
+              <> · last logged {formatAddedAt(f.createdAtIso)}</>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -672,13 +694,22 @@ function AiResultRow({
 
 /**
  * Visible source ladder shown while the local search is in flight.
- * Surfaces the order we check: user recipes → community library → USDA
- * → Open Food Facts. The AI fallback gets its own block (NoMatchesBlock)
- * because it only runs after these four return empty, and it's the only
- * tier with non-local latency worth a distinct UX.
+ * Surfaces the order we check, closest-to-the-user first: recently logged
+ * → saved foods → recipes → reference → community → USDA → Open Food
+ * Facts. The AI fallback gets its own block (NoMatchesBlock) because it
+ * only runs after these return empty, and it's the only tier with
+ * non-local latency worth a distinct UX.
  */
 function SourceLadder() {
-  const sources = ["My recipes", "Reference", "Community", "USDA", "Open Food Facts"];
+  const sources = [
+    "Recently logged",
+    "My foods",
+    "My recipes",
+    "Reference",
+    "Community",
+    "USDA",
+    "Open Food Facts",
+  ];
   return (
     <div className="space-y-2 px-1">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -706,8 +737,8 @@ function EmptyState() {
         Search foods
       </p>
       <p className="mt-1 text-xs text-muted-foreground/70">
-        Whole foods, South Asian dishes, USDA, Open Food Facts, and
-        community-added foods.
+        Your recent foods, saved foods, and recipes first — then whole
+        foods, USDA, Open Food Facts, and community-added foods.
       </p>
     </Card>
   );

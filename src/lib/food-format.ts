@@ -16,6 +16,8 @@ export function dataTypeLabel(t: string): string {
   if (t === "SR Legacy") return "Reference";
   if (t === "Reference") return "Reference";
   if (t === "Custom") return "Community";
+  if (t === "MyFood") return "Saved food";
+  if (t === "Recent") return "Recently logged";
   if (t === "AI") return "AI estimate";
   if (t === "Recipe") return "Recipe";
   return t;
