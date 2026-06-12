@@ -45,65 +45,54 @@ export async function loadDailyStats(
   const tz = profile.timezone || "UTC";
   const todayKey = dayKeyInTz(tz, now);
 
-  // Ensure today's ActivityLog row exists with snapshot fields. If it
-  // doesn't, we lazy-create it with the current defaults so historical
-  // TDEE stays pinned to the profile state at first interaction.
   let todayActivity = await db.activityLog.findUnique({
     where: { userId_dayKey: { userId, dayKey: todayKey } },
   });
 
-  // Back-compat: if a row exists but predates the snapshot fields, fill
-  // them in now. Cheap: one extra write the first time we see the row.
-  const needsSnapshot =
-    !todayActivity ||
-    todayActivity.bmrKcal == null ||
-    todayActivity.defaultActiveKcal == null ||
-    todayActivity.tdeeKcal == null;
+  // Today's snapshot must track the *current* profile. This function only ever
+  // runs for "today", where BMR/active are recomputed live below — so a stale
+  // stored TDEE would freeze the calorie goal while edits to steps/weight move
+  // the displayed BMR+active. Rebuild from the row's override and refresh the
+  // row whenever it drifts (also back-fills rows predating the snapshot fields).
+  const snapshot = buildDailySnapshot(
+    profile,
+    todayActivity
+      ? {
+          mode: todayActivity.mode as ActivityMode,
+          steps: todayActivity.steps,
+          liftingMin: todayActivity.liftingMin,
+          cardioMin: todayActivity.cardioMin,
+          wearableKcal: todayActivity.wearableKcal,
+        }
+      : null
+  );
+  const snapshotFields = {
+    bmrKcal: snapshot.bmrKcal,
+    defaultActiveKcal: snapshot.defaultActiveKcal,
+    overrideActiveKcal: snapshot.overrideActiveKcal,
+    tdeeKcal: snapshot.tdeeKcal,
+  };
 
-  if (needsSnapshot) {
-    const snapshot = buildDailySnapshot(
-      profile,
-      todayActivity
-        ? {
-            mode: todayActivity.mode as ActivityMode,
-            steps: todayActivity.steps,
-            liftingMin: todayActivity.liftingMin,
-            cardioMin: todayActivity.cardioMin,
-            wearableKcal: todayActivity.wearableKcal,
-          }
-        : null
-    );
+  const snapshotStale =
+    !todayActivity ||
+    todayActivity.bmrKcal !== snapshot.bmrKcal ||
+    todayActivity.defaultActiveKcal !== snapshot.defaultActiveKcal ||
+    todayActivity.overrideActiveKcal !== snapshot.overrideActiveKcal ||
+    todayActivity.tdeeKcal !== snapshot.tdeeKcal;
+
+  if (snapshotStale) {
     if (opts.readOnly) {
       // Friend-view read: synthesize the snapshot fields in-memory so
       // downstream code reads them off `todayActivity`, but don't
       // persist anything to the friend's row.
       todayActivity = todayActivity
-        ? {
-            ...todayActivity,
-            bmrKcal: snapshot.bmrKcal,
-            defaultActiveKcal: snapshot.defaultActiveKcal,
-            overrideActiveKcal: snapshot.overrideActiveKcal,
-            tdeeKcal: snapshot.tdeeKcal,
-          }
+        ? { ...todayActivity, ...snapshotFields }
         : null;
     } else {
       todayActivity = await db.activityLog.upsert({
         where: { userId_dayKey: { userId, dayKey: todayKey } },
-        create: {
-          userId,
-          dayKey: todayKey,
-          mode: "estimate",
-          bmrKcal: snapshot.bmrKcal,
-          defaultActiveKcal: snapshot.defaultActiveKcal,
-          overrideActiveKcal: snapshot.overrideActiveKcal,
-          tdeeKcal: snapshot.tdeeKcal,
-        },
-        update: {
-          bmrKcal: snapshot.bmrKcal,
-          defaultActiveKcal: snapshot.defaultActiveKcal,
-          overrideActiveKcal: snapshot.overrideActiveKcal,
-          tdeeKcal: snapshot.tdeeKcal,
-        },
+        create: { userId, dayKey: todayKey, mode: "estimate", ...snapshotFields },
+        update: snapshotFields,
       });
     }
   }
