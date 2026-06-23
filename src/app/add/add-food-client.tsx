@@ -7,9 +7,7 @@ import {
   BookmarkPlus,
   Loader2,
   Plus,
-  Search,
   Sparkles,
-  X,
   Zap,
 } from "lucide-react";
 import { AppLink } from "@/components/app-link";
@@ -35,6 +33,7 @@ import {
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
+import { SearchInput } from "@/components/search-input";
 import { approveAiFood, logFood } from "./actions";
 
 type Food = SearchFood;
@@ -199,25 +198,13 @@ export function AddFoodClient({
           timezone={timezone}
         />
 
-        <div className="relative mt-6">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <div className="mt-6">
+          <SearchInput
             autoFocus
             value={query}
-            onChange={(e) => updateQuery(e.target.value)}
+            onChange={updateQuery}
             placeholder="Search foods (e.g. chicken breast, banana)"
-            className="h-12 rounded-full border-border/60 bg-card pl-11 pr-11 text-base shadow-sm"
           />
-          {query && (
-            <button
-              type="button"
-              onClick={() => updateQuery("")}
-              aria-label="Clear"
-              className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">

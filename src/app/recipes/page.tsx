@@ -2,10 +2,8 @@ import { ArrowLeft, ChefHat, Plus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
-import {
-  RecipeListItem,
-  type RecipeListItemData,
-} from "@/components/recipe-list-item";
+import { RecipesList } from "@/app/recipes/recipes-list";
+import { type RecipeListItemData } from "@/components/recipe-list-item";
 import { createBlankRecipe } from "@/app/actions/recipes";
 import { db } from "@/lib/db";
 import { friendRecipesOf } from "@/lib/friends";
@@ -108,31 +106,7 @@ export default async function RecipesPage() {
             </form>
           </Card>
         ) : (
-          <div className="space-y-8">
-            {rows.length > 0 && (
-              <ul className="space-y-2">
-                {rows.map((r) => (
-                  <RecipeListItem key={r.id} recipe={r} />
-                ))}
-              </ul>
-            )}
-
-            {friendRows.length > 0 && (
-              <section>
-                <div className="mb-3 flex items-center gap-2 px-1">
-                  <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Friends&rsquo; recipes
-                  </span>
-                  <div className="h-px flex-1 bg-border/60" />
-                </div>
-                <ul className="space-y-2">
-                  {friendRows.map((r) => (
-                    <RecipeListItem key={`f-${r.id}`} recipe={r} />
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
+          <RecipesList recipes={rows} friendRecipes={friendRows} />
         )}
       </main>
     </div>

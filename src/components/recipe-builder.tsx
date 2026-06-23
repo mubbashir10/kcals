@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   Trash2,
   X,
@@ -32,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchInput } from "@/components/search-input";
 import { cn, round1 } from "@/lib/utils";
 import { dataTypeLabel, titleCase } from "@/lib/food-format";
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
@@ -434,25 +434,12 @@ function IngredientSearch({
 
   return (
     <div>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search foods to add"
-          className="h-11 rounded-full border-border/60 bg-card pl-11 pr-11 text-sm shadow-sm"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            aria-label="Clear"
-            className="absolute right-3 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      <SearchInput
+        compact
+        value={query}
+        onChange={setQuery}
+        placeholder="Search foods to add"
+      />
 
       <div className="mt-4">
         {loading && (

@@ -2,10 +2,8 @@ import { ArrowLeft, Apple } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
-import {
-  CustomFoodListItem,
-  type CustomFoodListItemData,
-} from "@/components/custom-food-list-item";
+import { FoodsList } from "@/app/foods/foods-list";
+import { type CustomFoodListItemData } from "@/components/custom-food-list-item";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 
@@ -75,11 +73,7 @@ export default async function FoodsPage() {
             </AppLink>
           </Card>
         ) : (
-          <ul className="space-y-2">
-            {rows.map((f) => (
-              <CustomFoodListItem key={f.id} food={f} />
-            ))}
-          </ul>
+          <FoodsList foods={rows} />
         )}
       </main>
     </div>
