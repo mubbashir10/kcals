@@ -2,14 +2,16 @@ import { ImageResponse } from "next/og";
 
 import { FLAME_PATH } from "@/lib/brand";
 
-// PWA icon — served at /icon. Used for the favicon, the Android home-screen
-// installed-app icon, and the manifest icon. Rendered as a gradient flame
-// on a dark rounded square so it reads well on both light and dark
-// home-screens.
-export const size = { width: 512, height: 512 };
-export const contentType = "image/png";
+// Maskable 512×512 PWA icon — served at /icon-maskable and referenced from
+// the manifest with purpose:"maskable". Android masks installed-app icons to
+// a circle / squircle / teardrop depending on the launcher, clipping the
+// outer ~10–20% of the image. So unlike /icon (which fills most of the
+// frame), the flame here sits well inside the safe zone (~50% of the canvas)
+// over a full-bleed gradient — nothing important reaches the edges, so it
+// stays intact under any mask and the splash screen looks native.
+export const dynamic = "force-static";
 
-export default async function Icon() {
+export function GET() {
   return new ImageResponse(
     (
       <div
@@ -23,7 +25,7 @@ export default async function Icon() {
             "radial-gradient(circle at 30% 25%, #1f2937 0%, #0a0a0a 70%)",
         }}
       >
-        <svg width={360} height={360} viewBox="0 0 26 26">
+        <svg width={260} height={260} viewBox="0 0 26 26">
           <defs>
             <linearGradient
               id="g"
@@ -41,6 +43,6 @@ export default async function Icon() {
         </svg>
       </div>
     ),
-    { ...size }
+    { width: 512, height: 512 }
   );
 }

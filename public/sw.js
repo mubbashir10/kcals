@@ -1,6 +1,6 @@
 // Bump VERSION on shape changes (new caching rules, fixed bugs). The old
 // caches are deleted in `activate`, which forces a clean slate for clients.
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `kcals-static-${VERSION}`;
 const PAGES_CACHE = `kcals-pages-${VERSION}`;
 
@@ -53,6 +53,7 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/_next/image") ||
     url.pathname === "/icon" ||
+    url.pathname === "/icon-maskable" ||
     url.pathname === "/apple-icon" ||
     url.pathname === "/favicon.ico"
   ) {

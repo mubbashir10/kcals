@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
     // instead of pulling the whole pack.
     optimizePackageImports: ["lucide-react"],
   },
+  async rewrites() {
+    return [
+      // Android Digital Asset Links must live at this exact path, but Next
+      // ignores app-router directories that start with a dot, so the handler
+      // lives at /well-known/assetlinks and we alias the canonical URL to it.
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/well-known/assetlinks",
+      },
+    ];
+  },
   async headers() {
     return [
       // Service worker must never be cached by the browser — otherwise
