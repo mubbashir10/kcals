@@ -3,11 +3,41 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Static, non-interactive clone of the inner-page sticky header (back
-// chevron + real title) plus the ambient gradient and page container. Every
-// inner route's loading.tsx renders this so the chrome paints *instantly*
-// with the correct title, and only the body reads as loading. Mirrors the
-// real headers in e.g. app/foods/page.tsx and app/settings/page.tsx.
+// The shared page chrome — ambient gradient + the sticky, blurred header
+// bar — that every loading.tsx paints instantly. Callers supply the header's
+// inner content (it differs: back-chevron + title on inner pages, logo +
+// user-menu on home) and the <main>. Keeping the drift-prone chrome here
+// means header height / blur / border only ever change in one place.
+export function SkeletonShell({
+  header,
+  children,
+}: {
+  // Omitted for pages that render no sticky header (e.g. first-time setup).
+  header?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative flex flex-1 flex-col">
+      <div
+        aria-hidden
+        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
+      />
+
+      {header && (
+        <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+          {header}
+        </header>
+      )}
+
+      {children}
+    </div>
+  );
+}
+
+// Static, non-interactive clone of the inner-page layout (back chevron + real
+// title over the shared shell). Every inner route's loading.tsx renders this
+// so the chrome paints *instantly* with the correct title, and only the body
+// reads as loading. Mirrors the real headers in e.g. app/foods/page.tsx.
 export function SkeletonScaffold({
   title,
   maxWidth = "max-w-2xl",
@@ -18,13 +48,8 @@ export function SkeletonScaffold({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex flex-1 flex-col">
-      <div
-        aria-hidden
-        className="ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px]"
-      />
-
-      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+    <SkeletonShell
+      header={
         <div
           className={cn(
             "mx-auto flex h-14 w-full items-center gap-3 px-6",
@@ -38,12 +63,12 @@ export function SkeletonScaffold({
           </span>
           <span className="text-sm font-semibold tracking-tight">{title}</span>
         </div>
-      </header>
-
+      }
+    >
       <main className={cn("mx-auto w-full flex-1 px-6 py-8", maxWidth)}>
         {children}
       </main>
-    </div>
+    </SkeletonShell>
   );
 }
 

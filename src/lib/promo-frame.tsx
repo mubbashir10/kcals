@@ -63,7 +63,14 @@ export function PromoFrame({
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <svg width={64} height={64} viewBox="0 0 26 26">
           <defs>
-            <linearGradient id="lg" x1="0" y1="0" x2="0" y2="26">
+            <linearGradient
+              id="lg"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="26"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset="0" stopColor="#A3E635" />
               <stop offset="1" stopColor="#10B981" />
             </linearGradient>
