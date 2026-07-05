@@ -31,11 +31,12 @@ export const config = {
   // Twitter / iMessage crawlers can't sign in), and PWA install assets
   // (manifest + icons + screenshots must be fetchable from the signin page
   // itself so the browser can show the install prompt before the user logs
-  // in). `.well-known` covers the Android Digital Asset Links check, which
+  // in). `\.well-known` covers the Android Digital Asset Links check, which
   // Chrome fetches unauthenticated to verify a TWA — redirecting it to
-  // /signin would silently break full-screen APK verification. (`icon`
-  // already prefix-matches `icon-maskable`.)
+  // /signin would silently break full-screen APK verification. Prefix tokens
+  // cover their whole family so the manifest and this list can't drift:
+  // `screenshot-` matches every form factor, `icon` matches `icon-maskable`.
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-narrow|screenshot-wide|.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };
