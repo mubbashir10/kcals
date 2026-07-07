@@ -1,0 +1,30 @@
+{
+  "name": "kcals-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor Android shell for kcals. Wraps the live kcals.app web app in a native WebView (remote-URL mode) and adds native plugins. See README.md.",
+  "scripts": {
+    "add:android": "cap add android",
+    "sync": "cap sync android",
+    "copy": "cap copy android",
+    "open": "cap open android",
+    "run": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.1",
+    "@capacitor/app": "8.1.0",
+    "@capacitor/browser": "8.0.3",
+    "@capacitor/core": "8.4.1",
+    "@capacitor/device": "8.0.2",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/keyboard": "8.0.5",
+    "@capacitor/network": "8.0.1",
+    "@capacitor/push-notifications": "8.1.1",
+    "@capacitor/share": "8.0.1",
+    "@capacitor/splash-screen": "8.0.1",
+    "@capacitor/status-bar": "8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.1"
+  }
+}

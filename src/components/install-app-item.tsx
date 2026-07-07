@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { isNative } from "@/lib/native";
 
 // Chrome / Android exposes this event when the site meets the PWA install
 // criteria (manifest + icons + served over HTTPS). We hold onto it so the
@@ -70,7 +71,8 @@ export function InstallAppItem() {
     detectSurface,
     serverSurface
   );
-  const surface = installed ? null : detectedSurface;
+  // Nothing to install when we're already the installed native app.
+  const surface = installed || isNative() ? null : detectedSurface;
 
   useEffect(() => {
     function onPrompt(e: Event) {

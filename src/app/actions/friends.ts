@@ -2,10 +2,12 @@
 
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { sendInviteEmail } from "@/lib/email";
 import { areFriends, normEmail } from "@/lib/friends";
+import { sendPush } from "@/lib/push";
 import { requireUserId } from "@/lib/session";
 import { getSiteUrl } from "@/lib/site";
 import { auth } from "@/auth";
@@ -205,6 +207,19 @@ export async function acceptFriendInvite(
 
   revalidatePath("/");
   revalidatePath("/friends");
+
+  // Let the inviter know, via native push, that their invite was accepted.
+  // Runs after the response is sent so it never delays the accept, and no-ops
+  // when push isn't configured or the inviter has no registered device.
+  const acceptorName = session.user.name || acceptorEmail || "Someone";
+  after(() =>
+    sendPush(invite.inviterId, {
+      title: "New friend on kcals",
+      body: `${acceptorName} accepted your invite.`,
+      url: "/friends",
+    })
+  );
+
   return { ok: true, friendUserId: invite.inviterId };
 }
 

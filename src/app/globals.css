@@ -149,6 +149,27 @@
   header.sticky {
     padding-top: env(safe-area-inset-top);
   }
+
+  /* Capacitor native shell (class added to <body> by NativeBridge). The
+     env(safe-area-inset-*) padding above already adapts to the Android
+     status & navigation bars once the status bar overlays the WebView;
+     these rules just strip the remaining browser-isms so the WebView feels
+     like a native app rather than a page. */
+  body.native {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    /* Stop the WebView's overscroll glow / accidental pull-to-refresh. */
+    overscroll-behavior-y: none;
+  }
+  /* …but real inputs must stay selectable/editable. */
+  body.native input,
+  body.native textarea,
+  body.native [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 /* Custom shadow utilities — light mode gets a subtle warm tint;

@@ -41,6 +41,10 @@ model User {
   invitesSent     FriendInvite[] @relation("InvitesSent")
   invitesAccepted FriendInvite[] @relation("InvitesAccepted")
 
+  // Native app (Capacitor Android)
+  nativeAuthCodes NativeAuthCode[]
+  pushTokens      PushToken[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -82,6 +86,42 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Native app (Capacitor Android)
+// ───────────────────────────────────────────────────────────────────────
+
+// One-time code that bridges the system-browser Google OAuth flow back into
+// the native WebView. Google blocks OAuth inside embedded WebViews, so native
+// sign-in runs in the system browser; on success /native/auth/finish mints one
+// of these and deep-links kcals://auth-callback?code=… into the app, and
+// /native/auth/consume burns it to set the session cookie inside the WebView.
+// Short-lived (60s) and single-use (deleted on consume).
+model NativeAuthCode {
+  code      String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// An FCM device token for push notifications. Keyed by the token so a device
+// re-registering upserts instead of duplicating; a token maps to exactly one
+// user (re-pointed if the same device signs into a different account). A user
+// may have several (multiple devices).
+model PushToken {
+  token     String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform  String   @default("android")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ───────────────────────────────────────────────────────────────────────

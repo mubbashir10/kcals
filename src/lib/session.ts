@@ -1,7 +1,15 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+
+/**
+ * Returns the full session, or null if not signed in. Wrapped in React
+ * `cache()` so the layout, page, and any actions in one request share a
+ * single JWT decode instead of each calling `auth()` independently.
+ */
+export const getSession = cache(async () => auth());
 
 /**
  * Returns the signed-in user's id, redirecting to /signin if none.
@@ -9,14 +17,9 @@ import { db } from "@/lib/db";
  * must have a user.
  */
 export async function requireUserId(): Promise<string> {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) redirect("/signin");
   return session.user.id;
-}
-
-/** Returns the full session, or null if not signed in. */
-export async function getSession() {
-  return await auth();
 }
 
 /**

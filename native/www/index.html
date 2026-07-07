@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>kcals</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #0a0a0a;
+        color: #e5e5e5;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .wrap {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        text-align: center;
+        padding: 2rem;
+      }
+      .brand {
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        background: linear-gradient(to bottom, #a3e635, #10b981);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: pulse 1s ease-in-out infinite;
+      }
+      p {
+        opacity: 0.6;
+        max-width: 20rem;
+        line-height: 1.5;
+        font-size: 0.875rem;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.25;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fallback screen. In remote-URL mode this is only shown when kcals.app
+         is unreachable on first launch; normally the WebView loads the live
+         site immediately. -->
+    <div class="wrap">
+      <div class="brand">kcals</div>
+      <div class="dot"></div>
+      <p>Connecting… If this screen stays, check your internet connection and reopen the app.</p>
+    </div>
+  </body>
+</html>

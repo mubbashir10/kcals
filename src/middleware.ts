@@ -36,7 +36,10 @@ export const config = {
   // /signin would silently break full-screen APK verification. Prefix tokens
   // cover their whole family so the manifest and this list can't drift:
   // `screenshot-` matches every form factor, `icon` matches `icon-maskable`.
+  // `native/auth` covers the Capacitor OAuth handoff: /start and /finish run
+  // in the system browser and /consume runs in the WebView before its session
+  // cookie exists, so none of them can sit behind the auth redirect.
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|native/auth|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };

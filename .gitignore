@@ -49,5 +49,21 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 
+# Capacitor (native/) — build artifacts & secrets. The android/ project
+# itself is committed (we customize the manifest, icons, etc.); only its
+# generated build output, injected web assets, and secrets are ignored.
+/native/node_modules
+/native/android/.gradle
+/native/android/build
+/native/android/app/build
+/native/android/capacitor-cordova-android-plugins
+/native/android/app/src/main/assets/public
+/native/android/app/src/main/assets/capacitor.config.json
+/native/android/app/src/main/assets/capacitor.plugins.json
+/native/android/app/google-services.json
+/native/android/local.properties
+*.keystore
+firebase-service-account*.json
+
 # Local Claude Code config & worktrees
 .claude/

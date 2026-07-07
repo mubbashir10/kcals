@@ -3,6 +3,7 @@ import { Flame, Target, Users } from "lucide-react";
 import { signIn } from "@/auth";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
+import { GoogleSignInButton } from "./google-sign-in-button";
 
 export const dynamic = "force-dynamic";
 
@@ -60,13 +61,10 @@ export default async function SignInPage({
             }}
             className="mt-5"
           >
-            <button
-              type="submit"
-              className="group inline-flex h-10 w-full items-center justify-center gap-2.5 rounded-full border border-border bg-card text-sm font-medium text-foreground transition-all hover:border-foreground/20 hover:bg-accent/50 hover:shadow-card active:translate-y-px"
-            >
+            <GoogleSignInButton>
               <GoogleMark />
               Continue with Google
-            </button>
+            </GoogleSignInButton>
           </form>
         </Card>
 
