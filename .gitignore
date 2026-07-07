@@ -62,6 +62,7 @@ prisma/*.db-journal
 /native/android/app/src/main/assets/capacitor.plugins.json
 /native/android/app/google-services.json
 /native/android/local.properties
+/native/android/keystore.properties
 *.keystore
 firebase-service-account*.json
 
