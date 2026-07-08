@@ -3,6 +3,7 @@ import { Flame, Target, Users } from "lucide-react";
 import { signIn } from "@/auth";
 import { Card } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
+import { BridgeStatus } from "@/components/bridge-status";
 import { GoogleSignInButton } from "./google-sign-in-button";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +87,8 @@ export default async function SignInPage({
         >
           Get the Android app →
         </a>
+
+        <BridgeStatus />
       </main>
     </div>
   );
