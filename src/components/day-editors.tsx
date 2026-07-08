@@ -15,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { MetricBadge } from "@/components/metric-badge";
 import {
   Dialog,
   DialogClose,
@@ -26,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, parseOptionalInt } from "@/lib/utils";
 import { displayWeight, lbToKg, unitLabel, type Units } from "@/lib/bmr";
+import { metricColor } from "@/lib/metric-colors";
 import type { ActivityMode } from "@/lib/tdee";
 import { logWeight, deleteWeightLog, updateWeightLog } from "@/app/actions/weight";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
@@ -50,8 +52,8 @@ export function DayWeightTile({
     <>
       <Card className="rounded-2xl border-border/60 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-2.5">
+            <MetricBadge icon={Scale} color={metricColor.weight} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>
@@ -283,8 +285,8 @@ export function DayActivityTile({
     <>
       <Card className="rounded-2xl border-border/60 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-2.5">
+            <MetricBadge icon={Zap} color={metricColor.activity} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Activity
             </span>

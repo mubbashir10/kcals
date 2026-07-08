@@ -146,7 +146,7 @@ function WeightHistoryRow({
               <div
                 className={cn(
                   "text-[10px] font-medium tabular-nums",
-                  delta < 0 ? "text-emerald-500" : "text-rose-500"
+                  delta < 0 ? "text-accent-foreground" : "text-destructive"
                 )}
               >
                 {delta < 0 ? "−" : "+"}

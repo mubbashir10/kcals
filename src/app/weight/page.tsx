@@ -233,10 +233,10 @@ function DeltaCard({
         ) : (
           <>
             {direction === "down" && (
-              <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
+              <TrendingDown className="h-3.5 w-3.5 text-accent-foreground" />
             )}
             {direction === "up" && (
-              <TrendingUp className="h-3.5 w-3.5 text-rose-500" />
+              <TrendingUp className="h-3.5 w-3.5 text-destructive" />
             )}
             {direction === "flat" && (
               <Minus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -245,9 +245,9 @@ function DeltaCard({
               className={
                 "text-base font-semibold tabular-nums tracking-tight " +
                 (direction === "down"
-                  ? "text-emerald-500"
+                  ? "text-accent-foreground"
                   : direction === "up"
-                  ? "text-rose-500"
+                  ? "text-destructive"
                   : "text-muted-foreground")
               }
             >

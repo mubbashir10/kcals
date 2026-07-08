@@ -11,6 +11,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { CalorieRing } from "@/components/calorie-ring";
 import { MacroCard } from "@/components/macro-card";
+import { MetricBadge } from "@/components/metric-badge";
 import { metricColor } from "@/lib/metric-colors";
 import { ReadOnlyMealCard } from "@/components/read-only-meal-card";
 import { db } from "@/lib/db";
@@ -173,9 +174,9 @@ function FriendDayView({
 
       <section className="mt-8 grid grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
-          <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-            <Flame className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em]">
+          <div className="mb-2 flex items-center gap-2.5">
+            <MetricBadge icon={Flame} color={metricColor.energy} />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Maintenance
             </span>
           </div>
@@ -191,9 +192,9 @@ function FriendDayView({
         </Card>
 
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
-          <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-            <Scale className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em]">
+          <div className="mb-2 flex items-center gap-2.5">
+            <MetricBadge icon={Scale} color={metricColor.weight} />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>
           </div>

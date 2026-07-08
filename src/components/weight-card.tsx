@@ -176,7 +176,16 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
                 </span>
               </div>
               {deltaDisplay && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-muted-foreground">
+                <span
+                  className={
+                    "inline-flex items-center gap-1 text-xs font-medium tabular-nums " +
+                    (deltaDisplay.direction === "down"
+                      ? "text-accent-foreground"
+                      : deltaDisplay.direction === "up"
+                      ? "text-destructive"
+                      : "text-muted-foreground")
+                  }
+                >
                   {deltaDisplay.direction === "down" && (
                     <TrendingDown className="h-3 w-3" />
                   )}

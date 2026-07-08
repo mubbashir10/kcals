@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calendar";
 import { dayKeyInTz } from "@/lib/clock";
+import { metricColor } from "@/lib/metric-colors";
 import {
   formatMonthLabel,
   shiftDayKey,
@@ -132,9 +133,9 @@ export default async function CalendarPage({
 
         {/* Legend */}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-          <Legend color="bg-emerald-500" label="food" />
-          <Legend color="bg-violet-500" label="weight" />
-          <Legend color="bg-sky-500" label="activity" />
+          <Legend color={metricColor.energy} label="food" />
+          <Legend color={metricColor.weight} label="weight" />
+          <Legend color={metricColor.activity} label="activity" />
         </div>
 
         {/* Month summary */}
@@ -200,7 +201,11 @@ function SummaryTile({
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`h-1.5 w-1.5 rounded-full ${color}`} aria-hidden />
+      <span
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: color }}
+        aria-hidden
+      />
       {label}
     </span>
   );

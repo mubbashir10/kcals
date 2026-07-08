@@ -259,7 +259,7 @@ function CaloriesImportDialog({
           )}
 
           {result && (
-            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-lg bg-accent px-3 py-2 text-xs text-accent-foreground">
               Imported {result.imported}{" "}
               {result.imported === 1 ? "day" : "days"}
               {result.skipped > 0 && ` · ${result.skipped} skipped`}.

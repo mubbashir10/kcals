@@ -116,7 +116,7 @@ function CaloriesHistoryRow({
               <div
                 className={cn(
                   "text-[10px] font-medium tabular-nums",
-                  overGoal ? "text-rose-500" : "text-emerald-500"
+                  overGoal ? "text-destructive" : "text-accent-foreground"
                 )}
               >
                 {overGoal ? "+" : "−"}

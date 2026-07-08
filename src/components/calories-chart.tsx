@@ -150,8 +150,8 @@ export function CaloriesChart({ points, timezone }: Props) {
               rx={Math.min(barW / 2, 2)}
               className={
                 overGoal
-                  ? "fill-rose-500/80"
-                  : "fill-emerald-500/80"
+                  ? "fill-[var(--destructive)]"
+                  : "fill-[var(--primary)]"
               }
             />
           );

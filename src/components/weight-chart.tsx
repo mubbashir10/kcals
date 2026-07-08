@@ -27,9 +27,12 @@ type Props = {
   timezone: string;
 };
 
-const SCALE_COLOR = "oklch(0.65 0.22 25)"; // brand rose — raw readings
-const TREND_COLOR = "oklch(0.55 0.2 25)"; // deeper rose — the hero line
-const EXPECTED_COLOR = "oklch(0.62 0.15 255)"; // blue — projection
+// Weight identity = purple (mirrors metricColor.weight / --chart-4). Kept as
+// literals, not CSS vars: Recharts sets these as SVG `stroke` attributes, where
+// var() doesn't resolve — so this chart can't be fully theme-token-driven.
+const SCALE_COLOR = "oklch(0.72 0.16 305)"; // weight purple — raw readings
+const TREND_COLOR = "oklch(0.62 0.23 304)"; // deeper purple — the hero line
+const EXPECTED_COLOR = "oklch(0.65 0.14 255)"; // blue — projection
 const GRID_COLOR = "oklch(0.7 0.01 95 / 0.12)";
 const AXIS_COLOR = "oklch(0.7 0.01 95 / 0.55)";
 

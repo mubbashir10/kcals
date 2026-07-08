@@ -242,7 +242,7 @@ function DayRow({ day }: { day: WeekSummary["days"][number] }) {
           <span
             className={
               net != null && net < 0
-                ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                ? "font-semibold text-accent-foreground"
                 : "font-semibold text-foreground"
             }
           >
@@ -271,9 +271,9 @@ function DayRow({ day }: { day: WeekSummary["days"][number] }) {
 function VerdictIcon({ tone }: { tone: "down" | "up" | "neutral" }) {
   const cls = "h-4 w-4 shrink-0";
   if (tone === "down")
-    return <TrendingDown className={`${cls} text-emerald-600 dark:text-emerald-400`} />;
+    return <TrendingDown className={`${cls} text-accent-foreground`} />;
   if (tone === "up")
-    return <TrendingUp className={`${cls} text-amber-600 dark:text-amber-400`} />;
+    return <TrendingUp className={`${cls} text-destructive`} />;
   return <Minus className={`${cls} text-muted-foreground`} />;
 }
 

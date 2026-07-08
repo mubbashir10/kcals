@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Flame } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
+import { metricColor } from "@/lib/metric-colors";
 import { CaloriesChart } from "@/components/calories-chart";
 import { CaloriesHistory } from "@/components/calories-history";
 import { CaloriesImportExport } from "@/components/calories-import-export";
@@ -157,7 +158,7 @@ function AverageCard({
           <span className="text-base text-muted-foreground">—</span>
         ) : (
           <>
-            <Flame className="h-3 w-3 text-emerald-500/70" />
+            <Flame className="h-3 w-3" style={{ color: metricColor.energy }} />
             <span className="text-base font-semibold tabular-nums tracking-tight">
               {Math.round(avg).toLocaleString()}
               <span className="ml-0.5 text-xs font-normal text-muted-foreground">
