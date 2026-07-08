@@ -10,6 +10,7 @@ import { NavProgress } from "@/components/nav-progress";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { NativeBridge } from "@/components/native/native-bridge";
 import { HealthSync } from "@/components/native/health-sync";
+import { GetAppBanner } from "@/components/get-app-banner";
 import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
@@ -128,6 +129,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <NativeBridge />
         <HealthSync />
+        <GetAppBanner />
       </body>
     </html>
   );
