@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { WifiOff } from "lucide-react";
 
 import { isNative, nativePlatform } from "@/lib/native";
@@ -27,6 +28,9 @@ const PUSH_TOKEN_KEY = "kcals.push-token";
 export function NativeBridge() {
   const [offline, setOffline] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  // Next's app-router instance is stable across renders, so the mount-once
+  // effect below can depend on it without actually re-running.
+  const router = useRouter();
 
   // Core native chrome — set up once on mount.
   useEffect(() => {
@@ -116,8 +120,12 @@ export function NativeBridge() {
       cleanups.push(() => void netHandle.remove());
 
       // OAuth handoff: kcals://auth-callback?code=… relaunches the app after
-      // sign-in completes in the system browser. Close the browser and do a
-      // full navigation to /consume so its Set-Cookie establishes the session.
+      // sign-in completes in the system browser. Establish the session by
+      // *fetching* /consume (its Set-Cookie still applies) then navigating the
+      // SPA router — NOT a full page load. In remote-URL mode Capacitor only
+      // injects the native bridge on the initial WebView load, so a full
+      // navigation here would drop it (isNative → false) for the whole session
+      // and kill every native feature.
       const urlHandle = await App.addListener("appUrlOpen", ({ url }) => {
         let parsed: URL;
         try {
@@ -135,7 +143,18 @@ export function NativeBridge() {
             // bound challenge, so an intercepted code alone is useless.
             const params = new URLSearchParams({ code, v: takeVerifier() });
             if (from) params.set("from", from);
-            window.location.href = `/native/auth/consume?${params.toString()}`;
+            const consumeUrl = `/native/auth/consume?${params.toString()}`;
+            const dest = from || "/";
+            fetch(consumeUrl, { credentials: "same-origin" })
+              .then(() => {
+                router.replace(dest);
+                router.refresh();
+              })
+              .catch(() => {
+                // Fallback: a full navigation still signs in (the bridge just
+                // re-establishes on the next app launch).
+                window.location.href = consumeUrl;
+              });
           }
         }
       });
@@ -171,7 +190,7 @@ export function NativeBridge() {
       document.body.classList.remove("native");
       cleanups.forEach((fn) => fn());
     };
-  }, []);
+  }, [router]);
 
   // Push notifications. Auth is checked client-side (via /api/auth/session) so
   // web/PWA renders don't pay for a session decode just to feed this. When
