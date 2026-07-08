@@ -102,6 +102,10 @@ model NativeAuthCode {
   code      String   @id
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // SHA-256 (base64url) of a verifier the initiating WebView keeps secret.
+  // /consume only mints a session if the presented verifier hashes to this,
+  // so a leaked/intercepted code is useless without the originating client.
+  challenge String
   expiresAt DateTime
   createdAt DateTime @default(now())
 

@@ -68,6 +68,9 @@ importers:
       ai:
         specifier: ^6.0.191
         version: 6.0.191(zod@4.4.3)
+      capacitor-health:
+        specifier: 8.1.2
+        version: 8.1.2(@capacitor/core@8.4.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -189,6 +192,9 @@ importers:
       '@capacitor/status-bar':
         specifier: 8.0.2
         version: 8.0.2(@capacitor/core@8.4.1)
+      capacitor-health:
+        specifier: 8.1.2
+        version: 8.1.2(@capacitor/core@8.4.1)
     devDependencies:
       '@capacitor/cli':
         specifier: 8.4.1
@@ -1846,6 +1852,11 @@ packages:
 
   caniuse-lite@1.0.30001793:
     resolution: {integrity: sha512-iwSsYWaCOoh26cV8NwNRViHlrfUvYsHDfRVcbtmw0Kg6PJIZZXwMkj1442FYLBGkeUf1juAsU3DTfxW579mrPA==}
+
+  capacitor-health@8.1.2:
+    resolution: {integrity: sha512-3P/E5qLq/LzV+dLbsgjNx+qH2lRLzZtp3pzJboh6MXZtlaCoP9aCqwObkbN/O/YI+LUFJilN7ePkwEcfRqpSQg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -6415,6 +6426,10 @@ snapshots:
   callsites@3.1.0: {}
 
   caniuse-lite@1.0.30001793: {}
+
+  capacitor-health@8.1.2(@capacitor/core@8.4.1):
+    dependencies:
+      '@capacitor/core': 8.4.1
 
   chalk@4.1.2:
     dependencies:

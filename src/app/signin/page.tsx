@@ -61,7 +61,7 @@ export default async function SignInPage({
             }}
             className="mt-5"
           >
-            <GoogleSignInButton>
+            <GoogleSignInButton redirectTo={redirectTo}>
               <GoogleMark />
               Continue with Google
             </GoogleSignInButton>

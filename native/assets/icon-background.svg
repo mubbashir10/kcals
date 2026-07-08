@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Matches the PWA icon background: radial-gradient(circle at 30% 25%,
+       #1f2937 0%, #0a0a0a 70%) — a subtle top-left glow over near-black. -->
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="25%" r="85%">
+      <stop offset="0" stop-color="#1f2937"/>
+      <stop offset="0.7" stop-color="#0a0a0a"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+</svg>

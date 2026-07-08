@@ -31,3 +31,6 @@ project(':capacitor-splash-screen').projectDir = new File('../../node_modules/.p
 
 include ':capacitor-status-bar'
 project(':capacitor-status-bar').projectDir = new File('../../node_modules/.pnpm/@capacitor+status-bar@8.0.2_@capacitor+core@8.4.1/node_modules/@capacitor/status-bar/android')
+
+include ':capacitor-health'
+project(':capacitor-health').projectDir = new File('../../node_modules/.pnpm/capacitor-health@8.1.2_@capacitor+core@8.4.1/node_modules/capacitor-health/android')

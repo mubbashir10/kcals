@@ -1,15 +1,17 @@
+import { createHash, timingSafeEqual } from "crypto";
+
 import { NextResponse, type NextRequest } from "next/server";
 import { encode } from "next-auth/jwt";
 
 import { db } from "@/lib/db";
 
 // Reached inside the native WebView (the bridge navigates here on the
-// kcals://auth-callback deep link). We validate the one-time code minted by
-// /native/auth/finish and establish a session *in the WebView's cookie jar* by
-// hand-minting the same JWT session cookie Auth.js would. Because sessions are
-// JWT (see src/auth.config.ts), no DB session row is needed — we just encode a
-// token whose shape matches the jwt/session callbacks and set it under the
-// exact cookie name (and salt) Auth.js reads.
+// kcals://auth-callback deep link, adding the secret verifier it kept). We
+// validate the one-time code AND that the caller holds the verifier whose hash
+// was bound to it at /native/auth/finish — so a code intercepted by another app
+// or planted for session-fixation can't be redeemed here. Then we establish a
+// session in the WebView's cookie jar by hand-minting the same JWT session
+// cookie Auth.js would (sessions are JWT — see src/auth.config.ts).
 export const dynamic = "force-dynamic";
 
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days — Auth.js default.
@@ -19,6 +21,7 @@ export async function GET(req: NextRequest) {
   const bounce = NextResponse.redirect(new URL("/signin", origin));
 
   const code = req.nextUrl.searchParams.get("code");
+  const verifier = req.nextUrl.searchParams.get("v") ?? "";
   if (!code) return bounce;
 
   // Fetch + burn the code in one atomic step — delete throws if it's already
@@ -27,14 +30,25 @@ export async function GET(req: NextRequest) {
     .delete({ where: { code }, include: { user: true } })
     .catch(() => null);
   if (!row || row.expiresAt.getTime() < Date.now()) return bounce;
+
+  // Proof-of-possession: the presented verifier must hash to the bound
+  // challenge. Constant-time compare over fixed-length base64url digests.
+  const expected = createHash("sha256").update(verifier).digest("base64url");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(row.challenge);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return bounce;
+
   const user = row.user;
 
-  // Auth.js prefixes the cookie with __Secure- and sets `secure` on HTTPS.
-  // The prefix is also the JWT encryption salt, so it must match exactly for
-  // auth()/middleware to decode the token we mint here.
-  const secureCookies = (
-    req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol
-  ).includes("https");
+  // Auth.js prefixes the cookie with __Secure- and sets `secure` on HTTPS. The
+  // prefix is also the JWT encryption salt, so it must match exactly for
+  // auth()/middleware to decode. Force secure in production (kcals.app is
+  // always HTTPS) so a proxy that drops x-forwarded-proto can't pick the wrong
+  // name and lock the user into a sign-in loop.
+  const secureCookies =
+    (req.headers.get("x-forwarded-proto") || req.nextUrl.protocol).includes(
+      "https"
+    ) || process.env.NODE_ENV === "production";
   const cookieName = secureCookies
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
@@ -54,7 +68,12 @@ export async function GET(req: NextRequest) {
     maxAge: SESSION_MAX_AGE,
   });
 
-  const res = NextResponse.redirect(new URL("/", origin));
+  // Return to the intended destination (same-origin path only), default home.
+  const fromParam = req.nextUrl.searchParams.get("from") ?? "";
+  const dest =
+    fromParam.startsWith("/") && !fromParam.startsWith("//") ? fromParam : "/";
+
+  const res = NextResponse.redirect(new URL(dest, origin));
   res.cookies.set(cookieName, token, {
     httpOnly: true,
     secure: secureCookies,

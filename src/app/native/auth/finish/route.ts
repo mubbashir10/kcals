@@ -1,44 +1,55 @@
 import { randomBytes } from "crypto";
 
-import { NextResponse } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getSiteUrl } from "@/lib/site";
 
-// Reached in the system browser right after Google OAuth succeeds (see
-// /native/auth/start). The browser now holds a session cookie, but that's the
-// browser's cookie jar — not the app's WebView. So we mint a short-lived,
-// single-use code, stash it, and deep-link back into the app with it; the app
-// exchanges it at /native/auth/consume to establish its own session.
+// Reached in the system browser right after Google OAuth succeeds. The browser
+// now holds a session, but that's the browser's cookie jar — not the app's
+// WebView. So we mint a short-lived, single-use code bound to the client's
+// challenge and deep-link back into the app with it; the app exchanges it (with
+// its secret verifier) at /native/auth/consume to establish its own session.
 export const dynamic = "force-dynamic";
 
 const CODE_TTL_MS = 60_000; // 60s — just long enough to bounce back into the app.
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const signin = `${getSiteUrl()}/signin`;
+
   const session = await auth();
-  if (!session?.user?.id) {
-    // The browser isn't signed in (shouldn't happen post-OAuth) — restart.
-    return NextResponse.redirect(`${getSiteUrl()}/signin`);
+  // No session (shouldn't happen post-OAuth) or no challenge to bind the code
+  // to → fail closed rather than mint an unbound bearer credential.
+  const challenge = req.nextUrl.searchParams.get("ch");
+  if (!session?.user?.id || !challenge) {
+    return NextResponse.redirect(signin);
   }
+  const from = req.nextUrl.searchParams.get("from") ?? "";
 
   const code = randomBytes(32).toString("base64url");
   await db.nativeAuthCode.create({
     data: {
       code,
       userId: session.user.id,
+      challenge,
       expiresAt: new Date(Date.now() + CODE_TTL_MS),
     },
   });
-  // Opportunistic prune so expired codes can't accumulate (delete-on-consume
-  // handles the happy path; this sweeps abandoned flows).
-  db.nativeAuthCode
-    .deleteMany({ where: { expiresAt: { lt: new Date() } } })
-    .catch(() => {});
+  // Prune expired codes after the response so abandoned flows can't accumulate;
+  // after() keeps the function alive for it (a floating promise can be dropped).
+  after(() =>
+    db.nativeAuthCode
+      .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+      .then(() => {})
+      .catch(() => {})
+  );
 
-  // base64url is [A-Za-z0-9-_] only, so it's safe to interpolate into both the
-  // href and the JS string below without further escaping.
-  const deepLink = `kcals://auth-callback?code=${code}`;
+  // base64url code is [A-Za-z0-9-_]; from is percent-encoded — both safe to
+  // interpolate into the href and the JS string below.
+  const deepLink =
+    `kcals://auth-callback?code=${code}` +
+    (from ? `&from=${encodeURIComponent(from)}` : "");
 
   // Auto-hand back to the app, with a manual button in case the browser blocks
   // the automatic app-scheme launch (some browsers require a tap).

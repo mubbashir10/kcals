@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { WifiOff } from "lucide-react";
 
 import { isNative, nativePlatform } from "@/lib/native";
+import { takeVerifier } from "@/lib/native-auth";
+
+// Where we stash the FCM token client-side so it can be unregistered on
+// sign-out (matters on shared devices — see the push effect).
+const PUSH_TOKEN_KEY = "kcals.push-token";
 
 // Single client-side coordinator for the Capacitor native shell. Mounted once
 // in the root layout; its entire body no-ops on web (guarded by isNative), so
@@ -19,7 +24,7 @@ import { isNative, nativePlatform } from "@/lib/native";
 //   • External links: open non-kcals.app URLs in the system browser.
 //   • Deep links: handle the kcals://auth-callback OAuth handoff.
 //   • Push: request permission, register the FCM token, route notification taps.
-export function NativeBridge({ authed }: { authed: boolean }) {
+export function NativeBridge() {
   const [offline, setOffline] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
 
@@ -117,11 +122,15 @@ export function NativeBridge({ authed }: { authed: boolean }) {
         }
         if (parsed.protocol === "kcals:" && parsed.host === "auth-callback") {
           const code = parsed.searchParams.get("code");
+          const from = parsed.searchParams.get("from");
           Browser.close().catch(() => {});
           if (code) {
-            window.location.href = `/native/auth/consume?code=${encodeURIComponent(
-              code
-            )}`;
+            // Attach the secret verifier this WebView kept when it started
+            // sign-in; /consume only mints a session if it hashes to the code's
+            // bound challenge, so an intercepted code alone is useless.
+            const params = new URLSearchParams({ code, v: takeVerifier() });
+            if (from) params.set("from", from);
+            window.location.href = `/native/auth/consume?${params.toString()}`;
           }
         }
       });
@@ -159,14 +168,50 @@ export function NativeBridge({ authed }: { authed: boolean }) {
     };
   }, []);
 
-  // Push notifications — only once we have a signed-in user to attach the
-  // device token to. Re-runs when auth state flips (e.g. after the handoff).
+  // Push notifications. Auth is checked client-side (via /api/auth/session) so
+  // web/PWA renders don't pay for a session decode just to feed this. When
+  // signed out we drop the device's stored token so a shared device stops
+  // receiving the previous user's notifications.
   useEffect(() => {
-    if (!isNative() || !authed) return;
+    if (!isNative()) return;
     let cancelled = false;
     const cleanups: Array<() => void> = [];
 
+    const readToken = () => {
+      try {
+        return localStorage.getItem(PUSH_TOKEN_KEY) ?? "";
+      } catch {
+        return "";
+      }
+    };
+
     (async () => {
+      let authed = false;
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        authed = Boolean((await res.json())?.user);
+      } catch {
+        // Offline / error — leave push untouched this launch.
+        return;
+      }
+      if (cancelled) return;
+
+      if (!authed) {
+        const stale = readToken();
+        if (stale) {
+          try {
+            localStorage.removeItem(PUSH_TOKEN_KEY);
+          } catch {}
+          fetch("/api/push/unregister", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: stale }),
+            keepalive: true,
+          }).catch(() => {});
+        }
+        return;
+      }
+
       const { PushNotifications } = await import(
         "@capacitor/push-notifications"
       );
@@ -177,6 +222,9 @@ export function NativeBridge({ authed }: { authed: boolean }) {
       const regHandle = await PushNotifications.addListener(
         "registration",
         (token) => {
+          try {
+            localStorage.setItem(PUSH_TOKEN_KEY, token.value);
+          } catch {}
           fetch("/api/push/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -209,7 +257,7 @@ export function NativeBridge({ authed }: { authed: boolean }) {
       cancelled = true;
       cleanups.forEach((fn) => fn());
     };
-  }, [authed]);
+  }, []);
 
   return (
     <>

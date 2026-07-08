@@ -9,7 +9,7 @@ import {
 import { NavProgress } from "@/components/nav-progress";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { NativeBridge } from "@/components/native/native-bridge";
-import { getSession } from "@/lib/session";
+import { HealthProbe } from "@/components/native/health-probe";
 import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
@@ -88,17 +88,11 @@ export const viewport = {
   viewportFit: "cover" as const,
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Passed to the native bridge so it only registers a push token once there's
-  // a signed-in user to attach it to. JWT session → no DB hit, and cache()'d so
-  // the page/actions in this request reuse the same decode.
-  const session = await getSession();
-  const authed = Boolean(session?.user);
-
   return (
     <html
       lang="en"
@@ -132,7 +126,8 @@ export default async function RootLayout({
           </ViewTransition>
         </ThemeProvider>
         <ServiceWorkerRegister />
-        <NativeBridge authed={authed} />
+        <NativeBridge />
+        <HealthProbe />
       </body>
     </html>
   );

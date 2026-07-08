@@ -74,10 +74,12 @@ export async function sendPush(
     const stale: string[] = [];
     res.responses.forEach((r, i) => {
       const code = r.success ? null : r.error?.code;
+      // Only prune tokens FCM says are genuinely dead. `invalid-argument` is
+      // deliberately excluded — FCM also returns it for a malformed payload,
+      // which would otherwise wipe every one of this user's registrations.
       if (
         code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token" ||
-        code === "messaging/invalid-argument"
+        code === "messaging/invalid-registration-token"
       ) {
         stale.push(tokens[i]);
       }
