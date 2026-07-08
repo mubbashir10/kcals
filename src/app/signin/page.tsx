@@ -79,6 +79,13 @@ export default async function SignInPage({
         <p className="mt-6 text-center text-[11px] text-muted-foreground/70">
           We only read your name and email — nothing else.
         </p>
+
+        <a
+          href="/install"
+          className="mt-6 text-xs font-medium text-emerald-500 transition-colors hover:text-emerald-400"
+        >
+          Get the Android app →
+        </a>
       </main>
     </div>
   );
