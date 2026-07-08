@@ -2,30 +2,22 @@
 
 import { useEffect } from "react";
 
-import { isNative } from "@/lib/native";
-
-// Registers the service worker that backs the PWA: caches static assets and
-// RSC payloads so repeat navigations render instantly from local cache and
-// then revalidate in the background.
-//
-// Disabled in dev — the HMR socket and Turbopack's chunk URLs play badly
-// with a SW that tries to cache them, and the perceived-perf win only
-// matters in prod anyway. Also disabled inside the Capacitor shell — the
-// native WebView has its own cache, and a SW competing with it just muddies
-// cache invalidation on deploys.
+// TEMP recovery: the previous caching service worker was serving a stale app
+// shell — inside the Capacitor native WebView that also bypassed the native
+// bridge, so `isNative()` stayed false and every native feature was off. Until
+// we ship a native-safe, network-first SW, this actively unregisters any
+// existing service worker instead of registering one. (The kill-switch
+// public/sw.js also self-unregisters + clears caches when it activates.)
 export function ServiceWorkerRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return;
-    if (isNative()) return;
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
-
     navigator.serviceWorker
-      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .getRegistrations()
+      .then((regs) => regs.forEach((reg) => reg.unregister()))
       .catch(() => {
-        // Registration failures are non-fatal — the app still works,
-        // just without the offline cache.
+        // Non-fatal — nothing to clean up.
       });
   }, []);
 
