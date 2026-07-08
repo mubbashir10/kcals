@@ -6,7 +6,7 @@
 // records, and Health Connect's aggregate resolves them by its source-priority
 // list. Reading raw records would double-count.
 
-import { isNative } from "@/lib/native";
+import { isNative, nativePlatform } from "@/lib/native";
 import { upsertActivity } from "@/app/actions/activity";
 
 const SYNC_KEY = "kcals.health-sync"; // localStorage flag: "on" when enabled
@@ -134,6 +134,8 @@ export type HealthRecordRow = {
 };
 
 export type HealthDebug = {
+  native: boolean;
+  platform: string;
   appVersion: string;
   available: boolean;
   permission: boolean;
@@ -167,6 +169,8 @@ async function appVersion(): Promise<string> {
 export async function readHealthDebug(): Promise<HealthDebug> {
   const { startDate, endDate } = todayWindow();
   const dbg: HealthDebug = {
+    native: isNative(),
+    platform: nativePlatform(),
     appVersion: "unknown",
     available: false,
     permission: false,
@@ -181,14 +185,14 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     latestRecordEnd: null,
     error: null,
   };
-  if (!isNative()) {
-    dbg.error = "Not the native app";
+  // App version comes from @capacitor/app, which is only wired natively.
+  dbg.appVersion = await appVersion();
+  if (!dbg.native) {
+    dbg.error =
+      "isNative() = false — the web app isn't detecting the Capacitor bridge.";
     return dbg;
   }
   try {
-    // Grab the app version first (separate plugin, always present) so we still
-    // learn the installed build even if the health plugin is missing/throws.
-    dbg.appVersion = await appVersion();
     const Health = await health();
     // Five independent read-only bridge hops over the same window — run them
     // concurrently. Each keeps its own catch so one failure doesn't blank the

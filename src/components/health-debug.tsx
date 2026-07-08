@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ChevronDown, Stethoscope } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function hm(iso: string) {
 // de-duped totals kcals uses plus the raw per-source step records, so you can
 // see whether a stale number is the tracker's fault (old writes) or kcals'.
 export function HealthDebugPanel() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [data, setData] = useState<HealthDebug | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -32,6 +32,18 @@ export function HealthDebugPanel() {
     startTransition(async () => {
       setData(await readHealthDebug());
     });
+
+  // Auto-run once on mount so the panel is foolproof — just scroll to it.
+  useEffect(() => {
+    let alive = true;
+    startTransition(async () => {
+      const d = await readHealthDebug();
+      if (alive) setData(d);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="mt-3 border-t border-border/60 pt-3">
@@ -69,6 +81,8 @@ export function HealthDebugPanel() {
 
           {data && (
             <div className="rounded-xl bg-muted/40 p-3 text-[11px] leading-relaxed">
+              <Row k="Native app" v={data.native ? "yes" : "NO"} hi />
+              <Row k="Platform" v={data.platform} />
               <Row k="App version" v={data.appVersion} hi />
               <Row k="Permission" v={data.permission ? "granted" : "denied"} />
               <Row k="Available" v={data.available ? "yes" : "no"} />

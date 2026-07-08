@@ -46,11 +46,11 @@ export function HealthConnectSettings() {
     };
   }, []);
 
-  // Web/PWA: nothing to show. On native we always render — at least the
-  // diagnostics — even when Health Connect isn't available, so the debug panel
-  // isn't trapped behind the very thing it's meant to diagnose.
-  if (!native) return null;
-  if (available === null) return null;
+  // TEMP (debugging): render even when isNative() reports false, so the
+  // diagnostics panel is reachable if the native bridge isn't being detected
+  // inside the Capacitor shell. On native we still wait for the availability
+  // probe to resolve before painting.
+  if (native && available === null) return null;
 
   const sync = () =>
     startTransition(async () => {
@@ -89,7 +89,7 @@ export function HealthConnectSettings() {
           <Activity className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium">Health Connect</span>
         </div>
-        {available && (
+        {native && available && (
           <button
             type="button"
             onClick={toggle}
@@ -112,7 +112,7 @@ export function HealthConnectSettings() {
         )}
       </div>
 
-      {available ? (
+      {native && available ? (
         <>
           <p className="text-[11px] leading-relaxed text-muted-foreground/80">
             Auto-fill today&apos;s activity from your band — steps and active
@@ -143,10 +143,9 @@ export function HealthConnectSettings() {
         </>
       ) : (
         <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-          Health Connect isn&apos;t available to the app yet — it may not be
-          installed/set up on this phone, or this build predates the plugin. The
-          diagnostics below show exactly what the app sees (including the
-          installed version).
+          {native
+            ? "Health Connect isn't available to the app yet — it may not be installed/set up on this phone. The diagnostics below show what the app sees."
+            : "The app isn't detecting the Capacitor native bridge (isNative = false), so all native features are off. The diagnostics below confirm it."}
         </p>
       )}
 
