@@ -10,6 +10,7 @@ import type { DayButtonProps } from "react-day-picker";
 import { AppLink } from "@/components/app-link";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { metricColor } from "@/lib/metric-colors";
 import { formatYMD } from "@/lib/calendar-build";
 import { dayKeyToLocalDate } from "@/lib/clock";
 
@@ -129,19 +130,22 @@ function MarkerDayButton({
     <span className="flex h-1 items-center gap-0.5">
       {modifiers.hasWeight && (
         <span
-          className="h-1 w-1 rounded-full bg-violet-500"
+          className="h-1 w-1 rounded-full"
+          style={{ backgroundColor: metricColor.weight }}
           aria-label="weight logged"
         />
       )}
       {modifiers.hasActivity && (
         <span
-          className="h-1 w-1 rounded-full bg-sky-500"
+          className="h-1 w-1 rounded-full"
+          style={{ backgroundColor: metricColor.activity }}
           aria-label="activity logged"
         />
       )}
       {modifiers.hasFood && (
         <span
-          className="h-1 w-1 rounded-full bg-emerald-500"
+          className="h-1 w-1 rounded-full"
+          style={{ backgroundColor: metricColor.energy }}
           aria-label="food logged"
         />
       )}

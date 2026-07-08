@@ -11,6 +11,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { CalorieRing } from "@/components/calorie-ring";
 import { MacroCard } from "@/components/macro-card";
+import { metricColor } from "@/lib/metric-colors";
 import { ReadOnlyMealCard } from "@/components/read-only-meal-card";
 import { db } from "@/lib/db";
 import { areFriends } from "@/lib/friends";
@@ -154,16 +155,19 @@ function FriendDayView({
           label="Protein"
           value={Math.round(consumed.protein)}
           goal={macroGoals.protein}
+          color={metricColor.protein}
         />
         <MacroCard
           label="Carbs"
           value={Math.round(consumed.carbs)}
           goal={macroGoals.carbs}
+          color={metricColor.carbs}
         />
         <MacroCard
           label="Fat"
           value={Math.round(consumed.fat)}
           goal={macroGoals.fat}
+          color={metricColor.fat}
         />
       </section>
 

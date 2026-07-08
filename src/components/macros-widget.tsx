@@ -1,6 +1,7 @@
 import { AppLink } from "@/components/app-link";
 import { MacroCard } from "@/components/macro-card";
 import { WidgetMenu } from "@/components/widget-menu";
+import { metricColor } from "@/lib/metric-colors";
 import type { MacroGoals } from "@/lib/macros";
 
 type Totals = { protein: number; carbs: number; fat: number };
@@ -31,16 +32,19 @@ export function MacrosWidget({
           label="Protein"
           value={Math.round(consumed.protein)}
           goal={goals.protein}
+          color={metricColor.protein}
         />
         <MacroCard
           label="Carbs"
           value={Math.round(consumed.carbs)}
           goal={goals.carbs}
+          color={metricColor.carbs}
         />
         <MacroCard
           label="Fat"
           value={Math.round(consumed.fat)}
           goal={goals.fat}
+          color={metricColor.fat}
         />
       </div>
     </section>

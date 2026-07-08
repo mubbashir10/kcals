@@ -17,6 +17,7 @@ import {
 import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { MetricBadge } from "@/components/metric-badge";
 import {
   Dialog,
   DialogClose,
@@ -46,6 +47,7 @@ import { formatShortDateInTz } from "@/lib/clock";
 import { round1 } from "@/lib/utils";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
 import { setWidgetState } from "@/app/actions/widgets";
+import { metricColor } from "@/lib/metric-colors";
 
 export type WeightCardProps = {
   latest: { weightKg: number; loggedAt: string } | null;
@@ -86,8 +88,8 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
             clicks. Make the wrappers transparent to pointer events and
             re-enable only the menu, so clicking anywhere else opens /weight. */}
         <div className="pointer-events-none relative flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Scale className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-2.5">
+            <MetricBadge icon={Scale} color={metricColor.weight} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>

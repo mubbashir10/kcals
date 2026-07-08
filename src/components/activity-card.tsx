@@ -15,6 +15,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { MetricBadge } from "@/components/metric-badge";
+import { metricColor } from "@/lib/metric-colors";
 import {
   Dialog,
   DialogClose,
@@ -66,8 +68,8 @@ export function ActivityCard({
     <>
       <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-2.5">
+            <MetricBadge icon={Zap} color={metricColor.activity} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Today&apos;s activity
             </span>

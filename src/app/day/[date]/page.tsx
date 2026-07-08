@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MacroCard } from "@/components/macro-card";
+import { metricColor } from "@/lib/metric-colors";
 import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { DayActivityTile, DayWeightTile } from "@/components/day-editors";
@@ -257,16 +258,19 @@ export default async function DayPage({
               label="Protein"
               value={Math.round(consumed.protein)}
               goal={macroGoals.protein}
+              color={metricColor.protein}
             />
             <MacroCard
               label="Carbs"
               value={Math.round(consumed.carbs)}
               goal={macroGoals.carbs}
+              color={metricColor.carbs}
             />
             <MacroCard
               label="Fat"
               value={Math.round(consumed.fat)}
               goal={macroGoals.fat}
+              color={metricColor.fat}
             />
           </div>
         </section>

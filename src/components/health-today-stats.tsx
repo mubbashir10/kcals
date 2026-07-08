@@ -9,6 +9,7 @@ import {
   readTodayActivity,
   type TodayActivity,
 } from "@/lib/health";
+import { metricColor } from "@/lib/metric-colors";
 
 // Live "so far today" movement, straight from Health Connect (de-duped across
 // trackers): active calories burned + steps. Native-only, and only once the
@@ -43,14 +44,20 @@ export function HealthTodayStats() {
   return (
     <div className="mb-3 flex items-center gap-5 rounded-2xl bg-muted/50 px-4 py-3">
       <div className="flex items-baseline gap-1.5">
-        <Flame className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
+        <Flame
+          className="h-4 w-4 shrink-0 translate-y-0.5"
+          style={{ color: metricColor.energy }}
+        />
         <span className="text-base font-semibold tabular-nums">
           {(data.activeKcal ?? 0).toLocaleString()}
         </span>
         <span className="text-xs text-muted-foreground">kcal</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <Footprints className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
+        <Footprints
+          className="h-4 w-4 shrink-0 translate-y-0.5"
+          style={{ color: metricColor.activity }}
+        />
         <span className="text-base font-semibold tabular-nums">
           {(data.steps ?? 0).toLocaleString()}
         </span>

@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { MetricBadge } from "@/components/metric-badge";
 import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
+import { metricColor } from "@/lib/metric-colors";
 import type { BmrFormula } from "@/lib/bmr";
 
 type Breakdown =
@@ -45,8 +47,8 @@ export function MaintenanceCard({
   return (
     <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Flame className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2.5">
+          <MetricBadge icon={Flame} color={metricColor.energy} />
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Maintenance calories
           </span>
