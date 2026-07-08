@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HealthDebugPanel } from "@/components/health-debug";
 import { cn } from "@/lib/utils";
+import { isNative } from "@/lib/native";
 import {
   hasHealthAccess,
   healthAvailable,
@@ -23,6 +24,7 @@ import {
 // nothing on the web/PWA or where Health Connect isn't present.
 export function HealthConnectSettings() {
   const router = useRouter();
+  const [native, setNative] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [last, setLast] = useState<TodayActivity | null>(null);
@@ -32,8 +34,10 @@ export function HealthConnectSettings() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      const isApp = isNative();
       const avail = await healthAvailable();
       if (!alive) return;
+      setNative(isApp);
       setAvailable(avail);
       setEnabled(healthSyncEnabled());
     })();
@@ -42,7 +46,11 @@ export function HealthConnectSettings() {
     };
   }, []);
 
-  if (available !== true) return null;
+  // Web/PWA: nothing to show. On native we always render — at least the
+  // diagnostics — even when Health Connect isn't available, so the debug panel
+  // isn't trapped behind the very thing it's meant to diagnose.
+  if (!native) return null;
+  if (available === null) return null;
 
   const sync = () =>
     startTransition(async () => {
@@ -81,51 +89,65 @@ export function HealthConnectSettings() {
           <Activity className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium">Health Connect</span>
         </div>
-        <button
-          type="button"
-          onClick={toggle}
-          disabled={pending}
-          aria-pressed={enabled}
-          aria-label="Sync activity from Health Connect"
-          className={cn(
-            "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-            enabled ? "bg-emerald-500" : "bg-muted",
-            pending && "opacity-60"
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-all",
-              enabled ? "left-[22px]" : "left-0.5"
-            )}
-          />
-        </button>
-      </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground/80">
-        Auto-fill today&apos;s activity from your band — steps and active
-        calories, de-duped across trackers — so your TDEE updates without
-        manual entry.
-      </p>
-
-      {enabled && (
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-[11px] tabular-nums text-muted-foreground">
-            {last
-              ? `Today · ${last.steps ?? "—"} steps · ${last.activeKcal ?? "—"} active kcal`
-              : "Pull today's activity"}
-          </span>
-          <Button
+        {available && (
+          <button
             type="button"
-            onClick={sync}
+            onClick={toggle}
             disabled={pending}
-            variant="secondary"
-            size="sm"
-            className="shrink-0 rounded-full"
+            aria-pressed={enabled}
+            aria-label="Sync activity from Health Connect"
+            className={cn(
+              "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+              enabled ? "bg-primary" : "bg-muted",
+              pending && "opacity-60"
+            )}
           >
-            <RefreshCw className={cn("h-3 w-3", pending && "animate-spin")} />
-            Sync now
-          </Button>
-        </div>
+            <span
+              className={cn(
+                "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-all",
+                enabled ? "left-[22px]" : "left-0.5"
+              )}
+            />
+          </button>
+        )}
+      </div>
+
+      {available ? (
+        <>
+          <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+            Auto-fill today&apos;s activity from your band — steps and active
+            calories, de-duped across trackers — so your TDEE updates without
+            manual entry.
+          </p>
+
+          {enabled && (
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {last
+                  ? `Today · ${last.steps ?? "—"} steps · ${last.activeKcal ?? "—"} active kcal`
+                  : "Pull today's activity"}
+              </span>
+              <Button
+                type="button"
+                onClick={sync}
+                disabled={pending}
+                variant="secondary"
+                size="sm"
+                className="shrink-0 rounded-full"
+              >
+                <RefreshCw className={cn("h-3 w-3", pending && "animate-spin")} />
+                Sync now
+              </Button>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+          Health Connect isn&apos;t available to the app yet — it may not be
+          installed/set up on this phone, or this build predates the plugin. The
+          diagnostics below show exactly what the app sees (including the
+          installed version).
+        </p>
       )}
 
       {msg && (

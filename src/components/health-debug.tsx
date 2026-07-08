@@ -69,6 +69,7 @@ export function HealthDebugPanel() {
 
           {data && (
             <div className="rounded-xl bg-muted/40 p-3 text-[11px] leading-relaxed">
+              <Row k="App version" v={data.appVersion} hi />
               <Row k="Permission" v={data.permission ? "granted" : "denied"} />
               <Row k="Available" v={data.available ? "yes" : "no"} />
               <Row

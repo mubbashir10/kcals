@@ -134,6 +134,7 @@ export type HealthRecordRow = {
 };
 
 export type HealthDebug = {
+  appVersion: string;
   available: boolean;
   permission: boolean;
   tz: string;
@@ -150,9 +151,23 @@ export type HealthDebug = {
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+// Installed native app version+build (e.g. "1.1 (2)"). Comes from @capacitor/app,
+// which is present in every build — so it reveals whether an old APK (missing
+// the capacitor-health plugin) is installed vs the current one.
+async function appVersion(): Promise<string> {
+  try {
+    const { App } = await import("@capacitor/app");
+    const info = await App.getInfo();
+    return `${info.version} (${info.build})`;
+  } catch {
+    return "unknown";
+  }
+}
+
 export async function readHealthDebug(): Promise<HealthDebug> {
   const { startDate, endDate } = todayWindow();
   const dbg: HealthDebug = {
+    appVersion: "unknown",
     available: false,
     permission: false,
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -171,6 +186,9 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     return dbg;
   }
   try {
+    // Grab the app version first (separate plugin, always present) so we still
+    // learn the installed build even if the health plugin is missing/throws.
+    dbg.appVersion = await appVersion();
     const Health = await health();
     // Five independent read-only bridge hops over the same window — run them
     // concurrently. Each keeps its own catch so one failure doesn't blank the
