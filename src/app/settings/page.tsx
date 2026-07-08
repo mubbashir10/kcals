@@ -10,6 +10,7 @@ import { WeekStartSettings } from "@/components/week-start-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
 import { DefaultMealsSettings } from "@/components/default-meals-settings";
 import { HealthConnectSettings } from "@/components/health-connect-settings";
+import { VersionBadge } from "@/components/version-badge";
 import { listDefaultMeals } from "@/app/actions/default-meals";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,8 @@ export default async function SettingsPage() {
             }}
           />
         </section>
+
+        <VersionBadge />
       </main>
     </div>
   );

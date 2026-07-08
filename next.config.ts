@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  env: {
+    // Short commit SHA of the live deploy, inlined into the client bundle so a
+    // subtle version badge can show exactly which web build is loaded (handy
+    // for confirming a deploy actually reached the native WebView).
+    NEXT_PUBLIC_BUILD_SHA:
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
+  },
   experimental: {
     // Lets us use React's <ViewTransition> for native-feeling page
     // transitions on navigation. See app/layout.tsx + globals.css.
