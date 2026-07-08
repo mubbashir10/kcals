@@ -122,8 +122,24 @@ cd android && ./gradlew assembleRelease
 # → app/build/outputs/apk/release/app-release.apk
 ```
 
-Share the APK file directly (no Play Store). Bump `versionCode`/`versionName`
-in `android/app/build.gradle` for each update you distribute.
+### Publishing an update (in-app update prompt)
+
+You rarely rebuild — web/feature changes ship automatically via deploy (remote-
+URL mode). Rebuild the APK only for native changes (plugins, permissions, icon,
+minSdk). When you do:
+
+1. Bump **`versionCode`** (and `versionName`) in `android/app/build.gradle`.
+2. Bump **`code`** (and `name`) in `src/lib/app-version.ts` to the *same*
+   `versionCode`, and deploy — this is what tells installed apps an update
+   exists (the in-app "Update available" banner reads `/api/app-version`).
+3. Rebuild the signed APK and publish a GitHub release with the asset named
+   **`kcals.apk`**:
+   `gh release create vX.Y.Z app/build/outputs/apk/release/app-release.apk#kcals.apk`
+   — `kcals.app/download` always redirects to the newest release, so the update
+   banner and `/install` page pick it up with no code change.
+
+Installing the new APK **updates in place** (same signing key) — no uninstall,
+data preserved.
 
 ## Files
 

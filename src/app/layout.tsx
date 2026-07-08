@@ -10,6 +10,7 @@ import { NavProgress } from "@/components/nav-progress";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { NativeBridge } from "@/components/native/native-bridge";
 import { HealthSync } from "@/components/native/health-sync";
+import { AppUpdate } from "@/components/native/app-update";
 import { GetAppBanner } from "@/components/get-app-banner";
 import { TimezoneSync } from "@/components/timezone-sync";
 import { getSiteUrl } from "@/lib/site";
@@ -131,6 +132,7 @@ export default function RootLayout({
         <NativeBridge />
         <HealthSync />
         <GetAppBanner />
+        <AppUpdate />
         <TimezoneSync />
       </body>
     </html>
