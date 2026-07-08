@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  Activity,
   ArrowLeftRight,
   CalendarDays,
   CalendarRange,
@@ -10,10 +11,9 @@ import {
   Eye,
   EyeOff,
   Flame,
-  Scale,
   UtensilsCrossed,
   Users,
-  Zap,
+  Weight,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -53,8 +53,8 @@ const WIDGETS: {
   { id: "calorie", label: "Calorie ring", icon: Circle, accent: "text-emerald-500" },
   { id: "macros", label: "Macros", icon: ArrowLeftRight, accent: "text-rose-500" },
   { id: "maintenance", label: "Maintenance calories", icon: Flame, accent: "text-amber-500" },
-  { id: "activity", label: "Today's activity", icon: Zap, accent: "text-sky-500" },
-  { id: "weight", label: "Weight", icon: Scale, accent: "text-violet-500" },
+  { id: "activity", label: "Today's activity", icon: Activity, accent: "text-sky-500" },
+  { id: "weight", label: "Weight", icon: Weight, accent: "text-violet-500" },
   { id: "calendar", label: "Calendar", icon: CalendarDays, accent: "text-emerald-500" },
   { id: "week", label: "Week summary", icon: CalendarRange, accent: "text-teal-500" },
   { id: "meals", label: "Today's meals", icon: UtensilsCrossed, accent: "text-orange-500" },

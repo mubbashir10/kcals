@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  Activity,
   Dumbbell,
   EyeOff,
   Footprints,
@@ -10,7 +11,6 @@ import {
   Plus,
   Trash2,
   Watch,
-  Zap,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export function ActivityCard({
       <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Zap} color={metricColor.activity} />
+            <MetricBadge icon={Activity} color={metricColor.activity} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Today&apos;s activity
             </span>

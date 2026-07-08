@@ -20,12 +20,12 @@ export function MetricBadge({
     <span
       aria-hidden
       className={cn(
-        "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
+        "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl",
         className
       )}
       style={{ backgroundColor: metricTint(color), color }}
     >
-      <Icon className="h-[18px] w-[18px]" />
+      <Icon className="h-[22px] w-[22px]" />
     </span>
   );
 }

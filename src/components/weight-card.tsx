@@ -8,7 +8,7 @@ import {
   Minus,
   MoreHorizontal,
   Plus,
-  Scale,
+  Weight,
   TrendingDown,
   TrendingUp,
   Upload,
@@ -89,7 +89,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
             re-enable only the menu, so clicking anywhere else opens /weight. */}
         <div className="pointer-events-none relative flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Scale} color={metricColor.weight} />
+            <MetricBadge icon={Weight} color={metricColor.weight} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>

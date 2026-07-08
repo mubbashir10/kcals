@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Flame, Scale } from "lucide-react";
+import { ArrowLeft, Flame, Weight } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 
@@ -193,7 +193,7 @@ function FriendDayView({
 
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2.5">
-            <MetricBadge icon={Scale} color={metricColor.weight} />
+            <MetricBadge icon={Weight} color={metricColor.weight} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>

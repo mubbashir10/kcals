@@ -2,15 +2,15 @@
 
 import { useState, useTransition } from "react";
 import {
+  Activity,
   Dumbbell,
   Flame,
   Footprints,
   Pencil,
   Plus,
-  Scale,
   Trash2,
   Watch,
-  Zap,
+  Weight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ export function DayWeightTile({
       <Card className="rounded-2xl border-border/60 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Scale} color={metricColor.weight} />
+            <MetricBadge icon={Weight} color={metricColor.weight} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Weight
             </span>
@@ -286,7 +286,7 @@ export function DayActivityTile({
       <Card className="rounded-2xl border-border/60 p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Zap} color={metricColor.activity} />
+            <MetricBadge icon={Activity} color={metricColor.activity} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Activity
             </span>
