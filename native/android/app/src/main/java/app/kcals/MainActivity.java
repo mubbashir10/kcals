@@ -27,7 +27,12 @@ public class MainActivity extends BridgeActivity {
     // Let me inspect/force-clear the WebView remotely if anything else lingers.
     WebView.setWebContentsDebuggingEnabled(true);
 
-    super.onCreate(savedInstanceState);
+    // Pass null so the WebView never RESTORES its last URL. In remote-URL mode
+    // Capacitor injects the native bridge only on the load it initiates on
+    // launch; if Android restores a previously-navigated deep page instead,
+    // that page has no bridge (isNative=false) and every native feature dies.
+    // Forcing a fresh load of server.url on every launch keeps the bridge.
+    super.onCreate(null);
 
     // Also never use the WebView HTTP cache — always pull the live site.
     WebView webView = this.bridge != null ? this.bridge.getWebView() : null;
