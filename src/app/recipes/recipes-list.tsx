@@ -59,7 +59,7 @@ export function RecipesList({
           {filteredFriends.length > 0 && (
             <section>
               <div className="mb-3 flex items-center gap-2 px-1">
-                <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
                   Friends&rsquo; recipes
                 </span>
                 <div className="h-px flex-1 bg-border/60" />

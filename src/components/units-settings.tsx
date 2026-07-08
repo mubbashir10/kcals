@@ -28,7 +28,7 @@ export function UnitsSettings({ initial }: { initial: UnitsPreference }) {
       <div className="mb-3 flex items-center gap-2">
         <Ruler className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm font-medium">Units</span>
-        <span className="ml-auto text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="ml-auto text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           Everywhere
         </span>
       </div>

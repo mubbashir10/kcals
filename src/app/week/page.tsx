@@ -162,7 +162,7 @@ export default async function WeekPage({
 
         {/* Daily breakdown */}
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="mb-3 px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Daily breakdown
           </h2>
           <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">

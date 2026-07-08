@@ -174,16 +174,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
                 </span>
               </div>
               {deltaDisplay && (
-                <span
-                  className={[
-                    "inline-flex items-center gap-1 text-xs font-medium tabular-nums",
-                    deltaDisplay.direction === "down"
-                      ? "text-emerald-500"
-                      : deltaDisplay.direction === "up"
-                      ? "text-rose-500"
-                      : "text-muted-foreground",
-                  ].join(" ")}
-                >
+                <span className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-muted-foreground">
                   {deltaDisplay.direction === "down" && (
                     <TrendingDown className="h-3 w-3" />
                   )}
@@ -459,7 +450,7 @@ function WeightImportDialog({
           )}
 
           {result && (
-            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-lg bg-accent px-3 py-2 text-xs text-accent-foreground">
               Imported {result.imported}{" "}
               {result.imported === 1 ? "entry" : "entries"}
               {result.skipped > 0 && ` · ${result.skipped} skipped`}.

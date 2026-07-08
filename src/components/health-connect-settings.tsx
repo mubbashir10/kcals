@@ -4,7 +4,9 @@ import { useEffect, useState, useTransition } from "react";
 import { Activity, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HealthDebugPanel } from "@/components/health-debug";
 import { cn } from "@/lib/utils";
 import {
   hasHealthAccess,
@@ -112,21 +114,25 @@ export function HealthConnectSettings() {
               ? `Today · ${last.steps ?? "—"} steps · ${last.activeKcal ?? "—"} active kcal`
               : "Pull today's activity"}
           </span>
-          <button
+          <Button
             type="button"
             onClick={sync}
             disabled={pending}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-[11px] font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60"
+            variant="secondary"
+            size="sm"
+            className="shrink-0 rounded-full"
           >
             <RefreshCw className={cn("h-3 w-3", pending && "animate-spin")} />
             Sync now
-          </button>
+          </Button>
         </div>
       )}
 
       {msg && (
         <p className="mt-2 text-[11px] text-muted-foreground/70">{msg}</p>
       )}
+
+      <HealthDebugPanel />
     </Card>
   );
 }

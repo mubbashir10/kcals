@@ -2,6 +2,8 @@ import { ArrowLeft, Apple } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { FoodsList } from "@/app/foods/foods-list";
 import { type CustomFoodListItemData } from "@/components/custom-food-list-item";
 import { db } from "@/lib/db";
@@ -67,7 +69,7 @@ export default async function FoodsPage() {
             </p>
             <AppLink
               href="/add"
-              className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90"
+              className={cn(buttonVariants({ size: "lg" }), "mt-5 rounded-full")}
             >
               Search & add food
             </AppLink>

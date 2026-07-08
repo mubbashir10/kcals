@@ -3,6 +3,8 @@ import { Plus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ActivityCard } from "@/components/activity-card";
 import { CalendarWidget } from "@/components/calendar-widget";
 import { CalorieRingWidget } from "@/components/calorie-ring-widget";
@@ -377,7 +379,7 @@ export default async function Home() {
                         </p>
                         <AppLink
                           href="/add"
-                          className="mt-4 inline-flex h-9 items-center justify-center gap-1 rounded-full bg-foreground px-5 text-xs font-medium text-background transition-opacity hover:opacity-90"
+                          className={cn(buttonVariants({ size: "lg" }), "mt-4 rounded-full")}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add food

@@ -2,6 +2,7 @@ import { ArrowLeft, ChefHat, Plus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { RecipesList } from "@/app/recipes/recipes-list";
 import { type RecipeListItemData } from "@/components/recipe-list-item";
 import { createBlankRecipe } from "@/app/actions/recipes";
@@ -72,13 +73,10 @@ export default async function RecipesPage() {
           </AppLink>
           <span className="text-sm font-semibold tracking-tight">Recipes</span>
           <form action={createBlankRecipe} className="ml-auto">
-            <button
-              type="submit"
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
-            >
+            <Button type="submit" className="rounded-full">
               <Plus className="h-3 w-3" />
               New recipe
-            </button>
+            </Button>
           </form>
         </div>
       </header>
@@ -96,13 +94,10 @@ export default async function RecipesPage() {
               it.
             </p>
             <form action={createBlankRecipe} className="mt-5">
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-xs font-medium text-background"
-              >
+              <Button type="submit" size="lg" className="rounded-full">
                 <Plus className="h-3.5 w-3.5" />
                 New recipe
-              </button>
+              </Button>
             </form>
           </Card>
         ) : (

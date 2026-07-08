@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   Dialog,
@@ -274,7 +274,7 @@ export function MealCard({
           <p className="mb-3 text-xs text-muted-foreground">No food yet</p>
           <AppLink
             href={addHref}
-            className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90"
+            className={cn(buttonVariants(), "rounded-full")}
           >
             <Plus className="h-3 w-3" />
             Add food
@@ -1392,7 +1392,7 @@ function FoodStat({
           </span>
         )}
       </div>
-      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
     </div>
@@ -1432,7 +1432,7 @@ function MacroEditInput({
         placeholder="0"
         className="pl-7 pr-8 tabular-nums"
       />
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </span>
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">

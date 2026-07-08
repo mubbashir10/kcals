@@ -88,7 +88,7 @@ export default async function GoalPage() {
 
         {profile.sex === "female" && (
           <div className="mt-8 space-y-3">
-            <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Breastfeeding
             </h2>
             <LactationSettings

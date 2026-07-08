@@ -43,20 +43,20 @@ export function HealthTodayStats() {
   return (
     <div className="mb-3 flex items-center gap-5 rounded-2xl bg-muted/50 px-4 py-3">
       <div className="flex items-baseline gap-1.5">
-        <Flame className="h-4 w-4 shrink-0 translate-y-0.5 text-orange-500" />
+        <Flame className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
         <span className="text-base font-semibold tabular-nums">
           {(data.activeKcal ?? 0).toLocaleString()}
         </span>
         <span className="text-xs text-muted-foreground">kcal</span>
       </div>
       <div className="flex items-baseline gap-1.5">
-        <Footprints className="h-4 w-4 shrink-0 translate-y-0.5 text-sky-500" />
+        <Footprints className="h-4 w-4 shrink-0 translate-y-0.5 text-muted-foreground" />
         <span className="text-base font-semibold tabular-nums">
           {(data.steps ?? 0).toLocaleString()}
         </span>
         <span className="text-xs text-muted-foreground">steps</span>
       </div>
-      <span className="ml-auto text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+      <span className="ml-auto text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
         so far
       </span>
     </div>

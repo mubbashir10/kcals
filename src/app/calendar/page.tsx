@@ -176,7 +176,7 @@ function SummaryTile({
 }) {
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       <div className="mt-2 text-lg font-semibold tabular-nums tracking-tight">

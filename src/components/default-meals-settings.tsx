@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Plus, Trash2 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -82,15 +83,16 @@ export function DefaultMealsSettings({ initial }: { initial: DefaultMealRow[] })
           aria-label="New default meal time"
           className="h-9 w-28 tabular-nums"
         />
-        <button
+        <Button
           type="button"
           onClick={add}
           disabled={pending}
           aria-label="Add default meal"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+          size="icon-lg"
+          className="shrink-0"
         >
           <Plus className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       {error && (

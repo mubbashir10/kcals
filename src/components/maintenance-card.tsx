@@ -46,7 +46,7 @@ export function MaintenanceCard({
     <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Flame className="h-3.5 w-3.5 text-amber-500" />
+          <Flame className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Maintenance calories
           </span>
@@ -73,7 +73,6 @@ export function MaintenanceCard({
       >
         <BreakdownItem
           icon={Heart}
-          accent="text-rose-500/80"
           label="BMR"
           value={breakdown.bmrKcal}
           hint={
@@ -85,7 +84,6 @@ export function MaintenanceCard({
         {breakdown.kind === "override" ? (
           <BreakdownItem
             icon={Watch}
-            accent="text-emerald-500/80"
             label="Active"
             value={breakdown.activeKcal}
             hint={breakdown.activeHint}
@@ -94,14 +92,12 @@ export function MaintenanceCard({
           <>
             <BreakdownItem
               icon={Footprints}
-              accent="text-sky-500/80"
               label="NEAT"
               value={breakdown.neatKcal}
               hint={breakdown.neatHint}
             />
             <BreakdownItem
               icon={Dumbbell}
-              accent="text-amber-500/80"
               label="EAT"
               value={breakdown.eatKcal}
               hint={breakdown.eatHint}
@@ -112,7 +108,7 @@ export function MaintenanceCard({
 
       {lactationKcal > 0 && (
         <div className="mt-3 flex items-center gap-2 rounded-2xl bg-muted/60 px-4 py-2.5">
-          <Baby className="h-3.5 w-3.5 shrink-0 text-fuchsia-500/80" />
+          <Baby className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
             Breastfeeding
           </span>
@@ -130,13 +126,11 @@ export function MaintenanceCard({
 
 function BreakdownItem({
   icon: Icon,
-  accent,
   label,
   value,
   hint,
 }: {
   icon: LucideIcon;
-  accent: string;
   label: string;
   value: number;
   hint: string;
@@ -144,8 +138,8 @@ function BreakdownItem({
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        <Icon className={cn("h-3 w-3", accent)} />
-        <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <Icon className="h-3 w-3 text-muted-foreground" />
+        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           {label}
         </div>
       </div>
@@ -155,7 +149,7 @@ function BreakdownItem({
           kcal
         </span>
       </div>
-      <div className="mt-1.5 truncate text-[10px] text-muted-foreground/70">
+      <div className="mt-1.5 truncate text-[11px] text-muted-foreground/70">
         {hint}
       </div>
     </div>

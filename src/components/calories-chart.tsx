@@ -63,7 +63,7 @@ export function CaloriesChart({ points, timezone }: Props) {
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="mb-3 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         <span>{dateFmt(sorted[0].dayKey)}</span>
         <span>
           {sorted.length} {sorted.length === 1 ? "day" : "days"}

@@ -168,7 +168,7 @@ export async function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="px-2 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <DropdownMenuLabel className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Theme
           </DropdownMenuLabel>
           <ThemeMenuGroup />

@@ -156,7 +156,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 
       {showPace && (
         <Card className="space-y-2 rounded-2xl border-border/60 p-3 shadow-card">
-          <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Pace
           </div>
           <div className="space-y-1.5">
@@ -198,7 +198,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
                     </div>
                     <div
                       className={cn(
-                        "text-[10px] font-medium uppercase tracking-[0.16em]",
+                        "text-[11px] font-medium uppercase tracking-[0.14em]",
                         active ? "text-background/70" : "text-muted-foreground"
                       )}
                     >
@@ -247,14 +247,14 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 function MaintainCard({ tdee }: { tdee: number }) {
   return (
     <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         Your maintenance
       </div>
       <div className="mt-1 flex items-baseline gap-2">
         <span className="text-3xl font-semibold tabular-nums">
           {Math.round(tdee).toLocaleString()}
         </span>
-        <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
           kcal / day
         </span>
       </div>
@@ -315,7 +315,7 @@ function TrackEditor({
       <div>
         <label
           htmlFor="track-kcal"
-          className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+          className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
         >
           Daily calorie target
         </label>
@@ -382,7 +382,7 @@ function MacroEditor({
 
   return (
     <div className="space-y-2">
-      <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
         Macros
       </div>
       <div className="space-y-2 rounded-xl border border-border/60 p-2.5">

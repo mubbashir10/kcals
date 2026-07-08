@@ -399,7 +399,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       {sex === "female" && (
         <div className="space-y-5 pt-2">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Breastfeeding
             </span>
             <div className="h-px flex-1 bg-border/60" />
@@ -491,7 +491,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       {/* Activity — used for maintenance-calorie (TDEE) calculation */}
       <div className="space-y-5 pt-2">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Activity
           </span>
           <div className="h-px flex-1 bg-border/60" />
@@ -624,7 +624,7 @@ function SessionGroup({
         >
           {label}
         </Label>
-        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
           Optional
         </span>
       </div>
@@ -638,7 +638,7 @@ function SessionGroup({
             onChange={(e) => onFreqChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             × / week
           </span>
         </div>
@@ -651,7 +651,7 @@ function SessionGroup({
             onChange={(e) => onDurChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             min
           </span>
         </div>
@@ -683,7 +683,7 @@ function Field({
           {label}
         </Label>
         {optional && (
-          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
             Optional
           </span>
         )}

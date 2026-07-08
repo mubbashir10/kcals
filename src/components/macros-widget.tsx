@@ -3,13 +3,6 @@ import { MacroCard } from "@/components/macro-card";
 import { WidgetMenu } from "@/components/widget-menu";
 import type { MacroGoals } from "@/lib/macros";
 
-// Match the dots inside MacroCard.
-const ACCENTS = {
-  protein: "oklch(0.68 0.2 20)",
-  carbs: "oklch(0.78 0.16 75)",
-  fat: "oklch(0.6 0.18 280)",
-} as const;
-
 type Totals = { protein: number; carbs: number; fat: number };
 
 export function MacrosWidget({
@@ -38,19 +31,16 @@ export function MacrosWidget({
           label="Protein"
           value={Math.round(consumed.protein)}
           goal={goals.protein}
-          accent={ACCENTS.protein}
         />
         <MacroCard
           label="Carbs"
           value={Math.round(consumed.carbs)}
           goal={goals.carbs}
-          accent={ACCENTS.carbs}
         />
         <MacroCard
           label="Fat"
           value={Math.round(consumed.fat)}
           goal={goals.fat}
-          accent={ACCENTS.fat}
         />
       </div>
     </section>

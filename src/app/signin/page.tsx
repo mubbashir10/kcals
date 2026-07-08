@@ -68,7 +68,7 @@ export default async function SignInPage({
           </form>
         </Card>
 
-        <div className="mt-8 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70">
+        <div className="mt-8 flex items-center gap-1.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground/70">
           <FeaturePill icon={Flame} label="Track" />
           <Dot />
           <FeaturePill icon={Target} label="Goals" />

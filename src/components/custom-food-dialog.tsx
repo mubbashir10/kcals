@@ -434,12 +434,12 @@ function Field({
           {label}
         </Label>
         {optional && (
-          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
             Optional
           </span>
         )}
         {required && (
-          <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground/60">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
             Required
           </span>
         )}
@@ -477,7 +477,7 @@ function NutrientField({
           placeholder={placeholder}
           className="pr-12"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           {suffix}
         </span>
       </div>

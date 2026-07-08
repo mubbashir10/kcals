@@ -38,13 +38,6 @@ import { sumBy } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-// Match the dots in MacrosWidget/CaloriesHistory.
-const MACRO_ACCENTS = {
-  protein: "oklch(0.68 0.2 20)",
-  carbs: "oklch(0.78 0.16 75)",
-  fat: "oklch(0.6 0.18 280)",
-} as const;
-
 // Strict "YYYY-MM-DD". We don't want surprise inputs like "2026-5-1" turning
 // into different days under different timezones.
 const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -256,7 +249,7 @@ export default async function DayPage({
 
         {/* Macros */}
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="mb-3 px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Macros
           </h2>
           <div className="grid grid-cols-3 gap-3">
@@ -264,19 +257,16 @@ export default async function DayPage({
               label="Protein"
               value={Math.round(consumed.protein)}
               goal={macroGoals.protein}
-              accent={MACRO_ACCENTS.protein}
             />
             <MacroCard
               label="Carbs"
               value={Math.round(consumed.carbs)}
               goal={macroGoals.carbs}
-              accent={MACRO_ACCENTS.carbs}
             />
             <MacroCard
               label="Fat"
               value={Math.round(consumed.fat)}
               goal={macroGoals.fat}
-              accent={MACRO_ACCENTS.fat}
             />
           </div>
         </section>
@@ -322,7 +312,7 @@ export default async function DayPage({
         {/* Meals */}
         <section className="mt-8">
           <div className="mb-3 flex items-baseline justify-between px-1">
-            <h2 className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Meals
             </h2>
             <span className="text-[10px] tabular-nums text-muted-foreground/70">

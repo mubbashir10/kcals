@@ -17,14 +17,11 @@ import { WidgetMenu } from "@/components/widget-menu";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import type { GoalType } from "@/lib/goal";
 
-const GOAL_CHIP: Record<
-  GoalType,
-  { label: string; icon: LucideIcon; tone: string }
-> = {
-  loss: { label: "Lose", icon: TrendingDown, tone: "text-rose-400" },
-  maintain: { label: "Maintain", icon: Minus, tone: "text-sky-400" },
-  gain: { label: "Gain", icon: TrendingUp, tone: "text-emerald-400" },
-  track: { label: "Tracking", icon: Activity, tone: "text-muted-foreground" },
+const GOAL_CHIP: Record<GoalType, { label: string; icon: LucideIcon }> = {
+  loss: { label: "Lose", icon: TrendingDown },
+  maintain: { label: "Maintain", icon: Minus },
+  gain: { label: "Gain", icon: TrendingUp },
+  track: { label: "Tracking", icon: Activity },
 };
 
 export function CalorieRingWidget({
@@ -78,7 +75,7 @@ export function CalorieRingWidget({
               ? "Switch to showing consumed"
               : "Switch to showing remaining"
           }
-          className="pointer-events-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="pointer-events-auto inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeftRight className="h-3 w-3" />
           {mode === "remaining" ? "Remaining" : "Consumed"}
@@ -94,7 +91,7 @@ export function CalorieRingWidget({
         <CalorieRing consumed={consumed} goal={goal} mode={mode} />
 
         {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <span className="tabular-nums">
               BMR{" "}
               <span className="font-semibold text-foreground/80">
@@ -147,14 +144,14 @@ function GoalChip({ type, offset }: { type: GoalType; offset: number }) {
   const Icon = meta.icon;
   return (
     <span
-      className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground"
+      className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
       title={
         offset === 0
           ? meta.label
           : `${meta.label}: ${offset < 0 ? "−" : "+"}${Math.abs(offset)} kcal/day`
       }
     >
-      <Icon className={`h-3 w-3 ${meta.tone}`} />
+      <Icon className="h-3 w-3" />
       {meta.label}
     </span>
   );

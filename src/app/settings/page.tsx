@@ -4,6 +4,7 @@ import { AppLink } from "@/components/app-link";
 import { requireProfile } from "@/lib/session";
 import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
+import { ThemeSettings } from "@/components/theme-settings";
 import { UnitsSettings } from "@/components/units-settings";
 import { WeekStartSettings } from "@/components/week-start-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
@@ -47,9 +48,10 @@ export default async function SettingsPage() {
         </div>
 
         <section className="mb-8 space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Preferences
           </h2>
+          <ThemeSettings />
           <UnitsSettings
             initial={profile.units as Units}
           />
@@ -59,7 +61,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Widgets
           </h2>
           <WidgetsSettings

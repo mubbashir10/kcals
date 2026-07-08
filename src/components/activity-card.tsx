@@ -156,7 +156,7 @@ function ActivitySummary({
   if (today.mode === "override") {
     return (
       <div className="flex items-center gap-2">
-        <Watch className="h-3.5 w-3.5 text-emerald-500/80" />
+        <Watch className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm tabular-nums">
           {today.wearableKcal != null
             ? `${today.wearableKcal.toLocaleString()} kcal`
@@ -169,25 +169,22 @@ function ActivitySummary({
     );
   }
 
-  const chips: { icon: typeof Footprints; color: string; text: string }[] = [];
+  const chips: { icon: typeof Footprints; text: string }[] = [];
   if (today.steps && today.steps > 0) {
     chips.push({
       icon: Footprints,
-      color: "text-sky-500/80",
       text: `${today.steps.toLocaleString()} steps`,
     });
   }
   if (today.liftingMin && today.liftingMin > 0) {
     chips.push({
       icon: Dumbbell,
-      color: "text-amber-500/80",
       text: `${today.liftingMin}m lift`,
     });
   }
   if (today.cardioMin && today.cardioMin > 0) {
     chips.push({
       icon: Dumbbell,
-      color: "text-amber-500/80",
       text: `${today.cardioMin}m cardio`,
     });
   }
@@ -199,7 +196,7 @@ function ActivitySummary({
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       {chips.map((c, i) => (
         <span key={i} className="flex items-center gap-1.5 text-sm tabular-nums">
-          <c.icon className={cn("h-3.5 w-3.5", c.color)} />
+          <c.icon className="h-3.5 w-3.5 text-muted-foreground" />
           {c.text}
         </span>
       ))}

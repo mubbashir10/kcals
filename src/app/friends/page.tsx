@@ -64,7 +64,7 @@ export default async function FriendsPage() {
 
         {incomingInvites.length > 0 && (
           <section className="mb-8 space-y-3">
-            <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Pending for you
             </h2>
             <PendingInvitesList
@@ -80,7 +80,7 @@ export default async function FriendsPage() {
         )}
 
         <section className="mb-8 space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <UserPlus className="h-3 w-3" />
               Invite someone
@@ -93,7 +93,7 @@ export default async function FriendsPage() {
 
         {sentInvites.length > 0 && (
           <section className="mb-8 space-y-3">
-            <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Sent
             </h2>
             <Card className="divide-y divide-border/60 rounded-2xl border-border/60 p-0 shadow-card">
@@ -111,7 +111,7 @@ export default async function FriendsPage() {
         )}
 
         <section className="space-y-3">
-          <h2 className="px-1 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Your friends
           </h2>
           <FriendsList friends={friends} />

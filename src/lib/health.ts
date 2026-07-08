@@ -59,30 +59,37 @@ export async function hasHealthAccess(): Promise<boolean> {
 
 export type TodayActivity = { activeKcal: number | null; steps: number | null };
 
+type HealthApi = Awaited<ReturnType<typeof health>>;
+
+/** Device-local midnight → now, as ISO strings. */
+function todayWindow(): { startDate: string; endDate: string } {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return { startDate: start.toISOString(), endDate: new Date().toISOString() };
+}
+
+/** De-duped daily total for a data type (HC resolves overlapping sources by
+ *  its priority list; we sum the single day bucket). */
+async function aggregateTotal(
+  Health: HealthApi,
+  startDate: string,
+  endDate: string,
+  dataType: "steps" | "active-calories"
+): Promise<number> {
+  const agg = await Health.queryAggregated({ startDate, endDate, dataType, bucket: "day" });
+  return Math.round(
+    (agg.aggregatedData || []).reduce((s, d) => s + (d.value || 0), 0)
+  );
+}
+
 /** Today's de-duped totals (local-midnight → now). */
 export async function readTodayActivity(): Promise<TodayActivity> {
   try {
     const Health = await health();
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const startDate = start.toISOString();
-    const endDate = new Date().toISOString();
-    const sum = async (dataType: "steps" | "active-calories") => {
-      const agg = await Health.queryAggregated({
-        startDate,
-        endDate,
-        dataType,
-        bucket: "day",
-      });
-      const total = (agg.aggregatedData || []).reduce(
-        (s, d) => s + (d.value || 0),
-        0
-      );
-      return Math.round(total);
-    };
+    const { startDate, endDate } = todayWindow();
     const [steps, activeKcal] = await Promise.all([
-      sum("steps").catch(() => null),
-      sum("active-calories").catch(() => null),
+      aggregateTotal(Health, startDate, endDate, "steps").catch(() => null),
+      aggregateTotal(Health, startDate, endDate, "active-calories").catch(() => null),
     ]);
     return { activeKcal, steps };
   } catch {
@@ -109,6 +116,102 @@ export async function syncHealthNow(): Promise<TodayActivity | null> {
     return null;
   }
   return data;
+}
+
+// ─── On-device diagnostics ──────────────────────────────────────────────
+// Health Connect is a headless data store, so this surfaces exactly what the
+// plugin hands kcals: the de-duped daily aggregate we actually use, plus the
+// raw per-source step records (each with its writer + time range). Comparing
+// "latest step data" against wall-clock reveals how stale a tracker like Mi
+// Fitness's writes are; multiple sources flag potential double-counting.
+
+export type HealthRecordRow = {
+  source: string;
+  start: string;
+  end: string;
+  value: number;
+  manual: boolean;
+};
+
+export type HealthDebug = {
+  available: boolean;
+  permission: boolean;
+  tz: string;
+  windowStart: string;
+  readAt: string;
+  aggSteps: number | null;
+  aggActiveKcal: number | null;
+  records: HealthRecordRow[];
+  recordCount: number;
+  sources: string[];
+  latestRecordEnd: string | null;
+  error: string | null;
+};
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+export async function readHealthDebug(): Promise<HealthDebug> {
+  const { startDate, endDate } = todayWindow();
+  const dbg: HealthDebug = {
+    available: false,
+    permission: false,
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    windowStart: startDate,
+    readAt: endDate,
+    aggSteps: null,
+    aggActiveKcal: null,
+    records: [],
+    recordCount: 0,
+    sources: [],
+    latestRecordEnd: null,
+    error: null,
+  };
+  if (!isNative()) {
+    dbg.error = "Not the native app";
+    return dbg;
+  }
+  try {
+    const Health = await health();
+    // Five independent read-only bridge hops over the same window — run them
+    // concurrently. Each keeps its own catch so one failure doesn't blank the
+    // rest; the queryRecords guard in particular lets an older plugin without
+    // it still return the aggregates.
+    const [available, permission, aggSteps, aggActiveKcal, records] =
+      await Promise.all([
+        Health.isHealthAvailable()
+          .then((r) => r.available)
+          .catch(() => false),
+        hasHealthAccess().catch(() => false),
+        aggregateTotal(Health, startDate, endDate, "steps").catch(() => null),
+        aggregateTotal(Health, startDate, endDate, "active-calories").catch(() => null),
+        Health.queryRecords({ startDate, endDate, dataType: "steps" })
+          .then((r) => r.records || [])
+          .catch((e) => {
+            dbg.error = `records: ${errMsg(e)}`;
+            return [];
+          }),
+      ]);
+    dbg.available = available;
+    dbg.permission = permission;
+    dbg.aggSteps = aggSteps;
+    dbg.aggActiveKcal = aggActiveKcal;
+
+    const rows: HealthRecordRow[] = records.map((r) => ({
+      source: r.sourceName,
+      start: r.startDate,
+      end: r.endDate,
+      value: Math.round(r.value || 0),
+      manual: r.manual,
+    }));
+    rows.sort((a, b) => (a.end < b.end ? 1 : a.end > b.end ? -1 : 0));
+    dbg.records = rows;
+    dbg.recordCount = rows.length;
+    dbg.sources = [...new Set(rows.map((r) => r.source))];
+    dbg.latestRecordEnd = rows[0]?.end ?? null;
+  } catch (e) {
+    dbg.error = errMsg(e);
+  }
+  return dbg;
 }
 
 export function healthSyncEnabled(): boolean {

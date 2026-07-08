@@ -157,7 +157,7 @@ export function WeightChart({ scale, trend, expected, units, timezone }: Props) 
           <span className="truncate text-[11px] font-medium tabular-nums text-foreground/80">
             {fmtTick(data[start].t)} – {fmtTick(data[end].t)}
           </span>
-          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             {scaleCount} {scaleCount === 1 ? "weigh-in" : "weigh-ins"}
           </span>
         </div>
@@ -320,7 +320,7 @@ function ChartTooltip({
 
   return (
     <div className="rounded-xl border border-border/70 bg-popover/95 px-3 py-2 text-popover-foreground shadow-lg backdrop-blur-sm">
-      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {fmtFull(label)}
       </div>
       <div className="flex flex-col gap-1">

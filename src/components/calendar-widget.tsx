@@ -27,7 +27,7 @@ export function CalendarWidget({
           aria-label="Open calendar"
           className="group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
-          <CalendarDays className="h-3.5 w-3.5 text-emerald-500/80" />
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground/80">
             {monthLabel}
           </span>

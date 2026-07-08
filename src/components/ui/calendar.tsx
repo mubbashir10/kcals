@@ -36,7 +36,7 @@ export function Calendar({
         month_grid: "w-full border-collapse",
         weekdays: "grid grid-cols-7",
         weekday:
-          "py-1 text-center text-sm font-medium uppercase tracking-[0.16em] text-muted-foreground/70",
+          "py-1 text-center text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground/70",
         weeks: "flex flex-col gap-px",
         week: "grid grid-cols-7 gap-px",
         day: "aspect-square p-0",

@@ -154,27 +154,24 @@ function FriendDayView({
           label="Protein"
           value={Math.round(consumed.protein)}
           goal={macroGoals.protein}
-          accent="oklch(0.68 0.2 20)"
         />
         <MacroCard
           label="Carbs"
           value={Math.round(consumed.carbs)}
           goal={macroGoals.carbs}
-          accent="oklch(0.78 0.16 75)"
         />
         <MacroCard
           label="Fat"
           value={Math.round(consumed.fat)}
           goal={macroGoals.fat}
-          accent="oklch(0.6 0.18 280)"
         />
       </section>
 
       <section className="mt-8 grid grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-            <Flame className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.16em]">
+            <Flame className="h-3.5 w-3.5" />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em]">
               Maintenance
             </span>
           </div>
@@ -192,7 +189,7 @@ function FriendDayView({
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2 text-muted-foreground">
             <Scale className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.16em]">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em]">
               Weight
             </span>
           </div>

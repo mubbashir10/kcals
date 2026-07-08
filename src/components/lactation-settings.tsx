@@ -84,8 +84,8 @@ export function LactationSettings({ initial }: Props) {
   return (
     <div className="space-y-3">
       <Card className="space-y-2 rounded-2xl border-border/60 p-3 shadow-card">
-        <div className="flex items-center gap-1.5 px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          <Baby className="h-3 w-3 text-fuchsia-500/80" />
+        <div className="flex items-center gap-1.5 px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <Baby className="h-3 w-3 text-muted-foreground" />
           Breastfeeding
         </div>
         <div className="grid grid-cols-3 gap-1">
@@ -116,7 +116,7 @@ export function LactationSettings({ initial }: Props) {
       {nursing && (
         <>
           <Card className="space-y-2 rounded-2xl border-border/60 p-3 shadow-card">
-            <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               Baby&rsquo;s age
             </div>
             <div className="grid grid-cols-3 gap-1">
@@ -145,7 +145,7 @@ export function LactationSettings({ initial }: Props) {
           </Card>
 
           <Card className="space-y-1.5 rounded-2xl border-border/60 p-3 shadow-card">
-            <div className="px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               What&rsquo;s your aim?
             </div>
             {BASIS_OPTIONS.map((opt) => {
@@ -177,14 +177,14 @@ export function LactationSettings({ initial }: Props) {
           </Card>
 
           <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-            <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Added to maintenance
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-3xl font-semibold tabular-nums">
                 +{extra.toLocaleString()}
               </span>
-              <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 kcal / day
               </span>
             </div>

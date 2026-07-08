@@ -54,19 +54,23 @@ export function CalorieRing({
         ? `${(consumed - goal).toLocaleString()} over goal`
         : `${remaining.toLocaleString()} left today`;
 
-  // Color identity per mode. Brand-green for "room to eat", warm amber→red
-  // for "energy spent", deep red overflow for either when past goal.
+  // Ring color is theme-driven — each mode gets its own hue from the theme
+  // palette, no hardcoded colors: primary (brand green) for "room left today",
+  // the cool chart-2 tone for "energy consumed", and the destructive token
+  // when past goal so it reads as "stop eating" whichever label is active.
+  const ringColor = overGoal
+    ? "var(--destructive)"
+    : mode === "remaining"
+      ? "var(--primary)"
+      : "var(--chart-2)";
+
   const gradientId = overGoal
     ? "calorieRing-over"
     : mode === "remaining"
       ? "calorieRing-remaining"
       : "calorieRing-consumed";
 
-  const glow = overGoal
-    ? "drop-shadow-[0_8px_24px_oklch(0.6_0.24_25_/_0.28)]"
-    : mode === "remaining"
-      ? "drop-shadow-[0_8px_24px_oklch(0.7_0.18_145_/_0.22)]"
-      : "drop-shadow-[0_8px_24px_oklch(0.7_0.18_40_/_0.20)]";
+  const glowColor = `color-mix(in oklch, ${ringColor} ${overGoal ? "26%" : "22%"}, transparent)`;
 
   return (
     <div
@@ -78,10 +82,14 @@ export function CalorieRing({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className={`-rotate-90 ${glow}`}
+        className="-rotate-90"
+        style={{ filter: `drop-shadow(0 8px 24px ${glowColor})` }}
       >
         <defs>
-          {/* Remaining: lime → emerald (matches the kcals brand mark) */}
+          {/* Each ring hue is a theme CSS var (so it tracks the active theme +
+              light/dark). `var()` must be applied via `style`, not the SVG
+              attribute, to resolve. The second stop is a slightly deepened
+              shade of the same token for a subtle sheen. */}
           <linearGradient
             id="calorieRing-remaining"
             x1="0%"
@@ -89,11 +97,13 @@ export function CalorieRing({
             x2="100%"
             y2="100%"
           >
-            <stop offset="0%" stopColor="oklch(0.86 0.18 145)" />
-            <stop offset="100%" stopColor="oklch(0.62 0.18 155)" />
+            <stop offset="0%" style={{ stopColor: "var(--primary)" }} />
+            <stop
+              offset="100%"
+              style={{ stopColor: "color-mix(in oklch, var(--primary), black 22%)" }}
+            />
           </linearGradient>
 
-          {/* Consumed: amber → red (warm "spent energy") */}
           <linearGradient
             id="calorieRing-consumed"
             x1="0%"
@@ -101,11 +111,13 @@ export function CalorieRing({
             x2="100%"
             y2="100%"
           >
-            <stop offset="0%" stopColor="oklch(0.85 0.16 80)" />
-            <stop offset="100%" stopColor="oklch(0.65 0.22 25)" />
+            <stop offset="0%" style={{ stopColor: "var(--chart-2)" }} />
+            <stop
+              offset="100%"
+              style={{ stopColor: "color-mix(in oklch, var(--chart-2), black 18%)" }}
+            />
           </linearGradient>
 
-          {/* Over-goal: deep crimson, full ring */}
           <linearGradient
             id="calorieRing-over"
             x1="0%"
@@ -113,8 +125,11 @@ export function CalorieRing({
             x2="100%"
             y2="100%"
           >
-            <stop offset="0%" stopColor="oklch(0.7 0.22 30)" />
-            <stop offset="100%" stopColor="oklch(0.55 0.24 22)" />
+            <stop offset="0%" style={{ stopColor: "var(--destructive)" }} />
+            <stop
+              offset="100%"
+              style={{ stopColor: "color-mix(in oklch, var(--destructive), black 18%)" }}
+            />
           </linearGradient>
         </defs>
 
@@ -145,7 +160,7 @@ export function CalorieRing({
         <div className="text-5xl font-semibold leading-none tracking-tight tabular-nums">
           {primary.toLocaleString()}
         </div>
-        <div className="mt-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="mt-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
           {primaryHint}
         </div>
         <div className="mt-3 truncate text-[11px] font-medium text-muted-foreground tabular-nums">

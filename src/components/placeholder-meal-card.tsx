@@ -1,5 +1,8 @@
 import { Plus } from "lucide-react";
 
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 
@@ -33,7 +36,7 @@ export function PlaceholderMealCard({
         <p className="mb-3 text-xs text-muted-foreground">No food yet</p>
         <AppLink
           href={addHref}
-          className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90"
+          className={cn(buttonVariants(), "rounded-full")}
         >
           <Plus className="h-3 w-3" />
           Add food

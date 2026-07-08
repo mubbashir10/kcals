@@ -163,7 +163,7 @@ export default async function WeightPage() {
 
         {/* Chart */}
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <h2 className="mb-3 px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             Trend
           </h2>
           <WeightChart
@@ -187,7 +187,7 @@ export default async function WeightPage() {
         {/* History */}
         <section className="mt-8">
           <div className="mb-3 flex items-baseline justify-between px-1">
-            <h2 className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <h2 className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
               History
             </h2>
             <span className="text-[10px] tabular-nums text-muted-foreground/70">
@@ -224,7 +224,7 @@ function DeltaCard({
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-      <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       <div className="mt-2 flex items-center gap-1.5">
