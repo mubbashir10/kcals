@@ -4,7 +4,6 @@ import { AppLink } from "@/components/app-link";
 import { requireProfile } from "@/lib/session";
 import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
-import { TimezoneSettings } from "@/components/timezone-settings";
 import { UnitsSettings } from "@/components/units-settings";
 import { WeekStartSettings } from "@/components/week-start-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
@@ -54,7 +53,6 @@ export default async function SettingsPage() {
           <UnitsSettings
             initial={profile.units as Units}
           />
-          <TimezoneSettings initial={profile.timezone} />
           <WeekStartSettings initial={profile.weekStartDay} />
           <DefaultMealsSettings initial={defaultMeals} />
           <HealthConnectSettings />

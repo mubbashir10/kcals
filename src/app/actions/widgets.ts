@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { revalidateDiary } from "@/lib/revalidate";
+import { auth } from "@/auth";
 import {
   isGoalPace,
   isGoalType,
@@ -99,19 +100,34 @@ export async function setWeekStartDay(day: number) {
   revalidatePath("/settings");
 }
 
-export async function setTimezone(tz: string) {
-  // IANA tz names are 1..64 chars of [A-Za-z0-9_+-/]; validate cheaply so
-  // we don't write garbage into the field that drives every date cutoff.
-  if (typeof tz !== "string" || tz.length === 0 || tz.length > 64 || !/^[A-Za-z0-9_+\-/]+$/.test(tz)) {
-    throw new Error(`Invalid timezone: ${tz}`);
+// Keeps the stored timezone tracking the device clock (called on every launch),
+// so "today" in kcals always matches the phone — and therefore Health Connect /
+// Mi Fitness, which bucket the day by the device clock. Auth-safe (no-ops when
+// signed out) and only writes/revalidates on an actual change, so it's cheap to
+// call every session. There is no manual timezone setting anymore.
+export async function syncTimezone(tz: string) {
+  // IANA tz names are 1..64 chars of [A-Za-z0-9_+-/]; validate cheaply so we
+  // don't write garbage into the field that drives every date cutoff.
+  if (
+    typeof tz !== "string" ||
+    tz.length === 0 ||
+    tz.length > 64 ||
+    !/^[A-Za-z0-9_+\-/]+$/.test(tz)
+  ) {
+    return;
   }
-  const userId = await requireUserId();
-  await db.profile.updateMany({
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return;
+
+  const profile = await db.profile.findUnique({
     where: { userId },
-    data: { timezone: tz },
+    select: { timezone: true },
   });
+  if (!profile || profile.timezone === tz) return;
+
+  await db.profile.update({ where: { userId }, data: { timezone: tz } });
   revalidatePath("/");
-  revalidatePath("/settings");
 }
 
 export async function setGoal(type: GoalType, pace: GoalPace | null) {
