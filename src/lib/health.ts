@@ -136,6 +136,9 @@ export type HealthRecordRow = {
 export type HealthDebug = {
   native: boolean;
   platform: string;
+  capacitorGlobal: string;
+  swActive: boolean;
+  ua: string;
   appVersion: string;
   available: boolean;
   permission: boolean;
@@ -171,6 +174,9 @@ export async function readHealthDebug(): Promise<HealthDebug> {
   const dbg: HealthDebug = {
     native: isNative(),
     platform: nativePlatform(),
+    capacitorGlobal: "?",
+    swActive: false,
+    ua: "",
     appVersion: "unknown",
     available: false,
     permission: false,
@@ -185,14 +191,36 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     latestRecordEnd: null,
     error: null,
   };
-  // App version comes from @capacitor/app, which is only wired natively.
-  dbg.appVersion = await appVersion();
+
+  // Pure-JS environment probes — no native bridge calls, so they never hang
+  // even when the bridge is missing. `window.Capacitor` is the object the
+  // native shell injects; if it's absent, the bridge never loaded.
+  if (typeof window !== "undefined") {
+    const cap = (
+      window as unknown as {
+        Capacitor?: {
+          getPlatform?: () => string;
+          isNativePlatform?: () => boolean;
+        };
+      }
+    ).Capacitor;
+    dbg.capacitorGlobal = cap
+      ? `present · platform=${cap.getPlatform?.() ?? "?"} · isNative=${cap.isNativePlatform?.() ?? "?"}`
+      : "MISSING — bridge not injected";
+  }
+  if (typeof navigator !== "undefined") {
+    dbg.swActive = Boolean(navigator.serviceWorker?.controller);
+    dbg.ua = navigator.userAgent;
+  }
+
   if (!dbg.native) {
     dbg.error =
-      "isNative() = false — the web app isn't detecting the Capacitor bridge.";
-    return dbg;
+      "isNative() = false — Capacitor bridge not detected (see 'Capacitor global').";
+    return dbg; // don't call plugins — they'd hang with no bridge to answer.
   }
   try {
+    // App version comes from @capacitor/app; safe now that the bridge exists.
+    dbg.appVersion = await appVersion();
     const Health = await health();
     // Five independent read-only bridge hops over the same window — run them
     // concurrently. Each keeps its own catch so one failure doesn't blank the

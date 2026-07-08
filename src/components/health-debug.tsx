@@ -83,6 +83,8 @@ export function HealthDebugPanel() {
             <div className="rounded-xl bg-muted/40 p-3 text-[11px] leading-relaxed">
               <Row k="Native app" v={data.native ? "yes" : "NO"} hi />
               <Row k="Platform" v={data.platform} />
+              <Row k="Capacitor global" v={data.capacitorGlobal} hi />
+              <Row k="SW controlling" v={data.swActive ? "yes" : "no"} />
               <Row k="App version" v={data.appVersion} hi />
               <Row k="Permission" v={data.permission ? "granted" : "denied"} />
               <Row k="Available" v={data.available ? "yes" : "no"} />
@@ -109,6 +111,11 @@ export function HealthDebugPanel() {
               />
               <Row k="Raw records" v={String(data.recordCount)} />
               {data.error && <Row k="Error" v={data.error} />}
+              {data.ua && (
+                <div className="mt-2 break-all border-t border-border/60 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+                  UA: {data.ua}
+                </div>
+              )}
 
               {data.records.length > 0 && (
                 <div className="mt-2 max-h-48 space-y-1 overflow-y-auto border-t border-border/60 pt-2">
