@@ -17,12 +17,14 @@ export function BridgeStatus() {
         };
       }
     ).Capacitor;
-    setStatus(
+    const next =
       `window.Capacitor=${cap ? "PRESENT" : "MISSING"} · ` +
-        `platform=${cap?.getPlatform?.() ?? "?"} · ` +
-        `isNative=${String(cap?.isNativePlatform?.() ?? "?")} · ` +
-        `SW=${navigator.serviceWorker?.controller ? "on" : "off"}`
-    );
+      `platform=${cap?.getPlatform?.() ?? "?"} · ` +
+      `isNative=${String(cap?.isNativePlatform?.() ?? "?")} · ` +
+      `SW=${navigator.serviceWorker?.controller ? "on" : "off"}`;
+    // Deferred so it's not a synchronous setState in the effect body.
+    const id = setTimeout(() => setStatus(next), 0);
+    return () => clearTimeout(id);
   }, []);
 
   return (
