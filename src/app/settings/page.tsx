@@ -9,6 +9,7 @@ import { UnitsSettings } from "@/components/units-settings";
 import { WeekStartSettings } from "@/components/week-start-settings";
 import { WidgetsSettings } from "@/components/widgets-settings";
 import { DefaultMealsSettings } from "@/components/default-meals-settings";
+import { HealthConnectSettings } from "@/components/health-connect-settings";
 import { listDefaultMeals } from "@/app/actions/default-meals";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export default async function SettingsPage() {
           <TimezoneSettings initial={profile.timezone} />
           <WeekStartSettings initial={profile.weekStartDay} />
           <DefaultMealsSettings initial={defaultMeals} />
+          <HealthConnectSettings />
         </section>
 
         <section className="space-y-3">

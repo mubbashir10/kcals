@@ -9,7 +9,7 @@ import {
 import { NavProgress } from "@/components/nav-progress";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { NativeBridge } from "@/components/native/native-bridge";
-import { HealthProbe } from "@/components/native/health-probe";
+import { HealthSync } from "@/components/native/health-sync";
 import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
@@ -127,7 +127,7 @@ export default function RootLayout({
         </ThemeProvider>
         <ServiceWorkerRegister />
         <NativeBridge />
-        <HealthProbe />
+        <HealthSync />
       </body>
     </html>
   );

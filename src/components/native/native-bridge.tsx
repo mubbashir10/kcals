@@ -61,15 +61,20 @@ export function NativeBridge() {
 
       await SplashScreen.hide().catch(() => {});
 
-      // Draw under the status bar (safe-area CSS pads content back out) and
-      // match icon contrast to the current theme. Style.Dark = light icons for
-      // a dark background; Style.Light = dark icons for a light background.
-      await StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      // Keep the WebView BELOW the status bar (don't draw behind it): some
+      // Android skins (e.g. MIUI) report env(safe-area-inset-top) as 0 under
+      // overlay mode, which clipped the header logo/avatar. Match the bar to
+      // the theme so it still looks seamless. Style.Dark = light icons for a
+      // dark background; Style.Light = dark icons for a light background.
+      await StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {});
       const syncStatusBar = () => {
         const dark = document.documentElement.classList.contains("dark");
         StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(
           () => {}
         );
+        StatusBar.setBackgroundColor({
+          color: dark ? "#0a0a0a" : "#ffffff",
+        }).catch(() => {});
       };
       syncStatusBar();
       const themeObserver = new MutationObserver(syncStatusBar);
