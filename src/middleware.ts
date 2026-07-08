@@ -40,6 +40,6 @@ export const config = {
   // in the system browser and /consume runs in the WebView before its session
   // cookie exists, so none of them can sit behind the auth redirect.
   matcher: [
-    "/((?!api/auth|native/auth/|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|api/native/hc-debug|native/auth/|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };
