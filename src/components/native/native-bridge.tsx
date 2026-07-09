@@ -32,6 +32,15 @@ export function NativeBridge() {
   // effect below can depend on it without actually re-running.
   const router = useRouter();
 
+  // A native Health Connect sync just landed — MainActivity fires this event via
+  // evaluateJavascript after each successful POST. Re-fetch so today's steps +
+  // active calories show without the user reopening the app. No-ops on web.
+  useEffect(() => {
+    const onSynced = () => router.refresh();
+    window.addEventListener("kcals:health-synced", onSynced);
+    return () => window.removeEventListener("kcals:health-synced", onSynced);
+  }, [router]);
+
   // Core native chrome — set up once on mount.
   useEffect(() => {
     let cancelled = false;

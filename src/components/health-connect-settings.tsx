@@ -1,15 +1,25 @@
 "use client";
 
-import { Activity, Flame, Footprints } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Activity, Flame, Footprints, RefreshCw } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { useNativeReady } from "@/lib/use-native";
 import { metricColor } from "@/lib/metric-colors";
 
+// window.KcalsNative is a direct JS interface added by MainActivity.kt (not the
+// Capacitor plugin layer). syncHealth() re-reads Health Connect on demand; the
+// native side then fires "kcals:health-synced" and the app re-fetches.
+type KcalsNativeWindow = Window & {
+  KcalsNative?: { syncHealth?: () => void };
+};
+
 // Native-only Health Connect status. The Android app reads Health Connect in
-// NATIVE code (see MainActivity.kt) and syncs today's steps + active calories to
-// the account on every launch, so there's nothing to toggle. Shows today's
-// synced numbers when we have them. Renders nothing on web/PWA.
+// native code (MainActivity.kt) and syncs today's steps + active calories to the
+// account automatically on every launch; "Sync now" forces a fresh read. Renders
+// nothing on web/PWA.
 export function HealthConnectSettings({
   steps,
   activeKcal,
@@ -18,15 +28,59 @@ export function HealthConnectSettings({
   activeKcal: number | null;
 }) {
   const native = useNativeReady();
+  const [syncing, setSyncing] = useState(false);
+
+  // Whether the native sync interface is present (v1.6+ APK). Derived from a
+  // snapshot so we never setState-in-effect.
+  const canSync = useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof (window as KcalsNativeWindow).KcalsNative?.syncHealth === "function",
+    () => false
+  );
+
+  useEffect(() => {
+    // The native sync finished (re-fetch already triggered by native-bridge) —
+    // drop the spinner. setState here runs in the event callback, not the effect
+    // body, which is fine.
+    const done = () => setSyncing(false);
+    window.addEventListener("kcals:health-synced", done);
+    return () => window.removeEventListener("kcals:health-synced", done);
+  }, []);
+
   if (!native) return null;
 
   const hasData = (activeKcal ?? 0) > 0 || (steps ?? 0) > 0;
 
+  const syncNow = () => {
+    const bridge = (window as KcalsNativeWindow).KcalsNative;
+    if (!bridge?.syncHealth) return;
+    setSyncing(true);
+    bridge.syncHealth();
+    // Fallback in case no sync event arrives (e.g. nothing to read).
+    window.setTimeout(() => setSyncing(false), 8000);
+  };
+
   return (
     <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="mb-3 flex items-center gap-2">
-        <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-sm font-medium">Health Connect</span>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-medium">Health Connect</span>
+        </div>
+        {canSync && (
+          <Button
+            type="button"
+            onClick={syncNow}
+            disabled={syncing}
+            variant="secondary"
+            size="sm"
+            className="shrink-0 rounded-full"
+          >
+            <RefreshCw className={cn("h-3 w-3", syncing && "animate-spin")} />
+            {syncing ? "Syncing…" : "Sync now"}
+          </Button>
+        )}
       </div>
 
       {hasData && (

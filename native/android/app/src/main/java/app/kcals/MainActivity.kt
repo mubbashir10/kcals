@@ -3,6 +3,7 @@ package app.kcals
 import android.os.Bundle
 import android.util.Log
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.activity.result.ActivityResultLauncher
@@ -70,6 +71,10 @@ class MainActivity : BridgeActivity() {
         bridge?.webView?.let { wv ->
             wv.settings.cacheMode = WebSettings.LOAD_NO_CACHE
             wv.clearCache(true)
+            // Direct JS interface (the reliable low-level primitive, NOT the
+            // Capacitor plugin layer): lets the web app trigger an on-demand
+            // Health Connect re-read via window.KcalsNative.syncHealth().
+            wv.addJavascriptInterface(NativeInterface(), "KcalsNative")
         }
 
         // Register the Health Connect permission launcher in onCreate (before the
@@ -169,12 +174,35 @@ class MainActivity : BridgeActivity() {
                     setRequestProperty("Cookie", cookie)
                 }
                 conn.outputStream.use { it.write(body.toByteArray()) }
-                Log.i(TAG, "sync POST -> HTTP ${conn.responseCode}")
+                val code = conn.responseCode
+                Log.i(TAG, "sync POST -> HTTP $code")
                 conn.disconnect()
+                if (code in 200..299) notifyWebSynced()
             } catch (e: Exception) {
                 Log.e(TAG, "postToServer failed", e)
             }
         }
+
+    // Tell the web app a fresh sync landed so it re-fetches and shows the new
+    // numbers without the user reopening the app.
+    private fun notifyWebSynced() {
+        runOnUiThread {
+            bridge?.webView?.evaluateJavascript(
+                "window.dispatchEvent(new Event('kcals:health-synced'));",
+                null,
+            )
+        }
+    }
+
+    // Exposed to the web app as window.KcalsNative. syncHealth() re-reads Health
+    // Connect on demand (e.g. a "Sync now" button); the POST then fires the
+    // kcals:health-synced event above.
+    inner class NativeInterface {
+        @JavascriptInterface
+        fun syncHealth() {
+            runOnUiThread { trySyncHealth() }
+        }
+    }
 
     private fun deleteRecursively(f: File?) {
         if (f == null || !f.exists()) return
