@@ -35,7 +35,6 @@ import { Label } from "@/components/ui/label";
 import { cn, parseOptionalInt } from "@/lib/utils";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
-import { HealthTodayStats } from "@/components/health-today-stats";
 import type { ActivityMode } from "@/lib/tdee";
 
 export type ActivityCardProps = {
@@ -124,8 +123,6 @@ export function ActivityCard({
         </div>
 
         <div className="mt-3">
-          {/* Live "so far today" from Health Connect (today, native app only). */}
-          {dayKey == null && <HealthTodayStats />}
           {logged ? (
             <ActivitySummary today={today!} />
           ) : (

@@ -86,9 +86,13 @@ class MainActivity : BridgeActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        trySyncHealth()
+    // Sync on real window focus, not onResume: Health Connect rejects reads
+    // ("must be in foreground") when the activity is resumed but behind the lock
+    // screen / notification shade. onWindowFocusChanged(true) means we're
+    // genuinely foregrounded, so a foreground read is always allowed.
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) trySyncHealth()
     }
 
     // On each launch/resume: if Health Connect is available and permitted, read
