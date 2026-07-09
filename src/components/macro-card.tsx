@@ -10,17 +10,19 @@ type Props = {
   goal: MacroGoal;
   unit?: string;
   color: string;
+  /** Drop the card chrome — renders inline, for use inside another board. */
+  flat?: boolean;
 };
 
-export function MacroCard({ label, value, goal, unit = "g", color }: Props) {
+export function MacroCard({ label, value, goal, unit = "g", color, flat = false }: Props) {
   const tracked = goal.kind !== "off";
   const goalG = tracked ? goal.g : null;
   const pct = tracked && goalG && goalG > 0
     ? Math.min((value / goalG) * 100, 100)
     : 0;
 
-  return (
-    <Card className="gap-0 rounded-2xl border-border/60 p-3.5 shadow-card transition-colors hover:bg-accent/30 sm:p-5">
+  const inner = (
+    <>
       <div className="flex min-w-0 items-center gap-1.5">
         <span
           className="h-2 w-2 shrink-0 rounded-full"
@@ -57,6 +59,16 @@ export function MacroCard({ label, value, goal, unit = "g", color }: Props) {
         indicatorColor={color}
         className="mt-3 sm:mt-4"
       />
+    </>
+  );
+
+  if (flat) {
+    return <div className="flex flex-col">{inner}</div>;
+  }
+
+  return (
+    <Card className="gap-0 rounded-2xl border-border/60 p-3.5 shadow-card transition-colors hover:bg-accent/30 sm:p-5">
+      {inner}
     </Card>
   );
 }

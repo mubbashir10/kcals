@@ -1,3 +1,5 @@
+import { Flame, Utensils } from "lucide-react";
+
 export type CalorieDisplayMode = "remaining" | "consumed";
 
 type Props = {
@@ -8,6 +10,14 @@ type Props = {
   strokeWidth?: number;
 };
 
+// 270° open gauge: the arc spans three-quarters of the circle with the gap
+// centered at the bottom. Rotating the stroke by 135° puts the dash start at
+// the bottom-left (7:30) so the visible arc sweeps clockwise over the top and
+// down to the bottom-right (4:30).
+const ARC_FRACTION = 0.75;
+const START_DEG = 135;
+const SWEEP_DEG = 270;
+
 export function CalorieRing({
   consumed,
   goal,
@@ -15,8 +25,11 @@ export function CalorieRing({
   size = 240,
   strokeWidth = 14,
 }: Props) {
+  const cx = size / 2;
+  const cy = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
+  const trackDash = ARC_FRACTION * circumference;
 
   const remainingRaw = goal - consumed;
   const overGoal = remainingRaw < 0;
@@ -25,14 +38,20 @@ export function CalorieRing({
   // Consumed mode: arc fills as you eat (empty → full).
   // Remaining mode: arc drains as you eat (full → empty) so you can see at
   // a glance how much room you've got left.
-  // When over goal: in either mode show the ring fully lit in the over-goal
+  // When over goal: in either mode show the arc fully lit in the over-goal
   // color, so it reads as "stop eating" regardless of which label is active.
   const consumedPct = Math.min(consumed / goal, 1);
   const remainingPct = Math.max(remaining / goal, 0);
   const pct = overGoal ? 1 : mode === "remaining" ? remainingPct : consumedPct;
-  const dash = circumference * pct;
 
-  // What occupies the big number, and the smaller secondary line.
+  // Knob position: the tip of the progress arc, in the SVG's screen-space
+  // (clockwise from +x, y-down) — the same convention the 135° rotation uses.
+  const knobDeg = START_DEG + SWEEP_DEG * pct;
+  const knobRad = (knobDeg * Math.PI) / 180;
+  const knobX = cx + radius * Math.cos(knobRad);
+  const knobY = cy + radius * Math.sin(knobRad);
+
+  // The big number and its label.
   const primary =
     mode === "remaining"
       ? overGoal
@@ -40,19 +59,14 @@ export function CalorieRing({
         : remaining
       : consumed;
 
-  const primaryHint =
-    mode === "remaining"
-      ? overGoal
-        ? "over goal"
-        : "left today"
-      : `of ${goal.toLocaleString()} kcal`;
+  const topLabel = overGoal
+    ? "Over goal"
+    : mode === "remaining"
+      ? "Remaining"
+      : "Consumed";
 
-  const secondaryLine =
-    mode === "remaining"
-      ? `${consumed.toLocaleString()} consumed`
-      : overGoal
-        ? `${(consumed - goal).toLocaleString()} over goal`
-        : `${remaining.toLocaleString()} left today`;
+  // Consumed shows what you ate (fork/knife); remaining/over reads as energy.
+  const CenterIcon = mode === "consumed" && !overGoal ? Utensils : Flame;
 
   // Ring color is theme-driven — each mode gets its own hue from the theme
   // palette, no hardcoded colors: primary (brand green) for "room left today",
@@ -74,7 +88,7 @@ export function CalorieRing({
 
   return (
     <div
-      className="relative"
+      className="relative shrink-0"
       style={{ width: size, height: size }}
       aria-label={`${consumed} of ${goal} calories consumed`}
     >
@@ -82,7 +96,6 @@ export function CalorieRing({
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
         style={{ filter: `drop-shadow(0 8px 24px ${glowColor})` }}
       >
         <defs>
@@ -133,38 +146,64 @@ export function CalorieRing({
           </linearGradient>
         </defs>
 
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--muted)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={`url(#${gradientId})`}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${circumference}`}
-          style={{
-            transition:
-              "stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1), stroke 400ms ease-out",
-          }}
-        />
+        <g transform={`rotate(${START_DEG} ${cx} ${cy})`}>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={radius}
+            fill="none"
+            stroke="var(--muted)"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={`${trackDash} ${circumference}`}
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={radius}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={`${pct * trackDash} ${circumference}`}
+            style={{
+              transition:
+                "stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1), stroke 400ms ease-out",
+            }}
+          />
+        </g>
+
+        {pct > 0 && (
+          <circle
+            cx={knobX}
+            cy={knobY}
+            r={strokeWidth * 0.72}
+            stroke="var(--background)"
+            strokeWidth={3}
+            style={{
+              fill: ringColor,
+              transition:
+                "cx 900ms cubic-bezier(0.22, 1, 0.36, 1), cy 900ms cubic-bezier(0.22, 1, 0.36, 1), fill 400ms ease-out",
+            }}
+          />
+        )}
       </svg>
+
       <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <div className="text-5xl font-semibold leading-none tracking-tight tabular-nums">
+        <CenterIcon
+          className="mb-1.5 h-5 w-5"
+          style={{ color: ringColor }}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          {topLabel}
+        </div>
+        <div className="mt-1 text-5xl font-semibold leading-none tracking-tight tabular-nums">
           {primary.toLocaleString()}
         </div>
-        <div className="mt-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-          {primaryHint}
-        </div>
-        <div className="mt-3 truncate text-[11px] font-medium text-muted-foreground tabular-nums">
-          {secondaryLine}
+        <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+          kcal
         </div>
       </div>
     </div>

@@ -5,12 +5,9 @@
 // Every widget on the home page that participates in drag-to-reorder.
 // Order here is the default first-time-user order.
 export const REORDERABLE_WIDGETS = [
-  "calorie",
-  "macros",
   "maintenance",
   "activity",
   "weight",
-  "calendar",
   "week",
   "meals",
   "friends",
@@ -35,12 +32,9 @@ export function normalizeMealSort(value: string | null | undefined): MealSortDir
 // Widgets the user can hide. Update this list to match what
 // WidgetsSettings offers.
 export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [
-  "calorie",
-  "macros",
   "maintenance",
   "activity",
   "weight",
-  "calendar",
   "week",
   "meals",
   "friends",

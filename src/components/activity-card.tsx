@@ -63,6 +63,8 @@ export function ActivityCard({
 }: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
+  // `dayKey` is null on the home page (today) and a specific day elsewhere.
+  const isToday = dayKey == null;
 
   return (
     <>
@@ -71,7 +73,7 @@ export function ActivityCard({
           <div className="flex items-center gap-2.5">
             <MetricBadge icon={Activity} color={metricColor.activity} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Today&apos;s activity
+              {isToday ? "Today's activity" : "Activity"}
             </span>
           </div>
           <DropdownMenu>
@@ -89,12 +91,12 @@ export function ActivityCard({
                 {logged ? (
                   <>
                     <Pencil className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Edit today&apos;s log
+                    {isToday ? "Edit today's log" : "Edit log"}
                   </>
                 ) : (
                   <>
                     <Plus className="mr-2 h-3.5 w-3.5 opacity-70" />
-                    Log today
+                    {isToday ? "Log today" : "Log activity"}
                   </>
                 )}
               </DropdownMenuItem>
@@ -116,7 +118,7 @@ export function ActivityCard({
                   className="cursor-pointer rounded-lg text-sm"
                 >
                   <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
-                  Clear today&apos;s log
+                  {isToday ? "Clear today's log" : "Clear log"}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -130,7 +132,9 @@ export function ActivityCard({
             <p className="text-sm text-foreground/80">
               Using your typical-day estimate.
               <span className="ml-1 text-muted-foreground">
-                Log today&apos;s actual activity before bed for an accurate TDEE.
+                {isToday
+                  ? "Log today's actual activity before bed for an accurate TDEE."
+                  : "Log this day's actual activity for an accurate TDEE."}
               </span>
             </p>
           )}

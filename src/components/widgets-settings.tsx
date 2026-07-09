@@ -5,7 +5,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   ArrowLeftRight,
-  CalendarDays,
   CalendarRange,
   Circle,
   Eye,
@@ -50,12 +49,9 @@ const WIDGETS: {
   icon: LucideIcon;
   accent: string;
 }[] = [
-  { id: "calorie", label: "Calorie ring", icon: Circle, accent: "text-emerald-500" },
-  { id: "macros", label: "Macros", icon: ArrowLeftRight, accent: "text-rose-500" },
   { id: "maintenance", label: "Maintenance calories", icon: Flame, accent: "text-amber-500" },
   { id: "activity", label: "Today's activity", icon: Activity, accent: "text-sky-500" },
   { id: "weight", label: "Weight", icon: Weight, accent: "text-violet-500" },
-  { id: "calendar", label: "Calendar", icon: CalendarDays, accent: "text-emerald-500" },
   { id: "week", label: "Week summary", icon: CalendarRange, accent: "text-teal-500" },
   { id: "meals", label: "Today's meals", icon: UtensilsCrossed, accent: "text-orange-500" },
   { id: "friends", label: "Friends", icon: Users, accent: "text-fuchsia-500" },
@@ -73,6 +69,8 @@ export function WidgetsSettings({ initial }: { initial: WidgetsSettingsProps }) 
         Choose how each widget appears on your home dashboard.
       </p>
 
+      <CalorieDisplayCard current={initial.calorieDisplay} />
+
       {WIDGETS.map((w) => (
         <WidgetRow
           key={w.id}
@@ -81,18 +79,15 @@ export function WidgetsSettings({ initial }: { initial: WidgetsSettingsProps }) 
           icon={w.icon}
           accent={w.accent}
           current={initial.states[w.id] ?? "shown"}
-          extra={
-            w.id === "calorie" ? (
-              <CalorieDisplayToggle current={initial.calorieDisplay} />
-            ) : null
-          }
         />
       ))}
     </div>
   );
 }
 
-function CalorieDisplayToggle({ current }: { current: CalorieDisplayMode }) {
+// The calorie ring is a fixed hero (not a hideable widget), but its
+// remaining/consumed default still lives here.
+function CalorieDisplayCard({ current }: { current: CalorieDisplayMode }) {
   const [pending, startTransition] = useTransition();
 
   function set(next: CalorieDisplayMode) {
@@ -103,11 +98,10 @@ function CalorieDisplayToggle({ current }: { current: CalorieDisplayMode }) {
   }
 
   return (
-    <div className="mt-3 border-t border-border/60 pt-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Display
-        </span>
+    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
+      <div className="mb-3 flex items-center gap-2">
+        <Circle className="h-3.5 w-3.5 text-emerald-500" />
+        <span className="text-sm font-medium">Calorie ring</span>
       </div>
       <div
         className={cn(
@@ -136,7 +130,7 @@ function CalorieDisplayToggle({ current }: { current: CalorieDisplayMode }) {
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -146,14 +140,12 @@ function WidgetRow({
   icon: Icon,
   accent,
   current,
-  extra,
 }: {
   id: WidgetId;
   label: string;
   icon: LucideIcon;
   accent: string;
   current: WidgetState;
-  extra?: React.ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -197,7 +189,6 @@ function WidgetRow({
           );
         })}
       </div>
-      {extra}
     </Card>
   );
 }
