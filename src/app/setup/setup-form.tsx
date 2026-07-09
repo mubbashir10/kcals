@@ -1,6 +1,22 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  Baby,
+  CalendarDays,
+  Dumbbell,
+  Flame,
+  Footprints,
+  HeartPulse,
+  Mars,
+  Percent,
+  Ruler,
+  Venus,
+  Watch,
+  Weight,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -279,9 +295,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     <form onSubmit={onSubmit} className="space-y-8">
       {/* Units */}
       <div className="flex items-center justify-between">
-        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Units
-        </Label>
+        <FieldLabel>Units</FieldLabel>
         <SegmentedToggle<Units>
           value={units}
           onChange={onUnitsChange}
@@ -294,22 +308,30 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
       {/* Sex */}
       <div className="space-y-2">
-        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Sex
-        </Label>
+        <FieldLabel>Sex</FieldLabel>
         <SegmentedToggle<Sex>
           value={sex}
           onChange={setSex}
           fullWidth
           options={[
-            { value: "male", label: "Male" },
-            { value: "female", label: "Female" },
+            {
+              value: "male",
+              label: "Male",
+              icon: Mars,
+              accent: "text-sky-600 dark:text-sky-400",
+            },
+            {
+              value: "female",
+              label: "Female",
+              icon: Venus,
+              accent: "text-rose-600 dark:text-rose-400",
+            },
           ]}
         />
       </div>
 
       {/* Age */}
-      <Field label="Age" htmlFor="age" suffix="years">
+      <Field label="Age" icon={CalendarDays} htmlFor="age" suffix="years">
         <Input
           id="age"
           inputMode="numeric"
@@ -323,7 +345,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
       {/* Height */}
       {units === "metric" ? (
-        <Field label="Height" htmlFor="height" suffix="cm">
+        <Field label="Height" icon={Ruler} htmlFor="height" suffix="cm">
           <Input
             id="height"
             inputMode="decimal"
@@ -335,12 +357,9 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         </Field>
       ) : (
         <div className="space-y-2">
-          <Label
-            htmlFor="height-ft"
-            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-          >
+          <FieldLabel icon={Ruler} htmlFor="height-ft">
             Height
-          </Label>
+          </FieldLabel>
           <div className="grid grid-cols-2 gap-3">
             <div className="relative">
               <Input
@@ -371,6 +390,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       {/* Weight */}
       <Field
         label="Weight"
+        icon={Weight}
         htmlFor="weight"
         suffix={units === "metric" ? "kg" : "lb"}
       >
@@ -385,7 +405,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       </Field>
 
       {/* Body Fat */}
-      <Field label="Body fat" htmlFor="bf" suffix="%" optional>
+      <Field label="Body fat" icon={Percent} htmlFor="bf" suffix="%" optional>
         <Input
           id="bf"
           inputMode="decimal"
@@ -398,17 +418,10 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       {/* Adds the energy cost of making milk to maintenance. */}
       {sex === "female" && (
         <div className="space-y-5 pt-2">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Breastfeeding
-            </span>
-            <div className="h-px flex-1 bg-border/60" />
-          </div>
+          <SectionHeader icon={Baby}>Breastfeeding</SectionHeader>
 
           <div className="space-y-2">
-            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Are you nursing?
-            </Label>
+            <FieldLabel>Are you nursing?</FieldLabel>
             <SegmentedToggle<LactationStatus>
               value={lactationStatus}
               onChange={setLactationStatus}
@@ -431,9 +444,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           {lactationStatus !== "none" && (
             <>
               <div className="space-y-2">
-                <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  Baby&rsquo;s age
-                </Label>
+                <FieldLabel>Baby&rsquo;s age</FieldLabel>
                 <SegmentedToggle<LactationStage>
                   value={lactationStage}
                   onChange={setLactationStage}
@@ -451,9 +462,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  What&rsquo;s your aim?
-                </Label>
+                <FieldLabel>What&rsquo;s your aim?</FieldLabel>
                 <SegmentedToggle<LactationBasis>
                   value={lactationBasis}
                   onChange={setLactationBasis}
@@ -470,18 +479,21 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
                 </p>
               </div>
 
-              <p className="rounded-2xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
-                We&rsquo;ll add{" "}
-                <span className="font-semibold text-foreground tabular-nums">
-                  +
-                  {lactationKcal({
-                    lactationStatus,
-                    lactationStage,
-                    lactationBasis,
-                  }).toLocaleString()}{" "}
-                  kcal/day
-                </span>{" "}
-                to your maintenance calories.
+              <p className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
+                <Flame className="h-4 w-4 shrink-0 text-primary" />
+                <span>
+                  We&rsquo;ll add{" "}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    +
+                    {lactationKcal({
+                      lactationStatus,
+                      lactationStage,
+                      lactationBasis,
+                    }).toLocaleString()}{" "}
+                    kcal/day
+                  </span>{" "}
+                  to your maintenance calories.
+                </span>
               </p>
             </>
           )}
@@ -490,24 +502,17 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
       {/* Activity — used for maintenance-calorie (TDEE) calculation */}
       <div className="space-y-5 pt-2">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Activity
-          </span>
-          <div className="h-px flex-1 bg-border/60" />
-        </div>
+        <SectionHeader icon={Activity}>Activity</SectionHeader>
 
         <div className="space-y-2">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Source
-          </Label>
+          <FieldLabel>Source</FieldLabel>
           <SegmentedToggle<ActivityMode>
             value={activityMode}
             onChange={setActivityMode}
             fullWidth
             options={[
-              { value: "estimate", label: "Estimate" },
-              { value: "override", label: "From wearable" },
+              { value: "estimate", label: "Estimate", icon: Footprints },
+              { value: "override", label: "From wearable", icon: Watch },
             ]}
           />
           <p className="text-[11px] text-muted-foreground/70">
@@ -521,6 +526,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           <>
             <Field
               label="Daily steps"
+              icon={Footprints}
               htmlFor="steps"
               suffix="steps"
               optional
@@ -536,6 +542,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
             <SessionGroup
               label="Weight training"
+              icon={Dumbbell}
               freqId="lifting-freq"
               freqValue={liftingPerWeek}
               onFreqChange={setLiftingPerWeek}
@@ -548,6 +555,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
             <SessionGroup
               label="Cardio"
+              icon={HeartPulse}
               freqId="cardio-freq"
               freqValue={cardioPerWeek}
               onFreqChange={setCardioPerWeek}
@@ -561,6 +569,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         ) : (
           <Field
             label="Active calories"
+            icon={Flame}
             htmlFor="active-kcal"
             suffix="kcal/day"
             optional
@@ -596,6 +605,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
 
 function SessionGroup({
   label,
+  icon,
   freqId,
   freqValue,
   onFreqChange,
@@ -606,6 +616,7 @@ function SessionGroup({
   durPlaceholder,
 }: {
   label: string;
+  icon: LucideIcon;
   freqId: string;
   freqValue: string;
   onFreqChange: (v: string) => void;
@@ -618,15 +629,10 @@ function SessionGroup({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <Label
-          htmlFor={freqId}
-          className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-        >
+        <FieldLabel icon={icon} htmlFor={freqId}>
           {label}
-        </Label>
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
-          Optional
-        </span>
+        </FieldLabel>
+        <OptionalTag />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="relative">
@@ -660,14 +666,64 @@ function SessionGroup({
   );
 }
 
+/** The uppercase, letter-spaced caption used above every control on this form. */
+function FieldLabel({
+  icon: Icon,
+  htmlFor,
+  children,
+}: {
+  icon?: LucideIcon;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Label
+      htmlFor={htmlFor}
+      className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+    >
+      {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" />}
+      {children}
+    </Label>
+  );
+}
+
+function OptionalTag() {
+  return (
+    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
+      Optional
+    </span>
+  );
+}
+
+/** A titled rule that splits the form into sections. */
+function SectionHeader({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <Icon className="h-4 w-4 text-primary" />
+        {children}
+      </span>
+      <div className="h-px flex-1 bg-border/60" />
+    </div>
+  );
+}
+
 function Field({
   label,
+  icon,
   htmlFor,
   suffix,
   optional,
   children,
 }: {
   label: string;
+  icon?: LucideIcon;
   htmlFor: string;
   suffix?: string;
   optional?: boolean;
@@ -676,17 +732,10 @@ function Field({
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <Label
-          htmlFor={htmlFor}
-          className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-        >
+        <FieldLabel icon={icon} htmlFor={htmlFor}>
           {label}
-        </Label>
-        {optional && (
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
-            Optional
-          </span>
-        )}
+        </FieldLabel>
+        {optional && <OptionalTag />}
       </div>
       <div className="relative">
         {children}
@@ -704,6 +753,14 @@ function Suffix({ children }: { children: React.ReactNode }) {
   );
 }
 
+type ToggleOption<T extends string> = {
+  value: T;
+  label: string;
+  icon?: LucideIcon;
+  /** Text/icon colour once this option is selected. Defaults to `text-foreground`. */
+  accent?: string;
+};
+
 function SegmentedToggle<T extends string>({
   value,
   onChange,
@@ -712,7 +769,7 @@ function SegmentedToggle<T extends string>({
 }: {
   value: T;
   onChange: (next: T) => void;
-  options: { value: T; label: string }[];
+  options: ToggleOption<T>[];
   fullWidth?: boolean;
 }) {
   return (
@@ -724,18 +781,21 @@ function SegmentedToggle<T extends string>({
     >
       {options.map((opt) => {
         const active = opt.value === value;
+        const Icon = opt.icon;
         return (
           <button
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "flex-1 rounded-full px-4 py-1.5 text-xs font-medium transition-all",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-full",
+              "px-4 py-1.5 text-xs font-medium transition-all",
               active
-                ? "bg-background text-foreground shadow-sm"
+                ? cn("bg-background shadow-sm", opt.accent ?? "text-foreground")
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
+            {Icon && <Icon className="h-3.5 w-3.5" />}
             {opt.label}
           </button>
         );
