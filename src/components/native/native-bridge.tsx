@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { WifiOff } from "lucide-react";
+import { Check, WifiOff } from "lucide-react";
 
 import { nativePlatform, whenNativeReady } from "@/lib/native";
 import { takeVerifier } from "@/lib/native-auth";
@@ -28,6 +28,7 @@ const PUSH_TOKEN_KEY = "kcals.push-token";
 export function NativeBridge() {
   const [offline, setOffline] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
   // Next's app-router instance is stable across renders, so the mount-once
   // effect below can depend on it without actually re-running.
   const router = useRouter();
@@ -36,7 +37,21 @@ export function NativeBridge() {
   // evaluateJavascript after each successful POST. Re-fetch so today's steps +
   // active calories show without the user reopening the app. No-ops on web.
   useEffect(() => {
-    const onSynced = () => router.refresh();
+    const onSynced = (e: Event) => {
+      router.refresh();
+      const d = (e as CustomEvent<{ steps?: number; activeKcal?: number }>)
+        .detail;
+      const parts: string[] = [];
+      if (d?.activeKcal) parts.push(`${d.activeKcal.toLocaleString()} kcal`);
+      if (d?.steps) parts.push(`${d.steps.toLocaleString()} steps`);
+      if (!parts.length) return;
+      const note = `Synced · ${parts.join(" · ")}`;
+      setSyncNote(note);
+      window.setTimeout(
+        () => setSyncNote((n) => (n === note ? null : n)),
+        2600
+      );
+    };
     window.addEventListener("kcals:health-synced", onSynced);
     return () => window.removeEventListener("kcals:health-synced", onSynced);
   }, [router]);
@@ -308,6 +323,14 @@ export function NativeBridge() {
         <div className="native-toast pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
           <span className="inline-flex items-center rounded-full bg-foreground/90 px-4 py-2 text-xs font-medium text-background shadow-card-lg">
             {hint}
+          </span>
+        </div>
+      )}
+      {syncNote && (
+        <div className="native-toast pointer-events-none fixed inset-x-0 bottom-0 z-[90] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/95 px-3.5 py-1.5 text-[11px] font-medium text-muted-foreground shadow-card-lg backdrop-blur">
+            <Check className="h-3 w-3 text-primary" />
+            {syncNote}
           </span>
         </div>
       )}

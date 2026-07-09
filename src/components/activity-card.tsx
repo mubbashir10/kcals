@@ -5,6 +5,7 @@ import {
   Activity,
   Dumbbell,
   EyeOff,
+  Flame,
   Footprints,
   MoreHorizontal,
   Pencil,
@@ -147,23 +148,88 @@ export function ActivityCard({
   );
 }
 
+// One movement metric as a tinted tile: colored icon chip, big tabular number,
+// unit, and a small caption. Two of these sit side by side in override mode.
+function StatTile({
+  icon: Icon,
+  color,
+  value,
+  unit,
+  label,
+}: {
+  icon: typeof Flame;
+  color: string;
+  value: number;
+  unit: string;
+  label: string;
+}) {
+  return (
+    <div className="flex-1 rounded-2xl bg-muted/40 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span
+          className="flex h-6 w-6 items-center justify-center rounded-full"
+          style={{ backgroundColor: `color-mix(in oklab, ${color} 18%, transparent)` }}
+        >
+          <Icon className="h-3 w-3" style={{ color }} />
+        </span>
+        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-1">
+        <span className="text-2xl font-semibold tabular-nums">
+          {value.toLocaleString()}
+        </span>
+        <span className="text-xs text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
 function ActivitySummary({
   today,
 }: {
   today: NonNullable<ActivityCardProps["today"]>;
 }) {
   if (today.mode === "override") {
+    const kcal = today.wearableKcal ?? 0;
+    const steps = today.steps ?? 0;
+    const tiles: {
+      icon: typeof Flame;
+      color: string;
+      value: number;
+      unit: string;
+      label: string;
+    }[] = [];
+    if (kcal > 0 || steps <= 0) {
+      tiles.push({
+        icon: Flame,
+        color: metricColor.energy,
+        value: kcal,
+        unit: "kcal",
+        label: "Active energy",
+      });
+    }
+    if (steps > 0) {
+      tiles.push({
+        icon: Footprints,
+        color: metricColor.activity,
+        value: steps,
+        unit: "steps",
+        label: "Steps",
+      });
+    }
     return (
-      <div className="flex items-center gap-2">
-        <Watch className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-sm tabular-nums">
-          {today.wearableKcal != null
-            ? `${today.wearableKcal.toLocaleString()} kcal`
-            : "—"}
-          <span className="ml-1.5 text-xs text-muted-foreground">
-            from wearable
-          </span>
-        </span>
+      <div>
+        <div className="flex gap-3">
+          {tiles.map((t) => (
+            <StatTile key={t.label} {...t} />
+          ))}
+        </div>
+        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+          <Watch className="h-3 w-3" />
+          Synced from your band
+        </p>
       </div>
     );
   }

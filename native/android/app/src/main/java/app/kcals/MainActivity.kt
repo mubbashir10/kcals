@@ -160,10 +160,11 @@ class MainActivity : BridgeActivity() {
                 Log.i(TAG, "no session cookie yet — skipping sync")
                 return@withContext
             }
+            val kcal = Math.round(activeKcal)
             try {
                 val body = JSONObject()
                     .put("steps", steps)
-                    .put("activeKcal", Math.round(activeKcal))
+                    .put("activeKcal", kcal)
                     .toString()
                 val conn = (URL(SYNC_URL).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
@@ -177,18 +178,19 @@ class MainActivity : BridgeActivity() {
                 val code = conn.responseCode
                 Log.i(TAG, "sync POST -> HTTP $code")
                 conn.disconnect()
-                if (code in 200..299) notifyWebSynced()
+                if (code in 200..299) notifyWebSynced(steps, kcal)
             } catch (e: Exception) {
                 Log.e(TAG, "postToServer failed", e)
             }
         }
 
-    // Tell the web app a fresh sync landed so it re-fetches and shows the new
-    // numbers without the user reopening the app.
-    private fun notifyWebSynced() {
+    // Tell the web app a fresh sync landed (with the numbers) so it re-fetches
+    // and can show a subtle "synced" note without the user reopening the app.
+    private fun notifyWebSynced(steps: Long, activeKcal: Long) {
         runOnUiThread {
             bridge?.webView?.evaluateJavascript(
-                "window.dispatchEvent(new Event('kcals:health-synced'));",
+                "window.dispatchEvent(new CustomEvent('kcals:health-synced'," +
+                    "{detail:{steps:$steps,activeKcal:$activeKcal}}));",
                 null,
             )
         }
