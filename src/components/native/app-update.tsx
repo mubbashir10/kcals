@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowUpCircle, X } from "lucide-react";
 
-import { isNative } from "@/lib/native";
+import { whenNativeReady } from "@/lib/native";
 
 const DISMISS_KEY = "kcals.update-dismissed"; // stores the dismissed versionCode
 
@@ -18,10 +18,10 @@ export function AppUpdate() {
   );
 
   useEffect(() => {
-    if (!isNative()) return;
     let cancelled = false;
 
     (async () => {
+      if (!(await whenNativeReady()) || cancelled) return;
       try {
         const { App } = await import("@capacitor/app");
         const info = await App.getInfo();

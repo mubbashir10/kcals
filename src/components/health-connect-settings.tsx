@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HealthDebugPanel } from "@/components/health-debug";
 import { cn } from "@/lib/utils";
-import { isNative } from "@/lib/native";
+import { useNativeReady } from "@/lib/use-native";
 import {
   hasHealthAccess,
   healthAvailable,
@@ -24,7 +24,9 @@ import {
 // nothing on the web/PWA or where Health Connect isn't present.
 export function HealthConnectSettings() {
   const router = useRouter();
-  const [native, setNative] = useState(false);
+  // Reactive: flips true if the Capacitor bridge injects late, so the card
+  // enables itself instead of being stuck "off" for the whole page.
+  const native = useNativeReady();
   const [available, setAvailable] = useState<boolean | null>(null);
   const [enabled, setEnabled] = useState(false);
   const [last, setLast] = useState<TodayActivity | null>(null);
@@ -34,10 +36,9 @@ export function HealthConnectSettings() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const isApp = isNative();
+      // healthAvailable() waits for the bridge internally before probing.
       const avail = await healthAvailable();
       if (!alive) return;
-      setNative(isApp);
       setAvailable(avail);
       setEnabled(healthSyncEnabled());
     })();

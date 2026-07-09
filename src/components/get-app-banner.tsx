@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Download, X } from "lucide-react";
 
 import { isNative } from "@/lib/native";
+import { useNativeReady } from "@/lib/use-native";
 
 const DISMISS_KEY = "kcals.getapp-dismissed";
 
@@ -35,10 +36,13 @@ const noSubscribe = () => () => {};
 
 // Subtle bottom banner pointing web users at the native Android app.
 export function GetAppBanner() {
+  // If the Capacitor bridge injects late, this flips true and hides the banner —
+  // so the native app never shows a "get the app" nudge to itself.
+  const native = useNativeReady();
   const eligible = useSyncExternalStore(noSubscribe, shouldShow, () => false);
   const [dismissed, setDismissed] = useState(false);
 
-  if (!eligible || dismissed) return null;
+  if (native || !eligible || dismissed) return null;
 
   const dismiss = () => {
     try {

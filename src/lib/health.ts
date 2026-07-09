@@ -6,7 +6,7 @@
 // records, and Health Connect's aggregate resolves them by its source-priority
 // list. Reading raw records would double-count.
 
-import { isNative, nativePlatform } from "@/lib/native";
+import { isNative, nativePlatform, whenNativeReady } from "@/lib/native";
 import { upsertActivity } from "@/app/actions/activity";
 
 const SYNC_KEY = "kcals.health-sync"; // localStorage flag: "on" when enabled
@@ -15,8 +15,6 @@ async function health() {
   const mod = await import("capacitor-health");
   return mod.Health;
 }
-
-const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Bridge calls can HANG (not reject) when the native bridge is only half-
 // injected — e.g. window.androidBridge exists but its message pump isn't wired
@@ -42,9 +40,12 @@ function granted(perms: unknown): boolean {
 }
 
 export async function healthAvailable(): Promise<boolean> {
-  if (!isNative()) return false;
+  // Wait for the bridge to inject rather than deciding "web" at mount.
+  if (!(await whenNativeReady())) return false;
   try {
-    return (await (await health()).isHealthAvailable()).available;
+    const Health = await withTimeout(health(), 4000, "load capacitor-health");
+    return (await withTimeout(Health.isHealthAvailable(), 4000, "isHealthAvailable"))
+      .available;
   } catch {
     return false;
   }
@@ -243,12 +244,11 @@ export async function readHealthDebug(): Promise<HealthDebug> {
   }
 
   // The bridge can inject a beat LATE on a full-page navigation (remote-URL
-  // mode). A one-shot isNative() at mount then wrongly reads "web". Wait, then
-  // re-read — if this flips to true, the problem is detection timing, not a
+  // mode). A one-shot isNative() at mount then wrongly reads "web". Wait for the
+  // bridge — if this flips to true, the problem is detection timing, not a
   // truly-absent bridge.
-  await delay(1500);
-  const lateNative = isNative();
-  dbg.recheckNative = `after 1.5s → isNative=${lateNative} · platform=${nativePlatform()} · androidBridge=${win?.androidBridge ? "present" : "MISSING"}`;
+  const lateNative = await whenNativeReady();
+  dbg.recheckNative = `waited for bridge → isNative=${isNative()} · platform=${nativePlatform()} · androidBridge=${win?.androidBridge ? "present" : "MISSING"}`;
 
   const effectiveNative = dbg.native || lateNative;
   if (!effectiveNative) {
@@ -261,7 +261,7 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     dbg.appVersion = await withTimeout(appVersion(), 3000, "appVersion").catch(
       () => "timeout"
     );
-    const Health = await health();
+    const Health = await withTimeout(health(), 4000, "load capacitor-health");
     // Five independent read-only bridge hops over the same window — run them
     // concurrently, each time-boxed so a half-wired bridge can't hang the
     // panel forever, and each with its own catch so one failure doesn't blank

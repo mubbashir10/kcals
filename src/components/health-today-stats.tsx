@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Flame, Footprints } from "lucide-react";
 
-import { isNative } from "@/lib/native";
+import { whenNativeReady } from "@/lib/native";
 import {
   hasHealthAccess,
   readTodayActivity,
@@ -19,7 +19,6 @@ export function HealthTodayStats() {
   const [data, setData] = useState<TodayActivity | null>(null);
 
   useEffect(() => {
-    if (!isNative()) return;
     let cancelled = false;
 
     const load = async () => {
@@ -27,12 +26,17 @@ export function HealthTodayStats() {
       const next = await readTodayActivity();
       if (!cancelled) setData(next);
     };
-
-    load();
     const onVisible = () => {
       if (document.visibilityState === "visible") load();
     };
-    document.addEventListener("visibilitychange", onVisible);
+
+    // Wait for the bridge (it can inject late), then start reading + listening.
+    whenNativeReady().then((native) => {
+      if (cancelled || !native) return;
+      load();
+      document.addEventListener("visibilitychange", onVisible);
+    });
+
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);

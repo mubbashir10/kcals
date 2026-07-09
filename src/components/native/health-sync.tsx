@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { isNative } from "@/lib/native";
+import { whenNativeReady } from "@/lib/native";
 import { hasHealthAccess, healthSyncEnabled, syncHealthNow } from "@/lib/health";
 
 // Auto-syncs today's Health Connect activity into TDEE on native launch, when
@@ -12,9 +12,11 @@ import { hasHealthAccess, healthSyncEnabled, syncHealthNow } from "@/lib/health"
 export function HealthSync() {
   const router = useRouter();
   useEffect(() => {
-    if (!isNative() || !healthSyncEnabled()) return;
+    if (!healthSyncEnabled()) return;
     let cancelled = false;
     (async () => {
+      // Wait for the bridge to inject before deciding we're not native.
+      if (!(await whenNativeReady()) || cancelled) return;
       if (!(await hasHealthAccess())) return;
       const data = await syncHealthNow();
       if (!cancelled && data) router.refresh();

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { WifiOff } from "lucide-react";
 
-import { isNative, nativePlatform } from "@/lib/native";
+import { nativePlatform, whenNativeReady } from "@/lib/native";
 import { takeVerifier } from "@/lib/native-auth";
 
 // Where we stash the FCM token client-side so it can be unregistered on
@@ -34,7 +34,6 @@ export function NativeBridge() {
 
   // Core native chrome — set up once on mount.
   useEffect(() => {
-    if (!isNative()) return;
     let cancelled = false;
     const cleanups: Array<() => void> = [];
 
@@ -44,6 +43,9 @@ export function NativeBridge() {
     };
 
     (async () => {
+      // In remote-URL mode the bridge can inject after we mount. Wait for it
+      // rather than deciding "web" and turning every native feature off.
+      if (!(await whenNativeReady()) || cancelled) return;
       const [
         { SplashScreen },
         { StatusBar, Style },
@@ -197,7 +199,6 @@ export function NativeBridge() {
   // signed out we drop the device's stored token so a shared device stops
   // receiving the previous user's notifications.
   useEffect(() => {
-    if (!isNative()) return;
     let cancelled = false;
     const cleanups: Array<() => void> = [];
 
@@ -210,6 +211,7 @@ export function NativeBridge() {
     };
 
     (async () => {
+      if (!(await whenNativeReady()) || cancelled) return;
       let authed = false;
       try {
         const res = await fetch("/api/auth/session", { cache: "no-store" });

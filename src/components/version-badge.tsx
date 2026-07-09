@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { isNative } from "@/lib/native";
+import { whenNativeReady } from "@/lib/native";
 
 // Subtle build identifier — the live web build's short commit SHA, plus the
 // installed native app version when running in the Capacitor shell. Makes it
@@ -14,7 +14,7 @@ export function VersionBadge() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      if (!isNative()) return; // web/PWA: no native version, and avoids a hang
+      if (!(await whenNativeReady())) return; // web/PWA: no native version
       try {
         const { App } = await import("@capacitor/app");
         const info = await App.getInfo();
