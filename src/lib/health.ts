@@ -6,14 +6,22 @@
 // records, and Health Connect's aggregate resolves them by its source-priority
 // list. Reading raw records would double-count.
 
+import { Health } from "capacitor-health";
+
 import { isNative, nativePlatform, whenNativeReady } from "@/lib/native";
 import { upsertActivity } from "@/app/actions/activity";
 
 const SYNC_KEY = "kcals.health-sync"; // localStorage flag: "on" when enabled
 
+// capacitor-health is imported STATICALLY (not via dynamic import()). In the
+// remote-URL WebView a lazy import() of this plugin's chunk would intermittently
+// STALL the network request and never resolve — which silently killed Health
+// Connect (available=no, "load capacitor-health: timed out"). It's a tiny module
+// on top of @capacitor/core (already bundled), so inlining it costs almost
+// nothing and removes that failure mode entirely. Kept behind a helper so the
+// call sites don't change.
 async function health() {
-  const mod = await import("capacitor-health");
-  return mod.Health;
+  return Health;
 }
 
 // Bridge calls can HANG (not reject) when the native bridge is only half-
@@ -43,7 +51,7 @@ export async function healthAvailable(): Promise<boolean> {
   // Wait for the bridge to inject rather than deciding "web" at mount.
   if (!(await whenNativeReady())) return false;
   try {
-    const Health = await withTimeout(health(), 4000, "load capacitor-health");
+    const Health = await health();
     return (await withTimeout(Health.isHealthAvailable(), 4000, "isHealthAvailable"))
       .available;
   } catch {
@@ -261,7 +269,7 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     dbg.appVersion = await withTimeout(appVersion(), 3000, "appVersion").catch(
       () => "timeout"
     );
-    const Health = await withTimeout(health(), 4000, "load capacitor-health");
+    const Health = await health();
     // Five independent read-only bridge hops over the same window — run them
     // concurrently, each time-boxed so a half-wired bridge can't hang the
     // panel forever, and each with its own catch so one failure doesn't blank
