@@ -89,17 +89,6 @@ export async function UserMenu() {
           <DropdownMenuItem
             render={
               <AppLink
-                href="/week"
-                className="cursor-pointer rounded-lg text-sm"
-              />
-            }
-          >
-            <CalendarRange className="mr-2 h-3.5 w-3.5 opacity-70" />
-            Week summary
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            render={
-              <AppLink
                 href="/setup"
                 className="cursor-pointer rounded-lg text-sm"
               />
@@ -118,6 +107,17 @@ export async function UserMenu() {
           >
             <Target className="mr-2 h-3.5 w-3.5 opacity-70" />
             Goal
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            render={
+              <AppLink
+                href="/week"
+                className="cursor-pointer rounded-lg text-sm"
+              />
+            }
+          >
+            <CalendarRange className="mr-2 h-3.5 w-3.5 opacity-70" />
+            Weekly stats
           </DropdownMenuItem>
           <DropdownMenuItem
             render={
