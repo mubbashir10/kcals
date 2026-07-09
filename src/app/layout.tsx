@@ -7,6 +7,7 @@ import {
   ThemeProvider,
 } from "@/components/theme-provider";
 import { NavProgress } from "@/components/nav-progress";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { NativeBridge } from "@/components/native/native-bridge";
 import { AppUpdate } from "@/components/native/app-update";
@@ -110,6 +111,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
+        <PullToRefresh />
         <ThemeProvider>
           <ViewTransition
             enter={{

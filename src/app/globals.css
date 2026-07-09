@@ -137,6 +137,14 @@
   html {
     @apply font-sans;
   }
+  /* Suppress the browser/WebView's own pull-to-refresh and overscroll glow
+     everywhere — <PullToRefresh> replaces it with a router.refresh() instead
+     of a full document reload. Declared on both elements because the viewport
+     only inherits body's value when html doesn't set one. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
   /* iOS PWA fix: when installed to the home screen, the app extends
      behind the status bar (statusBarStyle: 'black-translucent' +
      viewportFit: 'cover' — set in layout.tsx so the ambient gradient
@@ -163,8 +171,6 @@
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    /* Stop the WebView's overscroll glow / accidental pull-to-refresh. */
-    overscroll-behavior-y: none;
   }
   /* …but real inputs must stay selectable/editable. */
   body.native input,
