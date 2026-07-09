@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 // Release signing is read from keystore.properties (gitignored). Absent it,
 // release builds are just unsigned — so the project still builds for anyone
@@ -16,8 +17,8 @@ android {
         applicationId "app.kcals"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.4"
+        versionCode 6
+        versionName "1.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -39,10 +40,17 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Debuggable so the WebView is inspectable (Chrome DevTools) and
+            // native logs aren't stripped — this is release-KEY signed, so it
+            // still installs as an in-place update over the old build.
+            debuggable true
             if (keystorePropsFile.exists()) {
                 signingConfig signingConfigs.release
             }
         }
+    }
+    kotlinOptions {
+        jvmTarget = "21"
     }
 }
 
@@ -58,6 +66,12 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Native Health Connect read (no JS bridge). Same versions capacitor-health
+    // uses, so no version conflict.
+    implementation 'androidx.health.connect:connect-client:1.2.0-alpha01'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
