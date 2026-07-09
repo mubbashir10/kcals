@@ -50,7 +50,6 @@ export default async function FriendsPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-          <span className="text-sm font-semibold tracking-tight">Friends</span>
         </div>
       </header>
 

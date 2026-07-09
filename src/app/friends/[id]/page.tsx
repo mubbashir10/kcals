@@ -72,9 +72,6 @@ export default async function FriendViewPage({
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-          <span className="text-sm font-semibold tracking-tight truncate">
-            {displayName}
-          </span>
         </div>
       </header>
 

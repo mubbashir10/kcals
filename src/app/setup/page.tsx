@@ -52,9 +52,6 @@ export default async function SetupPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </AppLink>
-            <span className="text-sm font-semibold tracking-tight">
-              Profile
-            </span>
           </div>
         </header>
       )}

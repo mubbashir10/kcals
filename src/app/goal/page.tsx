@@ -43,7 +43,6 @@ export default async function GoalPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-          <span className="text-sm font-semibold tracking-tight">Goal</span>
         </div>
       </header>
 

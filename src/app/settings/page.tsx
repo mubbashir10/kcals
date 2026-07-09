@@ -36,7 +36,6 @@ export default async function SettingsPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-          <span className="text-sm font-semibold tracking-tight">Settings</span>
         </div>
       </header>
 
