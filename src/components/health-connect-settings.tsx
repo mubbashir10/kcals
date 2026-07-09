@@ -47,11 +47,10 @@ export function HealthConnectSettings() {
     };
   }, []);
 
-  // TEMP (debugging): render even when isNative() reports false, so the
-  // diagnostics panel is reachable if the native bridge isn't being detected
-  // inside the Capacitor shell. On native we still wait for the availability
-  // probe to resolve before painting.
-  if (native && available === null) return null;
+  // Always render the card (even while the availability probe is still
+  // resolving, and even if the bridge isn't detected) so the toggle appears as
+  // soon as it's ready and the diagnostics panel is always reachable. A null
+  // `available` is treated as "still checking" by the branches below.
 
   const sync = () =>
     startTransition(async () => {
