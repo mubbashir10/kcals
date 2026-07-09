@@ -8,6 +8,11 @@ import {
   startOfDayForDayKey,
 } from "@/lib/clock";
 import { shiftDayKey } from "@/lib/calendar-build";
+import {
+  FOOD_MEAL_DAY_SELECT,
+  foodDayKey,
+  foodsOfMealsInRange,
+} from "@/lib/food-day";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { requireUserId } from "@/lib/session";
 import { round1 } from "@/lib/utils";
@@ -83,10 +88,10 @@ async function classify(
     shiftDayKey(dayKeys[dayKeys.length - 1], 1)
   );
   const existing = await db.food.findMany({
-    where: { meal: { userId }, loggedAt: { gte: rangeStart, lt: rangeEnd } },
-    select: { loggedAt: true },
+    where: foodsOfMealsInRange(userId, rangeStart, rangeEnd),
+    select: FOOD_MEAL_DAY_SELECT,
   });
-  const daysWithFood = new Set(existing.map((f) => dayKeyInTz(tz, f.loggedAt)));
+  const daysWithFood = new Set(existing.map((f) => foodDayKey(tz, f)));
 
   const toCreate: ClassifiedDay[] = [];
   const existingDays: string[] = [];

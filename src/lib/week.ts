@@ -8,6 +8,11 @@
 
 import { db } from "@/lib/db";
 import { dayKeyInTz, parseDayKey, startOfDayForDayKey } from "@/lib/clock";
+import {
+  FOOD_MEAL_DAY_SELECT,
+  foodDayKey,
+  foodsOfMealsInRange,
+} from "@/lib/food-day";
 import { shiftDayKey } from "@/lib/calendar-build";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import {
@@ -116,8 +121,8 @@ export async function loadWeekSummary(
 
   const [foods, activityLogs] = await Promise.all([
     db.food.findMany({
-      where: { meal: { userId }, loggedAt: { gte: rangeStart, lt: rangeEnd } },
-      select: { kcal: true, loggedAt: true },
+      where: foodsOfMealsInRange(userId, rangeStart, rangeEnd),
+      select: { kcal: true, ...FOOD_MEAL_DAY_SELECT },
     }),
     db.activityLog.findMany({
       where: { userId, dayKey: { gte: startKey, lte: endKey } },
@@ -127,7 +132,7 @@ export async function loadWeekSummary(
 
   const consumedByDay = new Map<string, number>();
   for (const f of foods) {
-    const key = dayKeyInTz(tz, f.loggedAt);
+    const key = foodDayKey(tz, f);
     if (key < startKey || key > endKey) continue;
     consumedByDay.set(key, (consumedByDay.get(key) ?? 0) + f.kcal);
   }

@@ -4,6 +4,11 @@
 
 import { db } from "@/lib/db";
 import { dayKeyInTz, parseDayKey } from "@/lib/clock";
+import {
+  FOOD_MEAL_DAY_SELECT,
+  foodDayKey,
+  foodsOfMealsInRange,
+} from "@/lib/food-day";
 
 export type DayMarker = {
   dayKey: string;
@@ -28,8 +33,8 @@ export async function loadDayMarkers(
 
   const [foods, activityLogs, weightLogs] = await Promise.all([
     db.food.findMany({
-      where: { meal: { userId }, loggedAt: { gte: start, lt: end } },
-      select: { kcal: true, loggedAt: true },
+      where: foodsOfMealsInRange(userId, start, end),
+      select: { kcal: true, ...FOOD_MEAL_DAY_SELECT },
     }),
     db.activityLog.findMany({
       where: { userId, dayKey: { gte: startKey, lte: endKey } },
@@ -64,7 +69,7 @@ export async function loadDayMarkers(
   };
 
   for (const f of foods) {
-    const key = dayKeyInTz(tz, f.loggedAt);
+    const key = foodDayKey(tz, f);
     if (key < startKey || key > endKey) continue;
     const m = get(key);
     m.hasFood = true;

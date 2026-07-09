@@ -46,6 +46,7 @@ import {
   moveMeal,
   copyMeal,
   listMealsOnDay,
+  ensureMealOnDay,
 } from "@/app/actions/meals";
 
 // Derived from the server action's return type — the action file is
@@ -879,7 +880,9 @@ function FoodTransferForm({
 }) {
   const [date, setDate] = useState(currentDayKey);
   const [meals, setMeals] = useState<MealOption[] | null>(null);
-  const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
+  // Keyed by MealOption.key, not by id — a default-meal placeholder has no id
+  // until it's picked.
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const todayKey = dayKeyInTz(timezone, new Date());
@@ -908,20 +911,26 @@ function FoodTransferForm({
 
   function changeDate(next: string) {
     setMeals(null);
-    setSelectedMealId(null);
+    setSelectedKey(null);
     setDate(next);
   }
 
   // Moving into the foods' own meal is a no-op, so it can't be a target.
-  function isDisabled(mealId: number) {
-    return !isCopy && mealId === currentMealId;
+  function isDisabled(option: MealOption) {
+    return !isCopy && option.id === currentMealId;
   }
 
   function onSubmit() {
-    if (selectedMealId == null) return;
+    const target = meals?.find((m) => m.key === selectedKey);
+    if (!target) return;
     startTransition(async () => {
-      if (isCopy) await copyFoods(foodIds, selectedMealId);
-      else await moveFoods(foodIds, selectedMealId);
+      // A placeholder has no row yet — create it the moment it's used as a
+      // destination.
+      const mealId =
+        target.id ??
+        (await ensureMealOnDay(date, target.name ?? "", target.timeHhmm ?? "00:00"));
+      if (isCopy) await copyFoods(foodIds, mealId);
+      else await moveFoods(foodIds, mealId);
       onSuccess();
       onClose();
     });
@@ -969,14 +978,14 @@ function FoodTransferForm({
           ) : (
             <div className="max-h-56 space-y-1.5 overflow-y-auto">
               {meals.map((m) => {
-                const disabled = isDisabled(m.id);
-                const selected = m.id === selectedMealId;
+                const disabled = isDisabled(m);
+                const selected = m.key === selectedKey;
                 return (
                   <button
-                    key={m.id}
+                    key={m.key}
                     type="button"
                     disabled={disabled}
-                    onClick={() => setSelectedMealId(m.id)}
+                    onClick={() => setSelectedKey(m.key)}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors",
                       selected
@@ -995,8 +1004,10 @@ function FoodTransferForm({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground tabular-nums">
-                        {formatTimeInTz(m.loggedAt, timezone)} · {m.kcal} kcal ·{" "}
-                        {m.foodCount} {m.foodCount === 1 ? "food" : "foods"}
+                        {formatTimeInTz(m.loggedAt, timezone)} ·{" "}
+                        {m.id == null
+                          ? "not started yet"
+                          : `${m.kcal} kcal · ${m.foodCount} ${m.foodCount === 1 ? "food" : "foods"}`}
                       </div>
                     </div>
                   </button>
@@ -1014,7 +1025,7 @@ function FoodTransferForm({
           </DialogClose>
           <Button
             onClick={onSubmit}
-            disabled={pending || selectedMealId == null}
+            disabled={pending || selectedKey == null}
             className="flex-1 rounded-full"
           >
             {submitLabel}

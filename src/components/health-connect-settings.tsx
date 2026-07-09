@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
-import { Activity, Flame, Footprints, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { Activity, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useNativeReady } from "@/lib/use-native";
-import { metricColor } from "@/lib/metric-colors";
 import { setHealthSync } from "@/app/actions/health";
 
 // window.KcalsNative is a direct JS interface added by MainActivity.kt (not the
@@ -27,19 +20,10 @@ type KcalsNativeWindow = Window & {
   };
 };
 
-// Native-only Health Connect control. The Android app reads Health Connect in
-// native code (MainActivity.kt) and syncs the last week of steps + active
-// calories on every launch; "Sync now" forces a fresh read. Renders nothing on
-// web/PWA.
-export function HealthConnectSettings({
-  enabled: initialEnabled,
-  steps,
-  activeKcal,
-}: {
-  enabled: boolean;
-  steps: number | null;
-  activeKcal: number | null;
-}) {
+// Native-only Health Connect control: a switch and a manual sync, nothing more.
+// The numbers it pulls in belong on the dashboard, not in settings. Renders
+// nothing on web/PWA.
+export function HealthConnectSettings({ enabled: initialEnabled }: { enabled: boolean }) {
   const native = useNativeReady();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [syncing, setSyncing] = useState(false);
@@ -75,8 +59,6 @@ export function HealthConnectSettings({
 
   if (!native) return null;
 
-  const hasData = (activeKcal ?? 0) > 0 || (steps ?? 0) > 0;
-
   const runSync = (force: boolean) => {
     const api = (window as KcalsNativeWindow).KcalsNative;
     if (!api?.syncHealth) return;
@@ -109,7 +91,7 @@ export function HealthConnectSettings({
 
   return (
     <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Activity className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-sm font-medium">Health Connect</span>
@@ -149,42 +131,13 @@ export function HealthConnectSettings({
         </div>
       </div>
 
-      {enabled && hasData && (
-        <div className="mb-3 flex items-center gap-5 rounded-2xl bg-muted/50 px-4 py-3">
-          <div className="flex items-baseline gap-1.5">
-            <Flame
-              className="h-4 w-4 shrink-0 translate-y-0.5"
-              style={{ color: metricColor.energy }}
-            />
-            <span className="text-base font-semibold tabular-nums">
-              {(activeKcal ?? 0).toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">kcal</span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <Footprints
-              className="h-4 w-4 shrink-0 translate-y-0.5"
-              style={{ color: metricColor.activity }}
-            />
-            <span className="text-base font-semibold tabular-nums">
-              {(steps ?? 0).toLocaleString()}
-            </span>
-            <span className="text-xs text-muted-foreground">steps</span>
-          </div>
-          <span className="ml-auto text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-            today
-          </span>
-        </div>
-      )}
-
-      <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/80">
         {enabled ? (
           <>
             Your band&apos;s steps and active calories — de-duped across trackers
-            — sync automatically each time you open the app. The last week is
-            re-read every time, so a day you closed the app early still picks up
-            its full total. Days you log by hand are left alone; clear the log to
-            hand one back.
+            — sync each time you open the app, re-reading the last week so a day
+            you closed the app early still picks up its full total. Days you log
+            by hand are left alone.
           </>
         ) : (
           <>

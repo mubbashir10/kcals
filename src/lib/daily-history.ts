@@ -10,6 +10,11 @@
 
 import { db } from "@/lib/db";
 import { dayKeyInTz } from "@/lib/clock";
+import {
+  FOOD_MEAL_DAY_SELECT,
+  foodDayKey,
+  foodsOfMealsInRange,
+} from "@/lib/food-day";
 import { calculateBmr, type Sex } from "@/lib/bmr";
 import { activeKcal, calculateTdee, type ActivityMode } from "@/lib/tdee";
 import { computeMacroGoals, type MacroGoals } from "@/lib/macros";
@@ -67,13 +72,13 @@ export async function loadDailyHistory(
 
   const [foods, activityLogs, weightLogs] = await Promise.all([
     db.food.findMany({
-      where: { meal: { userId }, loggedAt: { gte: since } },
+      where: foodsOfMealsInRange(userId, since),
       select: {
         kcal: true,
         proteinG: true,
         carbsG: true,
         fatG: true,
-        loggedAt: true,
+        ...FOOD_MEAL_DAY_SELECT,
       },
     }),
     db.activityLog.findMany({
@@ -89,7 +94,7 @@ export async function loadDailyHistory(
 
   const foodByDay = new Map<string, DayConsumed & { count: number }>();
   for (const f of foods) {
-    const key = dayKeyInTz(tz, f.loggedAt);
+    const key = foodDayKey(tz, f);
     const ex =
       foodByDay.get(key) ??
       { kcal: 0, protein: 0, carbs: 0, fat: 0, count: 0 };

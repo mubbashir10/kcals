@@ -1,6 +1,16 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+  Utensils,
+} from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
+import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
 import { Card } from "@/components/ui/card";
 import { requireProfile } from "@/lib/session";
 import { displayWeight, type Units } from "@/lib/bmr";
@@ -59,16 +69,19 @@ export default async function WeekPage({
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-          <div className="flex flex-1 items-center justify-center gap-1">
+
+          {/* Week nav sits left of the fold and reads as one control, tinted so
+              it's obviously interactive rather than a title with decorations. */}
+          <div className="flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pl-0.5 pr-1 text-primary">
             <AppLink
               href={`/week?w=${summary.prevStartKey}`}
               direction="back"
               aria-label="Previous week"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <ChevronLeft className="h-4 w-4" />
             </AppLink>
-            <span className="px-1 text-sm font-semibold tracking-tight">
+            <span className="px-1.5 text-sm font-semibold tracking-tight tabular-nums">
               {summary.isCurrentWeek ? "This week" : rangeLabel}
             </span>
             {summary.canGoNext ? (
@@ -76,26 +89,25 @@ export default async function WeekPage({
                 href={`/week?w=${summary.nextStartKey}`}
                 direction="forward"
                 aria-label="Next week"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 <ChevronRight className="h-4 w-4" />
               </AppLink>
             ) : (
               <span
                 aria-hidden
-                className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground/30"
+                className="inline-flex h-7 w-7 items-center justify-center text-primary/25"
               >
                 <ChevronRight className="h-4 w-4" />
               </span>
             )}
           </div>
-          <span className="h-8 w-8" aria-hidden />
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         {summary.isCurrentWeek && (
-          <p className="mb-6 text-center text-xs text-muted-foreground tabular-nums">
+          <p className="mb-6 text-xs text-muted-foreground tabular-nums">
             {rangeLabel}
           </p>
         )}
@@ -136,21 +148,23 @@ export default async function WeekPage({
           )}
         </section>
 
-        {/* Consumed / burned over logged days */}
-        <section className="mt-8 grid grid-cols-2 gap-3">
-          <StatTile
-            label="Consumed"
-            value={Math.round(summary.consumedKcal).toLocaleString()}
-            unit="kcal"
-            hint="food you logged"
-          />
-          <StatTile
-            label="Burned"
-            value={Math.round(summary.burnedKcal).toLocaleString()}
-            unit="kcal"
-            hint="TDEE, same days"
-          />
-        </section>
+        {/* The week's totals as the same equation the day rows use. */}
+        {summary.loggedDays > 0 && (
+          <div className="mt-6 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-2xl bg-muted/40 px-4 py-3 text-[13px]">
+            <EqTerm
+              icon={Utensils}
+              value={Math.round(summary.consumedKcal)}
+              label="eaten"
+            />
+            <EqOp>−</EqOp>
+            <EqTerm
+              icon={Flame}
+              value={Math.round(summary.burnedKcal)}
+              label="burned"
+            />
+            <EqResult remaining={-net} />
+          </div>
+        )}
         <p className="mt-3 px-1 text-[11px] text-muted-foreground">
           Based on{" "}
           <span className="font-medium text-foreground/80">
@@ -176,82 +190,44 @@ export default async function WeekPage({
   );
 }
 
-function StatTile({
-  label,
-  value,
-  unit,
-  hint,
-}: {
-  label: string;
-  value: string;
-  unit: string;
-  hint: string;
-}) {
-  return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </span>
-      <div className="mt-2 text-2xl font-semibold leading-none tabular-nums tracking-tight">
-        {value}
-        <span className="ml-1 text-sm font-normal text-muted-foreground">
-          {unit}
-        </span>
-      </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
-    </Card>
-  );
-}
-
 function DayRow({ day }: { day: WeekSummary["days"][number] }) {
   const { weekday, date } = formatDayParts(day.dayKey);
-  const net = day.netKcal != null ? Math.round(day.netKcal) : null;
+  const eaten = Math.round(day.consumedKcal);
+  const burned = Math.round(day.tdeeKcal);
 
   const inner = (
-    <div className="flex items-center justify-between gap-3 px-5 py-3">
-      <div className="flex min-w-0 items-baseline gap-2">
-        <span className="w-9 shrink-0 text-sm font-semibold tracking-tight">
-          {weekday}
-        </span>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
-          {date}
-        </span>
-        {day.isToday && (
-          <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-foreground/70">
-            Today
+    <div className="px-5 py-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <span className="w-9 shrink-0 text-sm font-semibold tracking-tight">
+            {weekday}
+          </span>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {date}
+          </span>
+          {day.isToday && (
+            <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-foreground/70">
+              Today
+            </span>
+          )}
+        </div>
+        {day.isFuture && (
+          <span className="text-[11px] text-muted-foreground/50">—</span>
+        )}
+        {!day.isFuture && !day.hasFood && (
+          <span className="text-[11px] text-muted-foreground/70">
+            Not logged
           </span>
         )}
       </div>
 
-      {day.isFuture ? (
-        <span className="text-[11px] text-muted-foreground/50">—</span>
-      ) : day.hasFood ? (
-        <div className="flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
-          <span>
-            <span className="font-medium text-foreground/80">
-              {Math.round(day.consumedKcal).toLocaleString()}
-            </span>{" "}
-            in
-          </span>
-          <span>
-            <span className="font-medium text-foreground/80">
-              {Math.round(day.tdeeKcal).toLocaleString()}
-            </span>{" "}
-            out
-          </span>
-          <span
-            className={
-              net != null && net < 0
-                ? "font-semibold text-accent-foreground"
-                : "font-semibold text-foreground"
-            }
-          >
-            {net != null && net > 0 ? "+" : ""}
-            {net?.toLocaleString()}
-          </span>
+      {day.hasFood && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
+          <EqTerm icon={Utensils} value={eaten} />
+          <EqOp>−</EqOp>
+          <EqTerm icon={Flame} value={burned} />
+          <EqResult remaining={burned - eaten} />
         </div>
-      ) : (
-        <span className="text-[11px] text-muted-foreground/70">Not logged</span>
       )}
     </div>
   );

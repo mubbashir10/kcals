@@ -7,6 +7,7 @@ import {
   EyeOff,
   Flame,
   Footprints,
+  HeartPulse,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -253,8 +254,8 @@ function ActivitySummary({
   }
   if (today.cardioMin && today.cardioMin > 0) {
     chips.push({
-      icon: Dumbbell,
-      color: metricColor.energy,
+      icon: HeartPulse,
+      color: metricColor.calendar,
       text: `${today.cardioMin}m cardio`,
     });
   }

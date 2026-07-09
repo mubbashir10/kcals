@@ -7,7 +7,6 @@ import {
   Flame,
   HeartPulse,
   Minus,
-  Sigma,
   TrendingDown,
   TrendingUp,
   Utensils,
@@ -16,7 +15,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
-import { cn } from "@/lib/utils";
+import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import type { GoalType } from "@/lib/goal";
 
@@ -103,8 +102,7 @@ export function CalorieRingBlock({
   );
 }
 
-// The energy equation at a glance: BMR + Burned − Eaten = Net. Net is the raw
-// balance (what's left of your burn after eating), independent of the goal.
+// BMR + Burned − Eaten = what's left of your burn. Independent of the goal.
 function EnergyBalance({
   bmr,
   burned,
@@ -114,76 +112,18 @@ function EnergyBalance({
   burned: number;
   eaten: number;
 }) {
-  const net = bmr + burned - eaten;
   return (
     <div className="mt-7 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground sm:mt-9">
       {/* Burned/Eaten aren't labelled — the flame/fork icons carry them, which
-          keeps the line to BMR … = Net on one row. */}
-      <Term icon={HeartPulse} value={bmr} label="BMR" />
-      <Op>+</Op>
-      <Term icon={Flame} value={burned} />
-      <Op>−</Op>
-      <Term icon={Utensils} value={eaten} />
-      {/* net = burn − eaten. Positive = calories still in the bank; negative =
-          you out-ate your burn, flagged in the destructive tone rather than
-          with a sign. Dead even just reads "0". The `=` rides along with the
-          result so it never dangles at the end of a wrapped line. */}
-      <span className="inline-flex items-center gap-2.5">
-        <Op>=</Op>
-        <Term
-          icon={Sigma}
-          value={Math.abs(net)}
-          label={net > 0 ? "remaining" : net < 0 ? "overconsumed" : undefined}
-          strong
-          danger={net < 0}
-        />
-      </span>
+          keeps the line to one row. */}
+      <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
+      <EqOp>+</EqOp>
+      <EqTerm icon={Flame} value={burned} />
+      <EqOp>−</EqOp>
+      <EqTerm icon={Utensils} value={eaten} />
+      <EqResult remaining={bmr + burned - eaten} />
     </div>
   );
-}
-
-function Term({
-  icon: Icon,
-  value,
-  label,
-  strong = false,
-  danger = false,
-}: {
-  icon: LucideIcon;
-  value: number;
-  label?: string;
-  strong?: boolean;
-  /** Over-budget — paint the icon + number in the destructive tone. */
-  danger?: boolean;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <Icon
-        className={cn(
-          "h-3.5 w-3.5 shrink-0",
-          danger ? "text-destructive" : "text-muted-foreground/70"
-        )}
-        strokeWidth={2}
-      />
-      <span
-        className={cn(
-          "tabular-nums",
-          danger
-            ? "font-semibold text-destructive"
-            : strong
-              ? "font-semibold text-foreground"
-              : "font-medium text-foreground/70"
-        )}
-      >
-        {value.toLocaleString()}
-      </span>
-      {label && <span className="text-muted-foreground/70">{label}</span>}
-    </span>
-  );
-}
-
-function Op({ children }: { children: React.ReactNode }) {
-  return <span className="text-muted-foreground/40">{children}</span>;
 }
 
 function GoalChip({ type, offset }: { type: GoalType; offset: number }) {
