@@ -5,28 +5,29 @@ import {
   ChevronRight,
   Flame,
   Footprints,
+  HeartPulse,
   Scale,
-  Target,
   Utensils,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
-import { MacroCard } from "@/components/macro-card";
+import { Progress } from "@/components/ui/progress";
+import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
 import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calendar";
 import { displayWeight, type Units } from "@/lib/bmr";
-import { dayKeyInTz, formatLongDateInTz, startOfDayForDayKey } from "@/lib/clock";
-import { metricColor, metricTint } from "@/lib/metric-colors";
+import { dayKeyInTz, formatLongDateInTz, isDayKey, startOfDayForDayKey } from "@/lib/clock";
+import { metricColor } from "@/lib/metric-colors";
 import { formatMonthLabel, shiftDayKey, shiftMonth } from "@/lib/calendar-build";
 import { loadDayMarkers } from "@/lib/calendar-data";
 import { loadDayDetail } from "@/lib/day-detail";
+import type { MacroGoal } from "@/lib/macros";
 import { requireProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
-const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function CalendarPage({
   searchParams,
@@ -42,7 +43,7 @@ export default async function CalendarPage({
 
   // Selected day drives the summary card. Default to today; never the future.
   const selectedKey =
-    typeof d === "string" && DAY_RE.test(d) && d <= todayKey ? d : todayKey;
+    typeof d === "string" && isDayKey(d) && d <= todayKey ? d : todayKey;
 
   // Displayed month. Explicit `m` wins (month paging); otherwise the selected
   // day's month.
@@ -74,34 +75,29 @@ export default async function CalendarPage({
   let loggedWeight = 0;
   let loggedActivity = 0;
   let totalKcal = 0;
-  let kcalDays = 0;
   for (const v of markersMap.values()) {
     if (!v.dayKey.startsWith(monthPrefix)) continue;
     if (v.hasFood) {
       loggedFood += 1;
       totalKcal += v.consumedKcal;
-      kcalDays += 1;
     }
     if (v.hasWeight) loggedWeight += 1;
     if (v.hasActivity) loggedActivity += 1;
   }
-  const avgKcal = kcalDays > 0 ? totalKcal / kcalDays : null;
+  const avgKcal = loggedFood > 0 ? Math.round(totalKcal / loggedFood) : null;
 
   const monthLabel = formatMonthLabel(monthKey, tz);
 
-  // Selected-day figures for the summary card.
+  // Selected-day figures. Same equation the day page leads with, so this reads
+  // as a preview of it rather than a second, differently-shaped truth.
   const eaten = Math.round(detail.consumed.kcal);
   const burned = Math.round(detail.activeKcal);
-  const remaining = Math.round(detail.calorieGoal - detail.consumed.kcal);
-  const overGoal = remaining < 0;
+  const bmr = Math.round(detail.bmrKcal);
   const steps = detail.activityLog?.steps ?? null;
   const weightDisplay =
     detail.weight != null ? displayWeight(detail.weight.weightKg, units) : null;
   const isToday = selectedKey === todayKey;
-  const dayLabel = formatLongDateInTz(
-    startOfDayForDayKey(tz, selectedKey),
-    tz
-  );
+  const dayLabel = formatLongDateInTz(startOfDayForDayKey(tz, selectedKey), tz);
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -128,7 +124,7 @@ export default async function CalendarPage({
         {/* Month navigator. We render our own buttons (rdp's prev/next would
             change state client-side, but we want a fresh SSR fetch per month
             so markers stay correct). The selected day is preserved. */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <AppLink
             href={`/calendar?m=${prevMonthKey}&d=${selectedKey}`}
             direction="back"
@@ -159,77 +155,68 @@ export default async function CalendarPage({
           )}
         </div>
 
-        <MarkerCalendar
-          monthKey={monthKey}
-          markers={markers}
-          navigable={false}
-          selectHref
-          selectedKey={selectedKey}
-        />
-
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-          <Legend color={metricColor.energy} label="food" />
-          <Legend color={metricColor.weight} label="weight" />
-          <Legend color={metricColor.activity} label="activity" />
+        {/* The month's totals double as the grid's legend: each dot is the one
+            you'll see under a day, and the count is how many days carry it. */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-y border-border/60 py-3 text-xs">
+          <MonthStat color={metricColor.energy} label="food" value={loggedFood} unit="days" />
+          <MonthStat color={metricColor.weight} label="weight" value={loggedWeight} unit="days" />
+          <MonthStat color={metricColor.activity} label="activity" value={loggedActivity} unit="days" />
+          <MonthStat
+            label="avg"
+            value={avgKcal}
+            unit="kcal"
+          />
         </div>
 
-        {/* Selected-day summary */}
-        <Card className="mt-8 rounded-3xl border-border/60 p-5 shadow-card-lg sm:p-6">
-          <div className="flex items-center justify-between gap-3">
+        <div className="mt-5">
+          <MarkerCalendar
+            monthKey={monthKey}
+            markers={markers}
+            navigable={false}
+            selectHref
+            selectedKey={selectedKey}
+          />
+        </div>
+
+        {/* Selected-day preview. Deliberately not the whole day page — the
+            balance, the macros, and the two body metrics, stacked. */}
+        <Card className="mt-8 gap-0 rounded-3xl border-border/60 p-0 shadow-card-lg">
+          <AppLink
+            href={`/day/${selectedKey}`}
+            className="flex items-center justify-between gap-3 rounded-t-3xl px-5 py-4 outline-none transition-colors hover:bg-accent/30 focus-visible:bg-accent/30 sm:px-6"
+          >
             <h2 className="text-sm font-semibold tracking-tight">
               {isToday ? "Today" : dayLabel}
             </h2>
-            <AppLink
-              href={`/day/${selectedKey}`}
-              aria-label="Open full day"
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
               Open day
               <ArrowRight className="h-3.5 w-3.5" />
-            </AppLink>
+            </span>
+          </AppLink>
+
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-border/60 px-5 py-4 text-[13px] sm:px-6">
+            <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
+            <EqOp>+</EqOp>
+            <EqTerm icon={Flame} value={burned} />
+            <EqOp>−</EqOp>
+            <EqTerm icon={Utensils} value={eaten} />
+            <EqResult remaining={bmr + burned - eaten} />
           </div>
 
-          {/* Calories */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <StatTile
-              icon={Utensils}
-              color={metricColor.energy}
-              label="Eaten"
-              value={eaten}
-              suffix="kcal"
-            />
-            <StatTile
-              icon={Flame}
-              color={metricColor.activity}
-              label="Burned"
-              value={burned}
-              suffix="kcal"
-            />
-            <StatTile
-              icon={Target}
-              color={overGoal ? "var(--destructive)" : metricColor.energy}
-              label={overGoal ? "Over" : "Left"}
-              value={Math.abs(remaining)}
-              suffix="kcal"
-            />
-          </div>
-
-          {/* Macros */}
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            <MacroCard
+          <div className="space-y-3.5 border-t border-border/60 px-5 py-4 sm:px-6">
+            <MacroRow
               label="Protein"
               value={Math.round(detail.consumed.protein)}
               goal={detail.macroGoals.protein}
               color={metricColor.protein}
             />
-            <MacroCard
+            <MacroRow
               label="Carbs"
               value={Math.round(detail.consumed.carbs)}
               goal={detail.macroGoals.carbs}
               color={metricColor.carbs}
             />
-            <MacroCard
+            <MacroRow
               label="Fat"
               value={Math.round(detail.consumed.fat)}
               goal={detail.macroGoals.fat}
@@ -237,40 +224,25 @@ export default async function CalendarPage({
             />
           </div>
 
-          {/* Steps + weight */}
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <StatTile
+          <div className="border-t border-border/60 px-5 py-2 sm:px-6">
+            <MetricRow
               icon={Footprints}
-              color={metricColor.calendar}
+              color={metricColor.activity}
               label="Steps"
-              value={steps != null && steps > 0 ? steps : null}
+              value={steps != null && steps > 0 ? steps.toLocaleString() : null}
             />
-            <StatTile
+            <MetricRow
               icon={Scale}
               color={metricColor.weight}
               label="Weight"
-              value={weightDisplay?.value ?? null}
-              suffix={weightDisplay?.unit}
+              value={
+                weightDisplay
+                  ? `${weightDisplay.value} ${weightDisplay.unit}`
+                  : null
+              }
             />
           </div>
         </Card>
-
-        {/* Month summary */}
-        <section className="mt-6">
-          <h2 className="mb-3 px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            {monthLabel}
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <SummaryTile label="Food" value={loggedFood} suffix="days" />
-            <SummaryTile label="Weight" value={loggedWeight} suffix="days" />
-            <SummaryTile label="Activity" value={loggedActivity} suffix="days" />
-            <SummaryTile
-              label="Avg kcal"
-              value={avgKcal != null ? Math.round(avgKcal) : null}
-              suffix="kcal"
-            />
-          </div>
-        </section>
 
         {monthKey !== currentMonthKey && (
           <div className="mt-6 text-center">
@@ -288,91 +260,98 @@ export default async function CalendarPage({
   );
 }
 
-// Colorful stat tile — tinted background, colored icon, big number + label.
-// `value` is null → renders an em dash (nothing logged for that metric).
-function StatTile({
+// `color` is set for the three marker metrics — the dot is the legend for the
+// grid below. The average has no marker, so no dot.
+function MonthStat({
+  color,
+  label,
+  value,
+  unit,
+}: {
+  color?: string;
+  label: string;
+  value: number | null;
+  unit: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      {color && (
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden
+        />
+      )}
+      {label}
+      <span className="font-semibold tabular-nums text-foreground">
+        {value != null ? value.toLocaleString() : "—"}
+      </span>
+      {unit}
+    </span>
+  );
+}
+
+// Macro as a full-width row: name and amount on one line, bar beneath. Reads
+// down the card instead of squeezing three numbers across it.
+function MacroRow({
+  label,
+  value,
+  goal,
+  color,
+}: {
+  label: string;
+  value: number;
+  goal: MacroGoal;
+  color: string;
+}) {
+  const tracked = goal.kind !== "off";
+  const goalG = tracked ? goal.g : null;
+  const pct = goalG && goalG > 0 ? Math.min((value / goalG) * 100, 100) : 0;
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+            aria-hidden
+          />
+          {label}
+        </span>
+        <span className="text-sm tabular-nums">
+          <span className="font-semibold">{value}</span>
+          <span className="text-muted-foreground/70">
+            {tracked ? ` / ${goalG} g` : " g"}
+          </span>
+        </span>
+      </div>
+      <Progress value={pct} indicatorColor={color} className="mt-1.5" />
+    </div>
+  );
+}
+
+// A body metric that either has a value or doesn't. `null` renders an em dash.
+function MetricRow({
   icon: Icon,
   color,
   label,
   value,
-  suffix,
 }: {
   icon: LucideIcon;
   color: string;
   label: string;
-  value: number | string | null;
-  suffix?: string;
+  value: string | null;
 }) {
   return (
-    <div
-      className="rounded-2xl border border-border/60 p-3.5 shadow-card sm:p-4"
-      style={{ backgroundColor: metricTint(color, 8) }}
-    >
-      <div className="flex items-center gap-1.5">
-        <Icon className="h-3.5 w-3.5" style={{ color }} strokeWidth={2} />
-        <span className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </span>
-      </div>
-      <div className="mt-2 flex items-baseline gap-1 leading-none">
-        {value == null ? (
-          <span className="text-base font-normal text-muted-foreground">—</span>
-        ) : (
-          <>
-            <span className="text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
-              {typeof value === "number" ? value.toLocaleString() : value}
-            </span>
-            {suffix && (
-              <span className="text-[11px] text-muted-foreground/80">
-                {suffix}
-              </span>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SummaryTile({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number | null;
-  suffix: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+        <Icon className="h-4 w-4 shrink-0" style={{ color }} strokeWidth={2} />
         {label}
-      </div>
-      <div className="mt-2 text-lg font-semibold tabular-nums tracking-tight">
-        {value == null ? (
-          <span className="text-base font-normal text-muted-foreground">—</span>
-        ) : (
-          <>
-            {value.toLocaleString()}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              {suffix}
-            </span>
-          </>
-        )}
-      </div>
+      </span>
+      <span className="text-sm tabular-nums">
+        {value ?? <span className="text-muted-foreground/50">—</span>}
+      </span>
     </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: color }}
-        aria-hidden
-      />
-      {label}
-    </span>
   );
 }

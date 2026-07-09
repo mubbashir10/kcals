@@ -1,5 +1,6 @@
 package app.kcals
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.webkit.CookieManager
@@ -12,6 +13,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.lifecycleScope
@@ -50,7 +52,13 @@ class MainActivity : BridgeActivity() {
         private const val SYNC_DAYS = 7L
     }
 
-    private data class DayTotals(val dayKey: String, val steps: Long, val activeKcal: Long)
+    private data class DayTotals(
+        val dayKey: String,
+        val steps: Long,
+        val activeKcal: Long,
+        /** Health Connect's own attribution, e.g. "Mi Fitness". Null if unresolvable. */
+        val source: String?,
+    )
 
     private val hcPermissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
@@ -199,7 +207,12 @@ class MainActivity : BridgeActivity() {
                             ?.inKilocalories ?: 0.0
                     )
                     if (steps == 0L && kcal == 0L) null
-                    else DayTotals(bucket.startTime.toLocalDate().toString(), steps, kcal)
+                    else DayTotals(
+                        dayKey = bucket.startTime.toLocalDate().toString(),
+                        steps = steps,
+                        activeKcal = kcal,
+                        source = sourceLabel(bucket.result.dataOrigins),
+                    )
                 }
                 Log.i(TAG, "read HC ${days.size} day(s): $days")
                 postToServer(days, today.toString())
@@ -207,6 +220,29 @@ class MainActivity : BridgeActivity() {
                 Log.e(TAG, "readAndSync failed", e)
             }
         }
+    }
+
+    // Who Health Connect says the day's numbers came from. The aggregate already
+    // carries its contributing packages, so this costs no extra read. We resolve
+    // each to the label the launcher shows ("Mi Fitness"), skipping our own app
+    // and anything uninstalled since. Nothing is hardcoded — an unresolvable
+    // package is simply dropped rather than shown as a raw package name.
+    private fun sourceLabel(origins: Set<DataOrigin>): String? {
+        val pm = packageManager
+        val labels = origins
+            .map { it.packageName }
+            .filter { it.isNotBlank() && it != packageName }
+            .mapNotNull { pkg ->
+                try {
+                    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString().trim()
+                } catch (e: PackageManager.NameNotFoundException) {
+                    null
+                }
+            }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .sorted()
+        return if (labels.isEmpty()) null else labels.joinToString(", ")
     }
 
     private suspend fun postToServer(days: List<DayTotals>, todayKey: String) =
@@ -228,6 +264,9 @@ class MainActivity : BridgeActivity() {
                             .put("dayKey", day.dayKey)
                             .put("steps", day.steps)
                             .put("activeKcal", day.activeKcal)
+                            // JSONObject.put(String, null) omits the key, which
+                            // the server reads as "no source" — exactly right.
+                            .put("source", day.source)
                     )
                 }
                 val body = JSONObject().put("days", arr).toString()

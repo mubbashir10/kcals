@@ -253,6 +253,11 @@ model ActivityLog {
   // it skips manual days entirely. Clearing a log hands the day back to it.
   manual Boolean @default(false)
 
+  // Which app the synced numbers came from, as Health Connect reports it —
+  // e.g. "Mi Fitness". Resolved natively from the aggregate's dataOrigin
+  // package name; null on manual entries and on rows predating the column.
+  source String?
+
   // Daily TDEE snapshots — written by the actions whenever the row is
   // upserted, so reads never recompute on the fly.
   bmrKcal            Float? // snapshot of BMR for that day

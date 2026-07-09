@@ -11,7 +11,7 @@ import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ActivityCard } from "@/components/activity-card";
+import { ActivityCard, type ActivityCardProps } from "@/components/activity-card";
 import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
@@ -54,6 +54,8 @@ type ActivityRow = {
   liftingMin: number | null;
   cardioMin: number | null;
   wearableKcal: number | null;
+  manual: boolean;
+  source: string | null;
 } | null;
 
 export type DayDashboardStats = {
@@ -309,13 +311,7 @@ function eatHintFor(activity: ActivityRow, active: ActiveResult): string {
 // The activity card only treats the day as "logged" when there's an actual
 // override — not just because a snapshot row exists (we lazy-create one for
 // TDEE snapshotting). An empty/cleared row uses the profile default instead.
-function activityOverride(row: ActivityRow): {
-  mode: ActivityMode;
-  steps: number | null;
-  liftingMin: number | null;
-  cardioMin: number | null;
-  wearableKcal: number | null;
-} | null {
+function activityOverride(row: ActivityRow): ActivityCardProps["today"] {
   if (!row) return null;
   const hasOverride =
     (row.mode === "override" && (row.wearableKcal ?? 0) > 0) ||
@@ -330,5 +326,7 @@ function activityOverride(row: ActivityRow): {
     liftingMin: row.liftingMin,
     cardioMin: row.cardioMin,
     wearableKcal: row.wearableKcal,
+    manual: row.manual,
+    source: row.source,
   };
 }

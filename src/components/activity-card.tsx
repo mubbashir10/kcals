@@ -49,6 +49,10 @@ export type ActivityCardProps = {
     liftingMin: number | null;
     cardioMin: number | null;
     wearableKcal: number | null;
+    /** Typed in by hand — Health Connect will not overwrite it. */
+    manual: boolean;
+    /** App the sync credited, e.g. "Mi Fitness". Null on manual entries. */
+    source: string | null;
   } | null;
   defaults: {
     stepsPerDay: number | null;
@@ -229,10 +233,7 @@ function ActivitySummary({
             <StatTile key={t.label} {...t} />
           ))}
         </div>
-        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
-          <Watch className={ICON} />
-          Synced from your band
-        </p>
+        <Provenance today={today} />
       </div>
     );
   }
@@ -264,14 +265,43 @@ function ActivitySummary({
   // there's an actual override (≥1 non-zero field). An empty snapshot row
   // shows the "Using your typical-day estimate" copy instead.
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-      {chips.map((c, i) => (
-        <span key={i} className="flex items-center gap-2 text-sm tabular-nums">
-          <c.icon className={ICON} style={{ color: c.color }} />
-          {c.text}
-        </span>
-      ))}
+    <div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {chips.map((c, i) => (
+          <span key={i} className="flex items-center gap-2 text-sm tabular-nums">
+            <c.icon className={ICON} style={{ color: c.color }} />
+            {c.text}
+          </span>
+        ))}
+      </div>
+      <Provenance today={today} />
     </div>
+  );
+}
+
+// Where the day's numbers came from. A hand-entered day says so, because that
+// is also what stops Health Connect from rewriting it — the rule is invisible
+// otherwise, and "why didn't my steps update?" is the obvious next question.
+function Provenance({
+  today,
+}: {
+  today: NonNullable<ActivityCardProps["today"]>;
+}) {
+  return (
+    <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
+      {today.manual ? (
+        <>
+          <Pencil className={ICON} />
+          Logged by hand — Health Connect won&apos;t change it. Clear the log to
+          hand this day back.
+        </>
+      ) : (
+        <>
+          <Watch className={ICON} />
+          Synced from {today.source ?? "your band"}
+        </>
+      )}
+    </p>
   );
 }
 

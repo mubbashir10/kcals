@@ -19,7 +19,13 @@ export type HealthDay = {
   dayKey: string | null;
   steps: number | null;
   activeKcal: number | null;
+  /** App Health Connect credits the day to, e.g. "Mi Fitness". */
+  source?: string | null;
 };
+
+// Long enough for "Zepp Life, Mi Fitness"; anything past that is a broken
+// client, not a label.
+const MAX_SOURCE_LEN = 80;
 
 // Rolling window the native shell reads and we accept, today inclusive. Health
 // Connect's default read grant only reaches 30 days back, and a band has
@@ -109,10 +115,11 @@ export async function syncHealthDays(
           ? { mode: "override", wearableKcal: day.activeKcal, steps: day.steps }
           : { mode: "estimate", steps: day.steps }
       );
+      const source = day.source?.trim().slice(0, MAX_SOURCE_LEN) || null;
       return db.activityLog.upsert({
         where: { userId_dayKey: { userId, dayKey } },
-        create: { userId, dayKey, manual: false, ...fields },
-        update: { manual: false, ...fields },
+        create: { userId, dayKey, manual: false, source, ...fields },
+        update: { manual: false, source, ...fields },
       });
     })
   );

@@ -27,8 +27,13 @@ export async function upsertActivity(
   const key = dayKey ?? dayKeyInTz(tz);
 
   // `manual` fences the day off from the Health Connect backfill, which
-  // otherwise rewrites the last week on every app launch.
-  const fields = { ...activityLogFields(profile, input), manual: true };
+  // otherwise rewrites the last week on every app launch. These numbers came
+  // from a person, so no sync source applies.
+  const fields = {
+    ...activityLogFields(profile, input),
+    manual: true,
+    source: null,
+  };
 
   await db.activityLog.upsert({
     where: { userId_dayKey: { userId, dayKey: key } },
@@ -65,6 +70,7 @@ export async function clearActivity(dayKey: string | null) {
     cardioMin: null,
     wearableKcal: null,
     manual: false,
+    source: null,
     bmrKcal: snapshot.bmrKcal,
     defaultActiveKcal: snapshot.defaultActiveKcal,
     overrideActiveKcal: null,

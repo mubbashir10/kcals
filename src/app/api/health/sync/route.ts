@@ -71,8 +71,15 @@ function parseDays(raw: object): HealthDay[] | null {
   if (!Array.isArray(body.days)) return null;
   return body.days.flatMap((entry): HealthDay[] => {
     if (typeof entry !== "object" || entry === null) return [];
-    const { dayKey, steps, activeKcal } = entry as Record<string, unknown>;
+    const { dayKey, steps, activeKcal, source } = entry as Record<string, unknown>;
     if (typeof dayKey !== "string") return [];
-    return [{ dayKey, steps: num(steps), activeKcal: num(activeKcal) }];
+    return [
+      {
+        dayKey,
+        steps: num(steps),
+        activeKcal: num(activeKcal),
+        source: typeof source === "string" ? source : null,
+      },
+    ];
   });
 }
