@@ -43,7 +43,7 @@ export default async function SetupPage() {
 
       {existing && (
         <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-          <div className="mx-auto flex h-14 w-full max-w-md items-center gap-3 px-6">
+          <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
             <AppLink
               href="/"
               direction="back"
@@ -59,7 +59,7 @@ export default async function SetupPage() {
         </header>
       )}
 
-      <main className="mx-auto w-full max-w-md flex-1 px-6 py-12">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight">
             {existing ? "Profile" : "Tell us about you"}
