@@ -12,34 +12,45 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.StepsRecord
-import androidx.health.connect.client.request.AggregateRequest
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.lifecycle.lifecycleScope
 import com.getcapacitor.BridgeActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.Period
 import java.time.ZoneId
 
 // kcals runs in remote-URL mode (the WebView loads https://kcals.app). Health
 // Connect is read HERE, in native Kotlin — NOT through the JS/Capacitor bridge,
-// which proved unreliable in remote-URL mode. On every launch we read today's
-// de-duped steps + active calories straight from Health Connect and POST them to
-// the server (authenticated with the WebView's session cookie); the web UI just
-// displays the synced numbers. The WebView never touches Health Connect.
+// which proved unreliable in remote-URL mode. On every launch we read the last
+// week of de-duped steps + active calories straight from Health Connect and POST
+// them to the server (authenticated with the WebView's session cookie); the web
+// UI just displays the synced numbers. The WebView never touches Health Connect.
 class MainActivity : BridgeActivity() {
 
     companion object {
         private const val TAG = "KcalsHealth"
         private const val ORIGIN = "https://kcals.app"
         private const val SYNC_URL = "$ORIGIN/api/health/sync"
+
+        // We can only read Health Connect while foregrounded, so a day used to
+        // freeze at whatever partial total was on screen when the app last had
+        // focus. Re-read a rolling window so yesterday gets its real closing
+        // numbers once the band has finished uploading them. Keep in step with
+        // HEALTH_SYNC_DAYS in src/lib/health-sync.ts — the server bounds it too.
+        private const val SYNC_DAYS = 7L
     }
+
+    private data class DayTotals(val dayKey: String, val steps: Long, val activeKcal: Long)
 
     private val hcPermissions = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
@@ -100,9 +111,9 @@ class MainActivity : BridgeActivity() {
         if (hasFocus) trySyncHealth()
     }
 
-    // On each launch/resume: if Health Connect is available and permitted, read
-    // today's totals and sync them. If not yet permitted, request it once per
-    // launch.
+    // On each launch/resume: if the user has the integration switched on, Health
+    // Connect is available, and we're permitted, read the recent days' totals
+    // and sync them. If not yet permitted, request it once per launch.
     private fun trySyncHealth() {
         val status = HealthConnectClient.getSdkStatus(this)
         if (status != HealthConnectClient.SDK_AVAILABLE) {
@@ -111,6 +122,12 @@ class MainActivity : BridgeActivity() {
         }
         lifecycleScope.launch {
             try {
+                // Ask the server first: switching the toggle off must stop the
+                // permission prompt, not just the write.
+                if (!isSyncEnabled()) {
+                    Log.i(TAG, "Health Connect sync disabled for this account")
+                    return@launch
+                }
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
                 if (granted.containsAll(hcPermissions)) {
@@ -126,46 +143,94 @@ class MainActivity : BridgeActivity() {
         }
     }
 
+    // Offline (or signed out) reads as "off": we couldn't POST the numbers
+    // anyway, and guessing "on" would prompt a user who switched it off.
+    private suspend fun isSyncEnabled(): Boolean = withContext(Dispatchers.IO) {
+        val cookie = CookieManager.getInstance().getCookie(ORIGIN)
+        if (cookie.isNullOrBlank()) return@withContext false
+        try {
+            val conn = (URL(SYNC_URL).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 10000
+                readTimeout = 10000
+                setRequestProperty("Cookie", cookie)
+            }
+            val code = conn.responseCode
+            val enabled = code in 200..299 &&
+                JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                    .optBoolean("enabled", false)
+            conn.disconnect()
+            enabled
+        } catch (e: Exception) {
+            Log.e(TAG, "isSyncEnabled failed", e)
+            false
+        }
+    }
+
     private fun readAndSync(existing: HealthConnectClient? = null) {
         lifecycleScope.launch {
             try {
                 val client = existing ?: HealthConnectClient.getOrCreate(this@MainActivity)
-                val zone = ZoneId.systemDefault()
-                val start = LocalDate.now(zone).atStartOfDay(zone).toInstant()
-                val end = Instant.now()
-                val result = client.aggregate(
-                    AggregateRequest(
+                val today = LocalDate.now(ZoneId.systemDefault())
+                // Period slicing works in local wall-clock, so each bucket lands
+                // on a calendar day the way the user experienced it. The window
+                // ends at "now" — today's bucket is a partial day, the rest are
+                // whole ones.
+                val buckets = client.aggregateGroupByPeriod(
+                    AggregateGroupByPeriodRequest(
                         metrics = setOf(
                             StepsRecord.COUNT_TOTAL,
                             ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
                         ),
-                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                        timeRangeFilter = TimeRangeFilter.between(
+                            today.minusDays(SYNC_DAYS - 1).atStartOfDay(),
+                            LocalDateTime.now(),
+                        ),
+                        timeRangeSlicer = Period.ofDays(1),
                     )
                 )
-                val steps = result[StepsRecord.COUNT_TOTAL] ?: 0L
-                val kcal = result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
-                    ?.inKilocalories ?: 0.0
-                Log.i(TAG, "read HC today: steps=$steps activeKcal=$kcal")
-                postToServer(steps, kcal)
+                // Empty days are dropped, not posted as zeros: the server would
+                // skip them anyway, and a phone left at home must never wipe a
+                // day the band did record.
+                val days = buckets.mapNotNull { bucket ->
+                    val steps = bucket.result[StepsRecord.COUNT_TOTAL] ?: 0L
+                    val kcal = Math.round(
+                        bucket.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
+                            ?.inKilocalories ?: 0.0
+                    )
+                    if (steps == 0L && kcal == 0L) null
+                    else DayTotals(bucket.startTime.toLocalDate().toString(), steps, kcal)
+                }
+                Log.i(TAG, "read HC ${days.size} day(s): $days")
+                postToServer(days, today.toString())
             } catch (e: Exception) {
                 Log.e(TAG, "readAndSync failed", e)
             }
         }
     }
 
-    private suspend fun postToServer(steps: Long, activeKcal: Double) =
+    private suspend fun postToServer(days: List<DayTotals>, todayKey: String) =
         withContext(Dispatchers.IO) {
+            if (days.isEmpty()) {
+                Log.i(TAG, "no Health Connect data in window — skipping sync")
+                return@withContext
+            }
             val cookie = CookieManager.getInstance().getCookie(ORIGIN)
             if (cookie.isNullOrBlank()) {
                 Log.i(TAG, "no session cookie yet — skipping sync")
                 return@withContext
             }
-            val kcal = Math.round(activeKcal)
             try {
-                val body = JSONObject()
-                    .put("steps", steps)
-                    .put("activeKcal", kcal)
-                    .toString()
+                val arr = JSONArray()
+                for (day in days) {
+                    arr.put(
+                        JSONObject()
+                            .put("dayKey", day.dayKey)
+                            .put("steps", day.steps)
+                            .put("activeKcal", day.activeKcal)
+                    )
+                }
+                val body = JSONObject().put("days", arr).toString()
                 val conn = (URL(SYNC_URL).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     doOutput = true
@@ -176,16 +241,21 @@ class MainActivity : BridgeActivity() {
                 }
                 conn.outputStream.use { it.write(body.toByteArray()) }
                 val code = conn.responseCode
-                Log.i(TAG, "sync POST -> HTTP $code")
+                Log.i(TAG, "sync POST ${days.size} day(s) -> HTTP $code")
                 conn.disconnect()
-                if (code in 200..299) notifyWebSynced(steps, kcal)
+                if (code in 200..299) {
+                    val today = days.firstOrNull { it.dayKey == todayKey }
+                    notifyWebSynced(today?.steps ?: 0L, today?.activeKcal ?: 0L)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "postToServer failed", e)
             }
         }
 
-    // Tell the web app a fresh sync landed (with the numbers) so it re-fetches
-    // and can show a subtle "synced" note without the user reopening the app.
+    // Tell the web app a fresh sync landed (with today's numbers) so it
+    // re-fetches and can show a subtle "synced" note without the user reopening
+    // the app. Fired even when today is still empty, so an in-flight "Sync now"
+    // button always settles.
     private fun notifyWebSynced(steps: Long, activeKcal: Long) {
         runOnUiThread {
             bridge?.webView?.evaluateJavascript(
@@ -203,6 +273,17 @@ class MainActivity : BridgeActivity() {
         @JavascriptInterface
         fun syncHealth() {
             runOnUiThread { trySyncHealth() }
+        }
+
+        // Called when the user switches the integration on in settings. Clearing
+        // the once-per-launch guard means the system permission sheet appears
+        // right then, rather than on the next cold start.
+        @JavascriptInterface
+        fun requestHealthPermission() {
+            runOnUiThread {
+                promptedThisLaunch = false
+                trySyncHealth()
+            }
         }
     }
 

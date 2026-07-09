@@ -200,6 +200,11 @@ model Profile {
   // JSON array of widget IDs in display order. NULL = default order.
   widgetOrder    String?
 
+  // Native Android only: whether the app reads Health Connect at all. The
+  // shell checks this before touching the API, so turning it off also stops
+  // the permission prompt. Ignored on web/PWA.
+  healthSync Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -242,6 +247,11 @@ model ActivityLog {
   liftingMin   Int? // estimate mode — minutes that day
   cardioMin    Int? // estimate mode — minutes that day
   wearableKcal Int? // override mode — total active kcal from wearable
+
+  // Set when a human typed this day in (ActivityCard). The Health Connect
+  // backfill rewrites past days, so it needs to know which ones it may touch:
+  // it skips manual days entirely. Clearing a log hands the day back to it.
+  manual Boolean @default(false)
 
   // Daily TDEE snapshots — written by the actions whenever the row is
   // upserted, so reads never recompute on the fly.

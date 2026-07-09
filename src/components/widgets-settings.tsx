@@ -5,7 +5,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   ArrowLeftRight,
-  CalendarRange,
   Circle,
   Eye,
   EyeOff,
@@ -52,7 +51,6 @@ const WIDGETS: {
   { id: "maintenance", label: "Maintenance calories", icon: Flame, accent: "text-amber-500" },
   { id: "activity", label: "Today's activity", icon: Activity, accent: "text-sky-500" },
   { id: "weight", label: "Weight", icon: Weight, accent: "text-violet-500" },
-  { id: "week", label: "Week summary", icon: CalendarRange, accent: "text-teal-500" },
   { id: "meals", label: "Today's meals", icon: UtensilsCrossed, accent: "text-orange-500" },
   { id: "friends", label: "Friends", icon: Users, accent: "text-fuchsia-500" },
 ];

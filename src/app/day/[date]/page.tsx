@@ -13,14 +13,11 @@ import {
   autoMealNameInTz,
   dayKeyInTz,
   formatLongDateInTz,
+  isDayKey,
   startOfDayForDayKey,
 } from "@/lib/clock";
 
 export const dynamic = "force-dynamic";
-
-// Strict "YYYY-MM-DD". We don't want surprise inputs like "2026-5-1" turning
-// into different days under different timezones.
-const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default async function DayPage({
   params,
@@ -28,7 +25,7 @@ export default async function DayPage({
   params: Promise<{ date: string }>;
 }) {
   const { date: dayKey } = await params;
-  if (!DAY_KEY_RE.test(dayKey)) notFound();
+  if (!isDayKey(dayKey)) notFound();
 
   const { userId, profile } = await requireProfile();
   const tz = profile.timezone || "UTC";
@@ -68,12 +65,7 @@ export default async function DayPage({
               kcals
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
-              {dateLabel}
-            </span>
-            <UserMenu />
-          </div>
+          <UserMenu />
         </div>
       </header>
 

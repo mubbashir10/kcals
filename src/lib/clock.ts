@@ -27,6 +27,13 @@ export function dayKeyInTz(tz: string, ref: Date = new Date()): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// Strict "YYYY-MM-DD". Guards untrusted input (route params, POST bodies) so a
+// value like "2026-5-1" can't resolve to different days under different
+// timezones. Everything else here assumes an already-valid key.
+export function isDayKey(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 // Parse a "YYYY-MM-DD" key into its parts. Throws on malformed input.
 export function parseDayKey(key: string): { year: number; month: number; day: number } {
   const [y, m, d] = key.split("-").map((s) => parseInt(s, 10));

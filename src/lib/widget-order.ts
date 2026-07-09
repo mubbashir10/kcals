@@ -8,7 +8,6 @@ export const REORDERABLE_WIDGETS = [
   "maintenance",
   "activity",
   "weight",
-  "week",
   "meals",
   "friends",
 ] as const;
@@ -35,7 +34,6 @@ export const HIDEABLE_WIDGETS: readonly ReorderableWidgetId[] = [
   "maintenance",
   "activity",
   "weight",
-  "week",
   "meals",
   "friends",
 ];

@@ -9,12 +9,7 @@ import { listFriendSummaries, pendingInvitesForUser } from "@/lib/friends";
 import { getSession } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
 import { loadWeekSummary } from "@/lib/week";
-import {
-  autoMealNameInTz,
-  dayKeyInTz,
-  formatLongDateInTz,
-  greetingInTz,
-} from "@/lib/clock";
+import { autoMealNameInTz, dayKeyInTz, greetingInTz } from "@/lib/clock";
 import { loadDayMealItems } from "@/lib/default-meals";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +53,6 @@ export default async function Home() {
   } = stats;
 
   const widgetStates = parseWidgetStates(profile.widgetStates);
-  const weekState = getWidgetState(widgetStates, "week");
   const mealsState = getWidgetState(widgetStates, "meals");
 
   const todayKey = dayKeyInTz(tz, now);
@@ -75,19 +69,11 @@ export default async function Home() {
     enabled: mealsState !== "hidden",
   });
 
-  // Week summary — skip the fetch when the widget is hidden.
-  const weekSummaryPromise =
-    weekState === "hidden"
-      ? Promise.resolve(null)
-      : loadWeekSummary(userId, profile, null, now);
-
   const [friendSummaries, incomingInvites, weekSummary] = await Promise.all([
     friendSummariesPromise,
     incomingInvitesPromise,
-    weekSummaryPromise,
+    loadWeekSummary(userId, profile, null, now),
   ]);
-
-  const dateStr = formatLongDateInTz(now, tz);
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -104,12 +90,7 @@ export default async function Home() {
               kcals
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
-              {dateStr}
-            </span>
-            <UserMenu />
-          </div>
+          <UserMenu />
         </div>
       </header>
 

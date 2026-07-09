@@ -70,6 +70,7 @@ export default async function SettingsPage() {
           <WeekStartSettings initial={profile.weekStartDay} />
           <DefaultMealsSettings initial={defaultMeals} />
           <HealthConnectSettings
+            enabled={profile.healthSync}
             steps={todayActivity?.steps ?? null}
             activeKcal={todayActivity?.wearableKcal ?? null}
           />

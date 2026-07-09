@@ -1,30 +1,11 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { activityLogFields, type ActivityLogInput } from "@/lib/activity-log";
 import { dayKeyInTz, isFutureDayKey } from "@/lib/clock";
 import { revalidateDiary } from "@/lib/revalidate";
 import { requireUserId } from "@/lib/session";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
-import type { ActivityMode } from "@/lib/tdee";
-
-export type ActivityLogInput = {
-  mode: ActivityMode;
-  steps?: number | null;
-  liftingMin?: number | null;
-  cardioMin?: number | null;
-  wearableKcal?: number | null;
-};
-
-function sanitizeInt(
-  value: number | null | undefined,
-  min: number,
-  max: number
-): number | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  const v = Math.round(value);
-  if (v < min || v > max) return null;
-  return v;
-}
 
 function revalidateActivity() {
   revalidateDiary();
@@ -45,56 +26,14 @@ export async function upsertActivity(
   }
   const key = dayKey ?? dayKeyInTz(tz);
 
-  const mode: ActivityMode = input.mode === "override" ? "override" : "estimate";
-
-  const overrideFields =
-    mode === "override"
-      ? {
-          mode,
-          // Steps are kept for DISPLAY only (TDEE uses wearableKcal in override
-          // mode and ignores steps — see lib/tdee.ts). The native Health Connect
-          // sync passes both so the app can show "N steps · M kcal"; manual
-          // override entry passes no steps, so this stays null there.
-          steps: sanitizeInt(input.steps, 0, 200000),
-          liftingMin: null,
-          cardioMin: null,
-          wearableKcal: sanitizeInt(input.wearableKcal, 0, 10000),
-        }
-      : {
-          mode,
-          steps: sanitizeInt(input.steps, 0, 200000),
-          liftingMin: sanitizeInt(input.liftingMin, 0, 600),
-          cardioMin: sanitizeInt(input.cardioMin, 0, 600),
-          wearableKcal: null,
-        };
-
-  // Compute the TDEE snapshot from the override the user just provided.
-  const snapshot = buildDailySnapshot(profile, {
-    mode: overrideFields.mode,
-    steps: overrideFields.steps,
-    liftingMin: overrideFields.liftingMin,
-    cardioMin: overrideFields.cardioMin,
-    wearableKcal: overrideFields.wearableKcal,
-  });
+  // `manual` fences the day off from the Health Connect backfill, which
+  // otherwise rewrites the last week on every app launch.
+  const fields = { ...activityLogFields(profile, input), manual: true };
 
   await db.activityLog.upsert({
     where: { userId_dayKey: { userId, dayKey: key } },
-    create: {
-      userId,
-      dayKey: key,
-      ...overrideFields,
-      bmrKcal: snapshot.bmrKcal,
-      defaultActiveKcal: snapshot.defaultActiveKcal,
-      overrideActiveKcal: snapshot.overrideActiveKcal,
-      tdeeKcal: snapshot.tdeeKcal,
-    },
-    update: {
-      ...overrideFields,
-      bmrKcal: snapshot.bmrKcal,
-      defaultActiveKcal: snapshot.defaultActiveKcal,
-      overrideActiveKcal: snapshot.overrideActiveKcal,
-      tdeeKcal: snapshot.tdeeKcal,
-    },
+    create: { userId, dayKey: key, ...fields },
+    update: fields,
   });
 
   revalidateActivity();
@@ -103,7 +42,8 @@ export async function upsertActivity(
 /**
  * "Clear" a day's log. We keep the row but null-out the override fields and
  * recompute TDEE from the default snapshot. The row persists so the daily
- * TDEE history stays complete. `dayKey === null` means "today".
+ * TDEE history stays complete. `dayKey === null` means "today". Clearing also
+ * drops the `manual` fence, handing the day back to the Health Connect sync.
  */
 export async function clearActivity(dayKey: string | null) {
   const userId = await requireUserId();
@@ -118,32 +58,23 @@ export async function clearActivity(dayKey: string | null) {
   // Default snapshot only — no override.
   const snapshot = buildDailySnapshot(profile, null);
 
+  const cleared = {
+    mode: "estimate",
+    steps: null,
+    liftingMin: null,
+    cardioMin: null,
+    wearableKcal: null,
+    manual: false,
+    bmrKcal: snapshot.bmrKcal,
+    defaultActiveKcal: snapshot.defaultActiveKcal,
+    overrideActiveKcal: null,
+    tdeeKcal: snapshot.tdeeKcal,
+  };
+
   await db.activityLog.upsert({
     where: { userId_dayKey: { userId, dayKey: key } },
-    create: {
-      userId,
-      dayKey: key,
-      mode: "estimate",
-      steps: null,
-      liftingMin: null,
-      cardioMin: null,
-      wearableKcal: null,
-      bmrKcal: snapshot.bmrKcal,
-      defaultActiveKcal: snapshot.defaultActiveKcal,
-      overrideActiveKcal: null,
-      tdeeKcal: snapshot.tdeeKcal,
-    },
-    update: {
-      mode: "estimate",
-      steps: null,
-      liftingMin: null,
-      cardioMin: null,
-      wearableKcal: null,
-      bmrKcal: snapshot.bmrKcal,
-      defaultActiveKcal: snapshot.defaultActiveKcal,
-      overrideActiveKcal: null,
-      tdeeKcal: snapshot.tdeeKcal,
-    },
+    create: { userId, dayKey: key, ...cleared },
+    update: cleared,
   });
 
   revalidateActivity();

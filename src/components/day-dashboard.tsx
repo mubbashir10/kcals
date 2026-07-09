@@ -1,5 +1,5 @@
-// The shared dashboard body — the hero (week strip + ring + macros + energy)
-// plus the reorderable widget stack (maintenance, weight+activity, week,
+// The shared dashboard body — the hero (week summary + strip + ring + macros +
+// energy) plus the reorderable widget stack (maintenance, weight+activity,
 // meals, friends). Rendered identically by the home page (today) and the
 // /day/[date] page (any past day); only the surrounding page chrome and the
 // day's data differ. Everything below reads a `dayKey`, so add/edit/update
@@ -12,14 +12,13 @@ import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ActivityCard } from "@/components/activity-card";
-import { DayHero } from "@/components/day-hero";
+import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
 import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { WeightCard } from "@/components/weight-card";
-import { WeekSummaryWidget } from "@/components/week-summary-widget";
 import {
   SortableWidgets,
   type SortableWidgetItem,
@@ -93,11 +92,7 @@ export function DayDashboard({
   tz: string;
   profile: DashboardProfile;
   stats: DayDashboardStats;
-  weekSummary: {
-    loggedDays: number;
-    netKcal: number;
-    predictedWeightKg: number;
-  } | null;
+  weekSummary: WeekSummary | null;
   mealItems: React.ComponentProps<typeof DayMealList>["items"];
   mealsCount: number;
   foodCount: number;
@@ -108,7 +103,6 @@ export function DayDashboard({
   const maintenanceState = getWidgetState(widgetStates, "maintenance");
   const activityState = getWidgetState(widgetStates, "activity");
   const weightState = getWidgetState(widgetStates, "weight");
-  const weekState = getWidgetState(widgetStates, "week");
   const mealsState = getWidgetState(widgetStates, "meals");
   const friendsState = getWidgetState(widgetStates, "friends");
 
@@ -137,6 +131,8 @@ export function DayDashboard({
             fat: Math.round(consumed.fat),
           }}
           macroGoals={stats.macroGoals}
+          weekSummary={weekSummary}
+          units={units}
         />
       </div>
 
@@ -220,17 +216,6 @@ export function DayDashboard({
                 ),
             };
           })(),
-          weekState !== "hidden" && weekSummary && {
-            id: "week" as const,
-            node: (
-              <WeekSummaryWidget
-                loggedDays={weekSummary.loggedDays}
-                netKcal={weekSummary.netKcal}
-                predictedWeightKg={weekSummary.predictedWeightKg}
-                units={units}
-              />
-            ),
-          },
           mealsState !== "hidden" && {
             id: "meals" as const,
             node: (

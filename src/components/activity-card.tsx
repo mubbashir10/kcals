@@ -16,7 +16,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MetricBadge } from "@/components/metric-badge";
 import { metricColor } from "@/lib/metric-colors";
 import {
   Dialog,
@@ -37,6 +36,10 @@ import { cn, parseOptionalInt } from "@/lib/utils";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
 import type { ActivityMode } from "@/lib/tdee";
+
+// Every icon on this card is the same size and carries its own colour — no
+// chips, no tinted backgrounds. The card is the only surface here.
+const ICON = "h-4 w-4 shrink-0";
 
 export type ActivityCardProps = {
   today: {
@@ -70,8 +73,8 @@ export function ActivityCard({
     <>
       <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Activity} color={metricColor.activity} />
+          <div className="flex items-center gap-2">
+            <Activity className={ICON} style={{ color: metricColor.activity }} />
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               {isToday ? "Today's activity" : "Activity"}
             </span>
@@ -152,8 +155,8 @@ export function ActivityCard({
   );
 }
 
-// One movement metric as a tinted tile: colored icon chip, big tabular number,
-// unit, and a small caption. Two of these sit side by side in override mode.
+// One movement metric: colored icon, caption, big tabular number, unit. Two of
+// these sit side by side in override mode.
 function StatTile({
   icon: Icon,
   color,
@@ -168,19 +171,14 @@ function StatTile({
   label: string;
 }) {
   return (
-    <div className="flex-1 rounded-2xl bg-muted/40 px-4 py-3">
+    <div className="flex-1">
       <div className="flex items-center gap-2">
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full"
-          style={{ backgroundColor: `color-mix(in oklab, ${color} 18%, transparent)` }}
-        >
-          <Icon className="h-3 w-3" style={{ color }} />
-        </span>
+        <Icon className={ICON} style={{ color }} />
         <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
           {label}
         </span>
       </div>
-      <div className="mt-2 flex items-baseline gap-1">
+      <div className="mt-1.5 flex items-baseline gap-1">
         <span className="text-2xl font-semibold tabular-nums">
           {value.toLocaleString()}
         </span>
@@ -225,35 +223,38 @@ function ActivitySummary({
     }
     return (
       <div>
-        <div className="flex gap-3">
+        <div className="flex gap-6">
           {tiles.map((t) => (
             <StatTile key={t.label} {...t} />
           ))}
         </div>
-        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
-          <Watch className="h-3 w-3" />
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
+          <Watch className={ICON} />
           Synced from your band
         </p>
       </div>
     );
   }
 
-  const chips: { icon: typeof Footprints; text: string }[] = [];
+  const chips: { icon: typeof Footprints; color: string; text: string }[] = [];
   if (today.steps && today.steps > 0) {
     chips.push({
       icon: Footprints,
+      color: metricColor.activity,
       text: `${today.steps.toLocaleString()} steps`,
     });
   }
   if (today.liftingMin && today.liftingMin > 0) {
     chips.push({
       icon: Dumbbell,
+      color: metricColor.energy,
       text: `${today.liftingMin}m lift`,
     });
   }
   if (today.cardioMin && today.cardioMin > 0) {
     chips.push({
       icon: Dumbbell,
+      color: metricColor.energy,
       text: `${today.cardioMin}m cardio`,
     });
   }
@@ -262,10 +263,10 @@ function ActivitySummary({
   // there's an actual override (≥1 non-zero field). An empty snapshot row
   // shows the "Using your typical-day estimate" copy instead.
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       {chips.map((c, i) => (
-        <span key={i} className="flex items-center gap-1.5 text-sm tabular-nums">
-          <c.icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span key={i} className="flex items-center gap-2 text-sm tabular-nums">
+          <c.icon className={ICON} style={{ color: c.color }} />
           {c.text}
         </span>
       ))}
