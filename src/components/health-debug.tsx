@@ -84,6 +84,8 @@ export function HealthDebugPanel() {
               <Row k="Native app" v={data.native ? "yes" : "NO"} hi />
               <Row k="Platform" v={data.platform} />
               <Row k="Capacitor global" v={data.capacitorGlobal} hi />
+              <Row k="androidBridge" v={data.androidBridge} hi />
+              <Row k="Re-check" v={data.recheckNative} hi />
               <Row k="SW controlling" v={data.swActive ? "yes" : "no"} />
               <Row k="App version" v={data.appVersion} hi />
               <Row k="Permission" v={data.permission ? "granted" : "denied"} />

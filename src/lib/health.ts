@@ -16,6 +16,21 @@ async function health() {
   return mod.Health;
 }
 
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Bridge calls can HANG (not reject) when the native bridge is only half-
+// injected — e.g. window.androidBridge exists but its message pump isn't wired
+// yet after a full-page navigation. Race every bridge hop against a timeout so
+// diagnostics + syncs always resolve instead of spinning forever.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}: timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 // The plugin types the permission result as an array of maps, but at runtime
 // it's a single map { READ_STEPS: true, ... }. Handle both.
 function granted(perms: unknown): boolean {
@@ -137,6 +152,8 @@ export type HealthDebug = {
   native: boolean;
   platform: string;
   capacitorGlobal: string;
+  androidBridge: string;
+  recheckNative: string;
   swActive: boolean;
   ua: string;
   appVersion: string;
@@ -175,6 +192,8 @@ export async function readHealthDebug(): Promise<HealthDebug> {
     native: isNative(),
     platform: nativePlatform(),
     capacitorGlobal: "?",
+    androidBridge: "?",
+    recheckNative: "?",
     swActive: false,
     ua: "",
     appVersion: "unknown",
@@ -195,51 +214,89 @@ export async function readHealthDebug(): Promise<HealthDebug> {
   // Pure-JS environment probes — no native bridge calls, so they never hang
   // even when the bridge is missing. `window.Capacitor` is the object the
   // native shell injects; if it's absent, the bridge never loaded.
-  if (typeof window !== "undefined") {
-    const cap = (
-      window as unknown as {
-        Capacitor?: {
-          getPlatform?: () => string;
-          isNativePlatform?: () => boolean;
-        };
-      }
-    ).Capacitor;
+  const win =
+    typeof window !== "undefined"
+      ? (window as unknown as {
+          Capacitor?: {
+            getPlatform?: () => string;
+            isNativePlatform?: () => boolean;
+          };
+          androidBridge?: { postMessage?: (s: string) => void };
+        })
+      : undefined;
+  if (win) {
+    const cap = win.Capacitor;
     dbg.capacitorGlobal = cap
       ? `present · platform=${cap.getPlatform?.() ?? "?"} · isNative=${cap.isNativePlatform?.() ?? "?"}`
       : "MISSING — bridge not injected";
+    // window.androidBridge is Capacitor's native JavascriptInterface — the thing
+    // isNativePlatform() actually keys off. If it's missing here the bridge
+    // didn't inject into this page's JS context.
+    const ab = win.androidBridge;
+    dbg.androidBridge = ab
+      ? `present · postMessage=${typeof ab.postMessage}`
+      : "MISSING";
   }
   if (typeof navigator !== "undefined") {
     dbg.swActive = Boolean(navigator.serviceWorker?.controller);
     dbg.ua = navigator.userAgent;
   }
 
-  if (!dbg.native) {
+  // The bridge can inject a beat LATE on a full-page navigation (remote-URL
+  // mode). A one-shot isNative() at mount then wrongly reads "web". Wait, then
+  // re-read — if this flips to true, the problem is detection timing, not a
+  // truly-absent bridge.
+  await delay(1500);
+  const lateNative = isNative();
+  dbg.recheckNative = `after 1.5s → isNative=${lateNative} · platform=${nativePlatform()} · androidBridge=${win?.androidBridge ? "present" : "MISSING"}`;
+
+  const effectiveNative = dbg.native || lateNative;
+  if (!effectiveNative) {
     dbg.error =
-      "isNative() = false — Capacitor bridge not detected (see 'Capacitor global').";
-    return dbg; // don't call plugins — they'd hang with no bridge to answer.
+      "isNative() = false even after 1.5s — the native bridge never injected into this page.";
+    return dbg;
   }
   try {
     // App version comes from @capacitor/app; safe now that the bridge exists.
-    dbg.appVersion = await appVersion();
+    dbg.appVersion = await withTimeout(appVersion(), 3000, "appVersion").catch(
+      () => "timeout"
+    );
     const Health = await health();
     // Five independent read-only bridge hops over the same window — run them
-    // concurrently. Each keeps its own catch so one failure doesn't blank the
-    // rest; the queryRecords guard in particular lets an older plugin without
-    // it still return the aggregates.
+    // concurrently, each time-boxed so a half-wired bridge can't hang the
+    // panel forever, and each with its own catch so one failure doesn't blank
+    // the rest.
     const [available, permission, aggSteps, aggActiveKcal, records] =
       await Promise.all([
-        Health.isHealthAvailable()
-          .then((r) => r.available)
-          .catch(() => false),
-        hasHealthAccess().catch(() => false),
-        aggregateTotal(Health, startDate, endDate, "steps").catch(() => null),
-        aggregateTotal(Health, startDate, endDate, "active-calories").catch(() => null),
-        Health.queryRecords({ startDate, endDate, dataType: "steps" })
-          .then((r) => r.records || [])
-          .catch((e) => {
-            dbg.error = `records: ${errMsg(e)}`;
-            return [];
-          }),
+        withTimeout(
+          Health.isHealthAvailable().then((r) => r.available),
+          3000,
+          "isHealthAvailable"
+        ).catch((e) => {
+          dbg.error = `available: ${errMsg(e)}`;
+          return false;
+        }),
+        withTimeout(hasHealthAccess(), 3000, "checkPermissions").catch(() => false),
+        withTimeout(
+          aggregateTotal(Health, startDate, endDate, "steps"),
+          3000,
+          "aggSteps"
+        ).catch(() => null),
+        withTimeout(
+          aggregateTotal(Health, startDate, endDate, "active-calories"),
+          3000,
+          "aggCals"
+        ).catch(() => null),
+        withTimeout(
+          Health.queryRecords({ startDate, endDate, dataType: "steps" }).then(
+            (r) => r.records || []
+          ),
+          3000,
+          "queryRecords"
+        ).catch((e) => {
+          dbg.error = `records: ${errMsg(e)}`;
+          return [];
+        }),
       ]);
     dbg.available = available;
     dbg.permission = permission;
