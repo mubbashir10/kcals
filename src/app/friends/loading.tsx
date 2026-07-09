@@ -1,8 +1,13 @@
-import { SkeletonScaffold, SkeletonRows } from "@/components/page-skeleton";
+import {
+  SkeletonScaffold,
+  SkeletonHeading,
+  SkeletonRows,
+} from "@/components/page-skeleton";
 
 export default function Loading() {
   return (
-    <SkeletonScaffold title="Friends" maxWidth="max-w-md">
+    <SkeletonScaffold>
+      <SkeletonHeading width="w-32" />
       <SkeletonRows count={5} />
     </SkeletonScaffold>
   );

@@ -1,8 +1,13 @@
-import { SkeletonScaffold, SkeletonCard } from "@/components/page-skeleton";
+import {
+  SkeletonScaffold,
+  SkeletonCard,
+  SkeletonHeading,
+} from "@/components/page-skeleton";
 
 export default function Loading() {
   return (
-    <SkeletonScaffold title="Goal" maxWidth="max-w-md">
+    <SkeletonScaffold>
+      <SkeletonHeading width="w-24" />
       <div className="space-y-4">
         <SkeletonCard className="h-24" />
         <SkeletonCard className="h-48" />

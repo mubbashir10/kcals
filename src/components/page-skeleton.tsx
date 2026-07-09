@@ -35,41 +35,70 @@ export function SkeletonShell({
   );
 }
 
-// Static, non-interactive clone of the inner-page layout (back chevron + real
-// title over the shared shell). Every inner route's loading.tsx renders this
-// so the chrome paints *instantly* with the correct title, and only the body
-// reads as loading. Mirrors the real headers in e.g. app/foods/page.tsx.
+// Static, non-interactive clone of the inner-page layout (back chevron over the
+// shared shell). Every inner route's loading.tsx renders this so the chrome
+// paints *instantly*, and only the body reads as loading. Mirrors the real
+// headers in e.g. app/foods/page.tsx.
+//
+// `title` is omitted on pages whose header is a bare back arrow — the ones that
+// carry their name in an <h1> instead (Profile, Goal, Settings, Friends). Use
+// SkeletonHeading for that <h1>. `action` stands in for a trailing header
+// control (recipes' "New recipe", calories' import/export menu).
 export function SkeletonScaffold({
   title,
-  maxWidth = "max-w-2xl",
+  action,
+  bodyClassName,
   children,
 }: {
-  title: React.ReactNode;
-  maxWidth?: "max-w-2xl" | "max-w-md";
+  title?: React.ReactNode;
+  action?: React.ReactNode;
+  bodyClassName?: string;
   children: React.ReactNode;
 }) {
   return (
     <SkeletonShell
       header={
-        <div
-          className={cn(
-            "mx-auto flex h-14 w-full items-center gap-3 px-6",
-            maxWidth
-          )}
-        >
+        <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-6">
           {/* Non-interactive stand-in for the real back link — same footprint
               and weight, so the header doesn't shift or dim when data lands. */}
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold tracking-tight">{title}</span>
+          {title && (
+            <span className="text-sm font-semibold tracking-tight">{title}</span>
+          )}
+          {action && <div className="ml-auto">{action}</div>}
         </div>
       }
     >
-      <main className={cn("mx-auto w-full flex-1 px-6 py-8", maxWidth)}>
+      <main
+        className={cn(
+          "mx-auto w-full max-w-2xl flex-1 px-6 py-8",
+          bodyClassName
+        )}
+      >
         {children}
       </main>
     </SkeletonShell>
+  );
+}
+
+// The page's own <h1> (+ its one-line description), as rendered by Profile,
+// Goal, Settings and Friends. Those pages print their name once, in the body —
+// so the skeleton has to reserve it there, not in the header.
+export function SkeletonHeading({
+  width = "w-40",
+  subtitle = true,
+}: {
+  width?: string;
+  subtitle?: boolean;
+}) {
+  return (
+    <div className="mb-8 space-y-2">
+      {/* h-9 matches the rendered height of the pages' `text-3xl` <h1>. */}
+      <Skeleton className={cn("h-9", width)} />
+      {subtitle && <Skeleton className="h-3.5 w-56" />}
+    </div>
   );
 }
 
