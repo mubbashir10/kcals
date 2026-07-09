@@ -30,8 +30,14 @@ export async function POST(req: NextRequest) {
   const steps = num(body.steps);
 
   if (activeKcal != null && activeKcal > 0) {
-    await upsertActivity(null, { mode: "override", wearableKcal: activeKcal });
-    return NextResponse.json({ ok: true, mode: "override", activeKcal });
+    // Pass steps too — TDEE uses the wearable kcal, but steps are stored for
+    // display ("N steps · M kcal") on the dashboard + Health Connect card.
+    await upsertActivity(null, {
+      mode: "override",
+      wearableKcal: activeKcal,
+      steps,
+    });
+    return NextResponse.json({ ok: true, mode: "override", activeKcal, steps });
   }
   if (steps != null && steps > 0) {
     await upsertActivity(null, { mode: "estimate", steps });

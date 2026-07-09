@@ -51,7 +51,11 @@ export async function upsertActivity(
     mode === "override"
       ? {
           mode,
-          steps: null,
+          // Steps are kept for DISPLAY only (TDEE uses wearableKcal in override
+          // mode and ignores steps — see lib/tdee.ts). The native Health Connect
+          // sync passes both so the app can show "N steps · M kcal"; manual
+          // override entry passes no steps, so this stays null there.
+          steps: sanitizeInt(input.steps, 0, 200000),
           liftingMin: null,
           cardioMin: null,
           wearableKcal: sanitizeInt(input.wearableKcal, 0, 10000),

@@ -2,6 +2,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { requireProfile } from "@/lib/session";
+import { db } from "@/lib/db";
+import { dayKeyInTz } from "@/lib/clock";
 import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
 import { ThemeSettings } from "@/components/theme-settings";
@@ -16,8 +18,17 @@ import { listDefaultMeals } from "@/app/actions/default-meals";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { profile } = await requireProfile();
+  const { userId, profile } = await requireProfile();
   const defaultMeals = await listDefaultMeals();
+
+  // Today's Health Connect sync (steps + active kcal), for the native card's
+  // status line. Written by the native app via POST /api/health/sync.
+  const todayActivity = await db.activityLog.findUnique({
+    where: {
+      userId_dayKey: { userId, dayKey: dayKeyInTz(profile.timezone || "UTC") },
+    },
+    select: { steps: true, wearableKcal: true },
+  });
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -58,7 +69,10 @@ export default async function SettingsPage() {
           />
           <WeekStartSettings initial={profile.weekStartDay} />
           <DefaultMealsSettings initial={defaultMeals} />
-          <HealthConnectSettings />
+          <HealthConnectSettings
+            steps={todayActivity?.steps ?? null}
+            activeKcal={todayActivity?.wearableKcal ?? null}
+          />
         </section>
 
         <section className="space-y-3">
