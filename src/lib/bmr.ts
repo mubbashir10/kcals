@@ -55,6 +55,16 @@ export const cmToIn = (cm: number) => cm / 2.54;
 export const lbToKg = (lb: number) => lb / 2.20462;
 export const kgToLb = (kg: number) => kg * 2.20462;
 
+// Accepted ranges for body measurements — the ONE set shared by the profile
+// form, the weight dialogs, CSV import, and the Health Connect import, so no
+// path accepts what another rejects.
+export const WEIGHT_MIN_KG = 30;
+export const WEIGHT_MAX_KG = 300;
+export const HEIGHT_MIN_CM = 100;
+export const HEIGHT_MAX_CM = 250;
+export const BODY_FAT_MIN_PCT = 1;
+export const BODY_FAT_MAX_PCT = 75;
+
 import { round1 } from "@/lib/utils";
 
 export function unitLabel(units: Units): "kg" | "lb" {

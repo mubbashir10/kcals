@@ -6,30 +6,15 @@ import { instantWithinDayInTz, isFutureDayKey } from "@/lib/clock";
 import { requireUserId } from "@/lib/session";
 import { round1 } from "@/lib/utils";
 import { revalidateDiary } from "@/lib/revalidate";
-
-// Keep the profile weight in sync with the most recent weigh-in so BMR/TDEE
-// stay accurate. Called after any weight mutation, since past-day edits and
-// deletes can change which log is newest.
-async function syncProfileWeightToLatest(userId: string) {
-  const latest = await db.weightLog.findFirst({
-    where: { userId },
-    orderBy: { loggedAt: "desc" },
-    select: { weightKg: true },
-  });
-  if (latest) {
-    await db.profile.updateMany({
-      where: { userId },
-      data: { weightKg: latest.weightKg },
-    });
-  }
-}
+import { WEIGHT_MAX_KG, WEIGHT_MIN_KG } from "@/lib/bmr";
+import { syncProfileWeightToLatest } from "@/lib/weight";
 
 function revalidateWeight() {
   revalidateDiary("/weight");
 }
 
 export async function logWeight(weightKg: number, dayKey?: string | null) {
-  if (!Number.isFinite(weightKg) || weightKg < 30 || weightKg > 300) {
+  if (!Number.isFinite(weightKg) || weightKg < WEIGHT_MIN_KG || weightKg > WEIGHT_MAX_KG) {
     throw new Error("Invalid weight");
   }
   const userId = await requireUserId();
@@ -59,7 +44,7 @@ export async function deleteWeightLog(id: number) {
 }
 
 export async function updateWeightLog(id: number, weightKg: number) {
-  if (!Number.isFinite(weightKg) || weightKg < 30 || weightKg > 300) {
+  if (!Number.isFinite(weightKg) || weightKg < WEIGHT_MIN_KG || weightKg > WEIGHT_MAX_KG) {
     throw new Error("Invalid weight");
   }
   const userId = await requireUserId();
@@ -97,7 +82,7 @@ export async function importWeightLogs(
       const d = new Date(r.date);
       const kg = round1(r.weightKg);
       const okDate = !Number.isNaN(d.getTime());
-      const okKg = Number.isFinite(kg) && kg >= 30 && kg <= 300;
+      const okKg = Number.isFinite(kg) && kg >= WEIGHT_MIN_KG && kg <= WEIGHT_MAX_KG;
       return okDate && okKg
         ? { userId, weightKg: kg, loggedAt: d }
         : null;

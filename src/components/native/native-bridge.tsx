@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, WifiOff } from "lucide-react";
 
@@ -33,6 +33,11 @@ export function NativeBridge() {
   // effect below can depend on it without actually re-running.
   const router = useRouter();
 
+  const showSyncNote = useCallback((note: string) => {
+    setSyncNote(note);
+    window.setTimeout(() => setSyncNote((n) => (n === note ? null : n)), 2600);
+  }, []);
+
   // A native Health Connect sync just landed — MainActivity fires this event via
   // evaluateJavascript after each successful POST. Re-fetch so today's steps +
   // active calories show without the user reopening the app. No-ops on web.
@@ -44,17 +49,28 @@ export function NativeBridge() {
       const parts: string[] = [];
       if (d?.activeKcal) parts.push(`${d.activeKcal.toLocaleString()} kcal`);
       if (d?.steps) parts.push(`${d.steps.toLocaleString()} steps`);
-      if (!parts.length) return;
-      const note = `Synced · ${parts.join(" · ")}`;
-      setSyncNote(note);
-      window.setTimeout(
-        () => setSyncNote((n) => (n === note ? null : n)),
-        2600
-      );
+      if (parts.length) showSyncNote(`Synced · ${parts.join(" · ")}`);
     };
     window.addEventListener("kcals:health-synced", onSynced);
     return () => window.removeEventListener("kcals:health-synced", onSynced);
-  }, [router]);
+  }, [router, showSyncNote]);
+
+  // The measurement pass pulled something in from Health Connect (a scale's
+  // weigh-ins, a height set elsewhere) — MainActivity only fires this when the
+  // server actually changed, so a refresh is never wasted.
+  useEffect(() => {
+    const onMeasurements = (e: Event) => {
+      router.refresh();
+      const imported = (e as CustomEvent<{ imported?: number }>).detail
+        ?.imported;
+      if (imported) {
+        showSyncNote(`Imported ${imported} weigh-in${imported === 1 ? "" : "s"}`);
+      }
+    };
+    window.addEventListener("kcals:measurements-synced", onMeasurements);
+    return () =>
+      window.removeEventListener("kcals:measurements-synced", onMeasurements);
+  }, [router, showSyncNote]);
 
   // Core native chrome — set up once on mount.
   useEffect(() => {

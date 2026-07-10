@@ -15,7 +15,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
-import { kgToLb, lbToKg, type Units } from "@/lib/bmr";
+import {
+  kgToLb,
+  lbToKg,
+  WEIGHT_MAX_KG,
+  WEIGHT_MIN_KG,
+  type Units,
+} from "@/lib/bmr";
+import { nudgeMeasurementSync } from "@/lib/native";
 import { formatTimeInTz, startOfDayInTz, yearInTz } from "@/lib/clock";
 import {
   deleteWeightLog,
@@ -99,6 +106,7 @@ function WeightHistoryRow({
     e.stopPropagation();
     startTransition(async () => {
       await deleteWeightLog(entry.id);
+      nudgeMeasurementSync();
     });
   }
 
@@ -223,13 +231,14 @@ function EditWeightForm({
       return;
     }
     const kg = units === "imperial" ? lbToKg(num) : num;
-    if (kg < 30 || kg > 300) {
+    if (kg < WEIGHT_MIN_KG || kg > WEIGHT_MAX_KG) {
       setError("Please enter a weight between 30–300 kg (66–660 lb).");
       return;
     }
     startSave(async () => {
       try {
         await updateWeightLog(entry.id, kg);
+        nudgeMeasurementSync();
         onClose();
       } catch {
         setError("Couldn't save. Try again.");
@@ -240,6 +249,7 @@ function EditWeightForm({
   function onDelete() {
     startDelete(async () => {
       await deleteWeightLog(entry.id);
+      nudgeMeasurementSync();
       onClose();
     });
   }

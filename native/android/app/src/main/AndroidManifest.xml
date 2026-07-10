@@ -76,6 +76,16 @@
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 
+    <!-- Body measurements sync both ways: weigh-ins logged in kcals are written
+         to Health Connect (edits and deletes propagate too), while weigh-ins /
+         height / body fat recorded by other apps are imported. -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_HEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_HEIGHT" />
+    <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
+    <uses-permission android:name="android.permission.health.WRITE_BODY_FAT" />
+
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
     </queries>

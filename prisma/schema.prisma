@@ -44,6 +44,7 @@ model User {
   // Native app (Capacitor Android)
   nativeAuthCodes NativeAuthCode[]
   pushTokens      PushToken[]
+  hcImports       HealthConnectImport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -205,6 +206,17 @@ model Profile {
   // the permission prompt. Ignored on web/PWA.
   healthSync Boolean @default(true)
 
+  // Last height / body-fat measurement imported from Health Connect (another
+  // app's record — never our own echo). The id makes imports one-shot: a new
+  // external record wins over the profile, but a user edit afterwards sticks
+  // until the NEXT new record. The value gates export: we only write our
+  // height/body-fat to Health Connect when it differs from what Health
+  // Connect already says, so an imported value never bounces back out.
+  hcHeightId   String?
+  hcHeightCm   Float?
+  hcBodyFatId  String?
+  hcBodyFatPct Float?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -218,8 +230,34 @@ model WeightLog {
   weightKg  Float
   loggedAt  DateTime @default(now())
   createdAt DateTime @default(now())
+  // Feeds the Health Connect clientRecordVersion, so an edited weigh-in
+  // overwrites its exported record instead of being ignored as a replay.
+  updatedAt DateTime @default(now()) @updatedAt
 
+  // Where the entry came from: null = logged in kcals (exported to Health
+  // Connect), else the Health Connect record it was imported from — its id
+  // (so it's never imported twice) and app label (e.g. "Mi Fitness").
+  // Imported rows are NOT exported back, so nothing echoes.
+  hcId   String?
+  source String?
+
+  @@unique([userId, hcId])
   @@index([userId, loggedAt])
+}
+
+// Health Connect records we've already imported once. Kept separate from the
+// rows they created so deleting an imported weigh-in in kcals doesn't
+// resurrect it on the next sync.
+model HealthConnectImport {
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The Health Connect record UUID.
+  hcId      String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, hcId])
 }
 
 // One row per day in the user's timezone. Snapshots the TDEE math at

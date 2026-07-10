@@ -71,6 +71,11 @@ export function parseOptionalInt(
   return n;
 }
 
+/** The value if it's a finite number, else null — for JSON-shape guards. */
+export function finiteNumberOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 /**
  * Parse a string into a finite number, optionally bounded. Returns null if
  * the string is empty, not a number, or out of range. Use at form-input

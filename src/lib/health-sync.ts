@@ -24,8 +24,9 @@ export type HealthDay = {
 };
 
 // Long enough for "Zepp Life, Mi Fitness"; anything past that is a broken
-// client, not a label.
-const MAX_SOURCE_LEN = 80;
+// client, not a label. Shared with the measurement import, which caps the
+// same Health Connect app labels.
+export const MAX_SOURCE_LEN = 80;
 
 // Rolling window the native shell reads and we accept, today inclusive. Health
 // Connect's default read grant only reaches 30 days back, and a band has

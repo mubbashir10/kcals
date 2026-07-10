@@ -12,10 +12,19 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.HeightRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.DataOrigin
+import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
+import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import androidx.health.connect.client.units.Length
+import androidx.health.connect.client.units.Mass
+import androidx.health.connect.client.units.Percentage
 import androidx.lifecycle.lifecycleScope
 import com.getcapacitor.BridgeActivity
 import kotlinx.coroutines.Dispatchers
@@ -26,23 +35,33 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Period
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.reflect.KClass
 
 // kcals runs in remote-URL mode (the WebView loads https://kcals.app). Health
-// Connect is read HERE, in native Kotlin — NOT through the JS/Capacitor bridge,
-// which proved unreliable in remote-URL mode. On every launch we read the last
-// week of de-duped steps + active calories straight from Health Connect and POST
-// them to the server (authenticated with the WebView's session cookie); the web
-// UI just displays the synced numbers. The WebView never touches Health Connect.
+// Connect is used HERE, in native Kotlin — NOT through the JS/Capacitor bridge,
+// which proved unreliable in remote-URL mode. The WebView never touches Health
+// Connect. On every launch (and on demand from the web UI) we:
+//
+//   • read the last week of de-duped steps + active calories and POST them to
+//     the server (authenticated with the WebView's session cookie);
+//   • mirror the server's weigh-ins / height / body fat INTO Health Connect
+//     (the server sends its full desired state, we upsert by clientRecordId
+//     and prune what fell off — idempotent, self-healing, backfills history);
+//   • read the measurements OTHER apps wrote (smart scales etc.) and POST them
+//     back so kcals imports them.
 class MainActivity : BridgeActivity() {
 
     companion object {
         private const val TAG = "KcalsHealth"
         private const val ORIGIN = "https://kcals.app"
         private const val SYNC_URL = "$ORIGIN/api/health/sync"
+        private const val MEASUREMENTS_URL = "$ORIGIN/api/health/measurements"
 
         // We can only read Health Connect while foregrounded, so a day used to
         // freeze at whatever partial total was on screen when the app last had
@@ -50,6 +69,10 @@ class MainActivity : BridgeActivity() {
         // numbers once the band has finished uploading them. Keep in step with
         // HEALTH_SYNC_DAYS in src/lib/health-sync.ts — the server bounds it too.
         private const val SYNC_DAYS = 7L
+
+        // Health Connect caps how much one insert call may carry; chunk well
+        // below it so even a years-long weight history exports fine.
+        private const val INSERT_CHUNK = 500
     }
 
     private data class DayTotals(
@@ -60,10 +83,39 @@ class MainActivity : BridgeActivity() {
         val source: String?,
     )
 
-    private val hcPermissions = setOf(
+    // What the server wants written to Health Connect, already resolved to
+    // record terms: `value` is kg for weight, cm for height, percent for body
+    // fat. `version` is the record's clientRecordVersion — Health Connect
+    // ignores replays and overwrites on a bump, which makes exports idempotent.
+    private data class HcWrite(
+        val clientId: String,
+        val time: Instant,
+        val version: Long,
+        val value: Double,
+    )
+
+    private data class DesiredMeasurements(
+        val weights: List<HcWrite>,
+        val height: HcWrite?,
+        val bodyFat: HcWrite?,
+    )
+
+    // Two independent permission sets: activity (steps/calories, read-only)
+    // and body measurements (weight/height/body fat, both directions). Checked
+    // separately so denying one never blocks syncing the other.
+    private val activityPerms = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     )
+    private val measurementPerms = setOf(
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getWritePermission(WeightRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getWritePermission(HeightRecord::class),
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getWritePermission(BodyFatRecord::class),
+    )
+    private val hcPermissions = activityPerms + measurementPerms
 
     private lateinit var permsLauncher: ActivityResultLauncher<Set<String>>
     private var promptedThisLaunch = false
@@ -102,10 +154,12 @@ class MainActivity : BridgeActivity() {
         permsLauncher = registerForActivityResult(
             PermissionController.createRequestPermissionResultContract()
         ) { granted ->
-            if (granted.containsAll(hcPermissions)) {
-                readAndSync()
-            } else {
-                Log.i(TAG, "Health Connect permissions not granted: $granted")
+            // Run whatever the user did allow — a denied measurement grant
+            // mustn't hold the activity sync hostage, or vice versa.
+            if (granted.containsAll(activityPerms)) readAndSync()
+            if (granted.containsAll(measurementPerms)) syncMeasurements()
+            if (!granted.containsAll(hcPermissions)) {
+                Log.i(TAG, "Health Connect permissions not fully granted: $granted")
             }
         }
     }
@@ -138,9 +192,9 @@ class MainActivity : BridgeActivity() {
                 }
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
-                if (granted.containsAll(hcPermissions)) {
-                    readAndSync(client)
-                } else if (!promptedThisLaunch) {
+                if (granted.containsAll(activityPerms)) readAndSync(client)
+                if (granted.containsAll(measurementPerms)) syncMeasurements(client)
+                if (!granted.containsAll(hcPermissions) && !promptedThisLaunch) {
                     promptedThisLaunch = true
                     Log.i(TAG, "requesting Health Connect permissions")
                     permsLauncher.launch(hcPermissions)
@@ -153,27 +207,8 @@ class MainActivity : BridgeActivity() {
 
     // Offline (or signed out) reads as "off": we couldn't POST the numbers
     // anyway, and guessing "on" would prompt a user who switched it off.
-    private suspend fun isSyncEnabled(): Boolean = withContext(Dispatchers.IO) {
-        val cookie = CookieManager.getInstance().getCookie(ORIGIN)
-        if (cookie.isNullOrBlank()) return@withContext false
-        try {
-            val conn = (URL(SYNC_URL).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 10000
-                readTimeout = 10000
-                setRequestProperty("Cookie", cookie)
-            }
-            val code = conn.responseCode
-            val enabled = code in 200..299 &&
-                JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
-                    .optBoolean("enabled", false)
-            conn.disconnect()
-            enabled
-        } catch (e: Exception) {
-            Log.e(TAG, "isSyncEnabled failed", e)
-            false
-        }
-    }
+    private suspend fun isSyncEnabled(): Boolean =
+        apiJson(SYNC_URL)?.optBoolean("enabled", false) ?: false
 
     private fun readAndSync(existing: HealthConnectClient? = null) {
         lifecycleScope.launch {
@@ -223,86 +258,285 @@ class MainActivity : BridgeActivity() {
     }
 
     // Who Health Connect says the day's numbers came from. The aggregate already
-    // carries its contributing packages, so this costs no extra read. We resolve
-    // each to the label the launcher shows ("Mi Fitness"), skipping our own app
-    // and anything uninstalled since. Nothing is hardcoded — an unresolvable
-    // package is simply dropped rather than shown as a raw package name.
+    // carries its contributing packages, so this costs no extra read.
     private fun sourceLabel(origins: Set<DataOrigin>): String? {
-        val pm = packageManager
-        val labels = origins
-            .map { it.packageName }
-            .filter { it.isNotBlank() && it != packageName }
-            .mapNotNull { pkg ->
-                try {
-                    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString().trim()
-                } catch (e: PackageManager.NameNotFoundException) {
-                    null
-                }
-            }
-            .filter { it.isNotEmpty() }
-            .distinct()
-            .sorted()
+        val labels = origins.mapNotNull { appLabel(it.packageName) }.distinct().sorted()
         return if (labels.isEmpty()) null else labels.joinToString(", ")
     }
 
-    private suspend fun postToServer(days: List<DayTotals>, todayKey: String) =
-        withContext(Dispatchers.IO) {
-            if (days.isEmpty()) {
-                Log.i(TAG, "no Health Connect data in window — skipping sync")
-                return@withContext
+    // The label the launcher shows for a package ("Mi Fitness"), or null for
+    // our own app, blanks, and anything uninstalled since — nothing is
+    // hardcoded, an unresolvable package is dropped rather than shown raw.
+    private fun appLabel(pkg: String): String? {
+        if (pkg.isBlank() || pkg == packageName) return null
+        return try {
+            packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0))
+                .toString().trim().ifEmpty { null }
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    // ── Body measurements: two-way sync ─────────────────────────────────────
+
+    // One pass at a time: a permission grant and the focus-regain from its
+    // sheet (or a web nudge racing a foreground sync) must not interleave two
+    // export/prune passes.
+    private val measurementSyncActive = AtomicBoolean(false)
+
+    // Mirror the server's weigh-ins / height / body fat into Health Connect,
+    // then import what other apps wrote. The server sends its FULL desired
+    // state every time: the first sync backfills the whole history, edits
+    // overwrite (version bump), deletions prune, and a wiped Health Connect
+    // heals itself on the next pass. verifyPermission is for the web-nudge
+    // path, which must check for itself and never prompt mid-flow.
+    private fun syncMeasurements(
+        existing: HealthConnectClient? = null,
+        verifyPermission: Boolean = false,
+    ) {
+        lifecycleScope.launch {
+            if (!measurementSyncActive.compareAndSet(false, true)) return@launch
+            try {
+                val client = existing ?: HealthConnectClient.getOrCreate(this@MainActivity)
+                if (verifyPermission &&
+                    !client.permissionController.getGrantedPermissions()
+                        .containsAll(measurementPerms)
+                ) return@launch
+                runMeasurementSync(client)
+            } catch (e: Exception) {
+                Log.e(TAG, "syncMeasurements failed", e)
+            } finally {
+                measurementSyncActive.set(false)
             }
+        }
+    }
+
+    private suspend fun runMeasurementSync(client: HealthConnectClient) {
+        val desired = fetchDesiredMeasurements() ?: return
+        insertDesired(client, desired)
+        // One paged read per record type serves both directions: our own stale
+        // records get pruned (deletes propagate), foreign ones get imported.
+        val foreignWeights = pruneAndCollectForeign(
+            client, WeightRecord::class,
+            desired.weights.mapTo(mutableSetOf()) { it.clientId },
+        )
+        val foreignHeight = pruneAndCollectForeign(
+            client, HeightRecord::class, setOfNotNull(desired.height?.clientId),
+        ).maxByOrNull { it.time }
+        val foreignBodyFat = pruneAndCollectForeign(
+            client, BodyFatRecord::class, setOfNotNull(desired.bodyFat?.clientId),
+        ).maxByOrNull { it.time }
+        postImports(foreignWeights, foreignHeight, foreignBodyFat)
+    }
+
+    // Null when signed out, offline, or the integration is switched off — all
+    // reasons to leave Health Connect untouched this pass.
+    private suspend fun fetchDesiredMeasurements(): DesiredMeasurements? {
+        val json = apiJson(MEASUREMENTS_URL) ?: return null
+        if (!json.optBoolean("enabled", false)) {
+            Log.i(TAG, "measurement sync disabled for this account")
+            return null
+        }
+        // A missing/zero epochMs must not become a 1970-dated record.
+        fun parseWrite(o: JSONObject?, valueKey: String): HcWrite? {
+            if (o == null) return null
+            val id = o.optString("id")
+            val value = o.optDouble(valueKey)
+            val epochMs = o.optLong("epochMs")
+            if (id.isEmpty() || !value.isFinite() || epochMs <= 0) return null
+            return HcWrite(id, Instant.ofEpochMilli(epochMs), o.optLong("version"), value)
+        }
+        val weights = mutableListOf<HcWrite>()
+        val arr = json.optJSONArray("weights") ?: JSONArray()
+        for (i in 0 until arr.length()) {
+            parseWrite(arr.optJSONObject(i), "kg")?.let { weights += it }
+        }
+        return DesiredMeasurements(
+            weights,
+            parseWrite(json.optJSONObject("height"), "cm"),
+            parseWrite(json.optJSONObject("bodyFat"), "pct"),
+        )
+    }
+
+    // Idempotent: same clientRecordId + version → Health Connect keeps what it
+    // has; a bumped version (edited weigh-in) overwrites in place.
+    private suspend fun insertDesired(client: HealthConnectClient, desired: DesiredMeasurements) {
+        fun meta(w: HcWrite): Metadata =
+            Metadata.manualEntry(clientRecordId = w.clientId, clientRecordVersion = w.version)
+        val records = mutableListOf<Record>()
+        desired.weights.mapTo(records) { WeightRecord(it.time, null, Mass.kilograms(it.value), meta(it)) }
+        desired.height?.let { records += HeightRecord(it.time, null, Length.meters(it.value / 100.0), meta(it)) }
+        desired.bodyFat?.let { records += BodyFatRecord(it.time, null, Percentage(it.value), meta(it)) }
+        records.chunked(INSERT_CHUNK).forEach { client.insertRecords(it) }
+        if (records.isNotEmpty()) Log.i(TAG, "exported ${records.size} record(s) to Health Connect")
+    }
+
+    // Page through every record of a type ONCE, serving both directions. Our
+    // own records — which Health Connect always lets us read back in full, so
+    // pruning sees the complete export regardless of read-permission windows —
+    // are deleted when their clientRecordId fell off the desired list (that's
+    // how in-app deletes propagate). Everything foreign is returned for import.
+    private suspend fun <T : Record> pruneAndCollectForeign(
+        client: HealthConnectClient,
+        type: KClass<T>,
+        keep: Set<String>,
+    ): List<T> {
+        val stale = mutableListOf<String>()
+        val foreign = mutableListOf<T>()
+        var pageToken: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = type,
+                    timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
+                    pageToken = pageToken,
+                )
+            )
+            for (record in response.records) {
+                if (record.metadata.dataOrigin.packageName == packageName) {
+                    if (record.metadata.clientRecordId !in keep) stale += record.metadata.id
+                } else {
+                    foreign += record
+                }
+            }
+            pageToken = response.pageToken
+        } while (pageToken != null)
+        if (stale.isNotEmpty()) {
+            Log.i(TAG, "pruning ${stale.size} stale ${type.simpleName} record(s)")
+            client.deleteRecords(type, stale, emptyList())
+        }
+        return foreign
+    }
+
+    // Hand what OTHER apps wrote — a smart scale's weigh-ins, a height set in
+    // Mi Fitness — to the server, which de-dups by record id and decides what
+    // applies. Weights go in bounded chunks so a years-long scale history
+    // can't blow the request size or its timeout.
+    private suspend fun postImports(
+        weights: List<WeightRecord>,
+        height: HeightRecord?,
+        bodyFat: BodyFatRecord?,
+    ) {
+        if (weights.isEmpty() && height == null && bodyFat == null) return
+        // One binder IPC per package, not per record ("" = known-unresolvable).
+        val labelCache = mutableMapOf<String, String>()
+        fun label(pkg: String): String? =
+            labelCache.getOrPut(pkg) { appLabel(pkg) ?: "" }.ifEmpty { null }
+        fun measurementJson(metadata: Metadata, time: Instant): JSONObject =
+            JSONObject().put("hcId", metadata.id).put("epochMs", time.toEpochMilli())
+
+        var imported = 0
+        var profileChanged = false
+        val chunks = if (weights.isEmpty()) listOf(emptyList()) else weights.chunked(INSERT_CHUNK)
+        for ((i, chunk) in chunks.withIndex()) {
+            val arr = JSONArray()
+            for (r in chunk) {
+                arr.put(
+                    measurementJson(r.metadata, r.time)
+                        .put("kg", r.weight.inKilograms)
+                        .put("source", label(r.metadata.dataOrigin.packageName))
+                )
+            }
+            val body = JSONObject().put("weights", arr)
+            if (i == chunks.lastIndex) { // the singletons ride the last chunk
+                height?.let {
+                    body.put("height", measurementJson(it.metadata, it.time).put("cm", it.height.inMeters * 100))
+                }
+                bodyFat?.let {
+                    body.put("bodyFat", measurementJson(it.metadata, it.time).put("pct", it.percentage.value))
+                }
+            }
+            // Network hiccup mid-batch: stop here, the next pass re-sends.
+            val resp = apiJson(MEASUREMENTS_URL, body) ?: return
+            imported += resp.optInt("imported", 0)
+            profileChanged = profileChanged ||
+                resp.optBoolean("heightApplied", false) ||
+                resp.optBoolean("bodyFatApplied", false)
+        }
+        Log.i(TAG, "measurement import: $imported weigh-in(s), profileChanged=$profileChanged")
+        // Only poke the web app when something actually changed server-side —
+        // the routine "nothing new" pass shouldn't cost a refresh.
+        if (imported > 0 || profileChanged) {
+            dispatchWebEvent("kcals:measurements-synced", "{imported:$imported}")
+        }
+    }
+
+    // Cookie-authenticated JSON round-trip with the server. GET when `body` is
+    // null, POST otherwise. Null result = signed out, offline, or non-2xx —
+    // callers just skip their sync pass.
+    private suspend fun apiJson(url: String, body: JSONObject? = null): JSONObject? =
+        withContext(Dispatchers.IO) {
             val cookie = CookieManager.getInstance().getCookie(ORIGIN)
             if (cookie.isNullOrBlank()) {
-                Log.i(TAG, "no session cookie yet — skipping sync")
-                return@withContext
+                Log.i(TAG, "no session cookie yet — skipping $url")
+                return@withContext null
             }
             try {
-                val arr = JSONArray()
-                for (day in days) {
-                    arr.put(
-                        JSONObject()
-                            .put("dayKey", day.dayKey)
-                            .put("steps", day.steps)
-                            .put("activeKcal", day.activeKcal)
-                            // JSONObject.put(String, null) omits the key, which
-                            // the server reads as "no source" — exactly right.
-                            .put("source", day.source)
-                    )
-                }
-                val body = JSONObject().put("days", arr).toString()
-                val conn = (URL(SYNC_URL).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    doOutput = true
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = if (body == null) "GET" else "POST"
                     connectTimeout = 15000
                     readTimeout = 15000
-                    setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Cookie", cookie)
+                    if (body != null) {
+                        doOutput = true
+                        setRequestProperty("Content-Type", "application/json")
+                    }
                 }
-                conn.outputStream.use { it.write(body.toByteArray()) }
+                if (body != null) conn.outputStream.use { it.write(body.toString().toByteArray()) }
                 val code = conn.responseCode
-                Log.i(TAG, "sync POST ${days.size} day(s) -> HTTP $code")
-                conn.disconnect()
-                if (code in 200..299) {
-                    val today = days.firstOrNull { it.dayKey == todayKey }
-                    notifyWebSynced(today?.steps ?: 0L, today?.activeKcal ?: 0L)
+                val json = if (code in 200..299) {
+                    JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                } else {
+                    Log.i(TAG, "$url -> HTTP $code")
+                    null
                 }
+                conn.disconnect()
+                json
             } catch (e: Exception) {
-                Log.e(TAG, "postToServer failed", e)
+                Log.e(TAG, "apiJson $url failed", e)
+                null
             }
         }
 
-    // Tell the web app a fresh sync landed (with today's numbers) so it
-    // re-fetches and can show a subtle "synced" note without the user reopening
-    // the app. Fired even when today is still empty, so an in-flight "Sync now"
-    // button always settles.
-    private fun notifyWebSynced(steps: Long, activeKcal: Long) {
+    // Tell the web app something happened natively (a sync landed, imports
+    // applied) so it can re-fetch without the user reopening the app.
+    private fun dispatchWebEvent(name: String, detailJson: String) {
         runOnUiThread {
             bridge?.webView?.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('kcals:health-synced'," +
-                    "{detail:{steps:$steps,activeKcal:$activeKcal}}));",
+                "window.dispatchEvent(new CustomEvent('$name',{detail:$detailJson}));",
                 null,
             )
         }
+    }
+
+    private suspend fun postToServer(days: List<DayTotals>, todayKey: String) {
+        if (days.isEmpty()) {
+            Log.i(TAG, "no Health Connect data in window — skipping sync")
+            return
+        }
+        val arr = JSONArray()
+        for (day in days) {
+            arr.put(
+                JSONObject()
+                    .put("dayKey", day.dayKey)
+                    .put("steps", day.steps)
+                    .put("activeKcal", day.activeKcal)
+                    // JSONObject.put(String, null) omits the key, which
+                    // the server reads as "no source" — exactly right.
+                    .put("source", day.source)
+            )
+        }
+        if (apiJson(SYNC_URL, JSONObject().put("days", arr)) == null) return
+        Log.i(TAG, "sync POST ${days.size} day(s) ok")
+        // Tell the web app the sync landed (with today's numbers) so it
+        // re-fetches and can show a subtle "synced" note without the user
+        // reopening the app. Fired even when today is still empty, so an
+        // in-flight "Sync now" button always settles.
+        val today = days.firstOrNull { it.dayKey == todayKey }
+        dispatchWebEvent(
+            "kcals:health-synced",
+            "{steps:${today?.steps ?: 0L},activeKcal:${today?.activeKcal ?: 0L}}",
+        )
     }
 
     // Exposed to the web app as window.KcalsNative. syncHealth() re-reads Health
@@ -312,6 +546,20 @@ class MainActivity : BridgeActivity() {
         @JavascriptInterface
         fun syncHealth() {
             runOnUiThread { trySyncHealth() }
+        }
+
+        // A weigh-in (or the profile) just changed in the web UI — push it to
+        // Health Connect now instead of waiting for the next app open. Checks
+        // permission itself and never prompts mid-flow.
+        @JavascriptInterface
+        fun syncMeasurements() {
+            runOnUiThread {
+                if (HealthConnectClient.getSdkStatus(this@MainActivity) ==
+                    HealthConnectClient.SDK_AVAILABLE
+                ) {
+                    this@MainActivity.syncMeasurements(verifyPermission = true)
+                }
+            }
         }
 
         // Called when the user switches the integration on in settings. Clearing

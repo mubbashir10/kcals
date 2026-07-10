@@ -22,7 +22,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, isNextRedirectError, round1 } from "@/lib/utils";
-import { inToCm, lbToKg, cmToIn, kgToLb, type Sex, type Units } from "@/lib/bmr";
+import {
+  BODY_FAT_MAX_PCT,
+  BODY_FAT_MIN_PCT,
+  cmToIn,
+  HEIGHT_MAX_CM,
+  HEIGHT_MIN_CM,
+  inToCm,
+  kgToLb,
+  lbToKg,
+  WEIGHT_MAX_KG,
+  WEIGHT_MIN_KG,
+  type Sex,
+  type Units,
+} from "@/lib/bmr";
 import type { ActivityMode } from "@/lib/tdee";
 import {
   lactationKcal,
@@ -30,6 +43,7 @@ import {
   type LactationStage,
   type LactationBasis,
 } from "@/lib/lactation";
+import { nudgeMeasurementSync } from "@/lib/native";
 import { saveProfile } from "./actions";
 
 export type InitialProfile = {
@@ -173,7 +187,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     let cm: number;
     if (units === "metric") {
       cm = parseFloat(heightCm);
-      if (!Number.isFinite(cm) || cm < 100 || cm > 250) {
+      if (!Number.isFinite(cm) || cm < HEIGHT_MIN_CM || cm > HEIGHT_MAX_CM) {
         setError("Please enter a valid height (100–250 cm).");
         return;
       }
@@ -193,7 +207,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       return;
     }
     const kg = units === "metric" ? wRaw : lbToKg(wRaw);
-    if (kg < 30 || kg > 300) {
+    if (kg < WEIGHT_MIN_KG || kg > WEIGHT_MAX_KG) {
       setError("Please enter a valid weight (30–300 kg / 66–660 lb).");
       return;
     }
@@ -201,7 +215,11 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     let bf: number | null = null;
     if (bodyFat.trim() !== "") {
       const bfNum = parseFloat(bodyFat);
-      if (!Number.isFinite(bfNum) || bfNum <= 0 || bfNum >= 75) {
+      if (
+        !Number.isFinite(bfNum) ||
+        bfNum < BODY_FAT_MIN_PCT ||
+        bfNum > BODY_FAT_MAX_PCT
+      ) {
         setError("Please enter a valid body-fat % (1–75) or leave it blank.");
         return;
       }
@@ -286,6 +304,16 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         // redirect() throws on success — ignore it, surface real failures.
         if (!isNextRedirectError(err)) {
           setError("Couldn't save. Please try again.");
+          return;
+        }
+        // Saved — if height/body fat actually changed, push them to Health
+        // Connect right away. Other profile edits don't need the full pass.
+        if (
+          !initial ||
+          round1(cm) !== initial.heightCm ||
+          bf !== initial.bodyFatPct
+        ) {
+          nudgeMeasurementSync();
         }
       }
     });

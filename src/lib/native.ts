@@ -27,6 +27,35 @@ const POLL_MS = 100;
 const MAX_WAIT_MS = 3000;
 let readyPromise: Promise<boolean> | null = null;
 
+// The Android shell exposes window.KcalsNative — a direct JS interface added
+// in MainActivity.kt (the reliable low-level primitive, NOT the Capacitor
+// plugin layer). Every method is optional: older APKs miss the newer ones.
+export type KcalsNative = {
+  /** Full Health Connect pass: activity + measurements. May prompt. (v1.6+) */
+  syncHealth?: () => void;
+  /** Force the permission sheet even if already asked this launch. (v1.6+) */
+  requestHealthPermission?: () => void;
+  /** Measurements-only pass; never prompts. (v1.9+) */
+  syncMeasurements?: () => void;
+};
+
+/** The native interface, or undefined on web/PWA/server. */
+export function kcalsNative(): KcalsNative | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as { KcalsNative?: KcalsNative }).KcalsNative;
+}
+
+// Push a just-logged weigh-in / profile change to Health Connect immediately
+// instead of waiting for the next app open. Fire-and-forget and safe to call
+// from any mutation handler: no-ops on web/PWA and on APKs older than v1.9.
+export function nudgeMeasurementSync() {
+  try {
+    kcalsNative()?.syncMeasurements?.();
+  } catch {
+    // Native side gone mid-call — nothing to do, the next launch syncs.
+  }
+}
+
 export function whenNativeReady(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
   if (isNative()) return Promise.resolve(true);

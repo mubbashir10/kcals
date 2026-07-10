@@ -5,20 +5,10 @@ import { Activity, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { kcalsNative } from "@/lib/native";
 import { cn } from "@/lib/utils";
 import { useNativeReady } from "@/lib/use-native";
 import { setHealthSync } from "@/app/actions/health";
-
-// window.KcalsNative is a direct JS interface added by MainActivity.kt (not the
-// Capacitor plugin layer). syncHealth() re-reads Health Connect on demand;
-// requestHealthPermission() forces the system permission sheet even if we
-// already asked this launch.
-type KcalsNativeWindow = Window & {
-  KcalsNative?: {
-    syncHealth?: () => void;
-    requestHealthPermission?: () => void;
-  };
-};
 
 // Native-only Health Connect control: a switch and a manual sync, nothing more.
 // The numbers it pulls in belong on the dashboard, not in settings. Renders
@@ -36,7 +26,7 @@ export function HealthConnectSettings({ enabled: initialEnabled }: { enabled: bo
   // bridge, KcalsNative is never injected late.
   const bridge = useSyncExternalStore(
     () => () => {},
-    () => typeof (window as KcalsNativeWindow).KcalsNative?.syncHealth === "function",
+    () => typeof kcalsNative()?.syncHealth === "function",
     () => false
   );
 
@@ -60,7 +50,7 @@ export function HealthConnectSettings({ enabled: initialEnabled }: { enabled: bo
   if (!native) return null;
 
   const runSync = (force: boolean) => {
-    const api = (window as KcalsNativeWindow).KcalsNative;
+    const api = kcalsNative();
     if (!api?.syncHealth) return;
     setSyncing(true);
     // Enabling should surface the system permission sheet even if we already
@@ -114,7 +104,7 @@ export function HealthConnectSettings({ enabled: initialEnabled }: { enabled: bo
             type="button"
             role="switch"
             aria-checked={enabled}
-            aria-label="Sync from Health Connect"
+            aria-label="Sync with Health Connect"
             onClick={toggle}
             className={cn(
               "relative h-6 w-10 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40",
@@ -134,16 +124,18 @@ export function HealthConnectSettings({ enabled: initialEnabled }: { enabled: bo
       <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/80">
         {enabled ? (
           <>
-            Your band&apos;s steps and active calories — de-duped across trackers
-            — sync each time you open the app, re-reading the last week so a day
-            you closed the app early still picks up its full total. Days you log
-            by hand are left alone.
+            Steps and active calories — de-duped across trackers — sync in each
+            time you open the app, re-reading the last week so a day you closed
+            the app early still picks up its full total; days you log by hand
+            are left alone. Weight syncs both ways: every weigh-in you log here
+            (history included) lands in Health Connect, and weigh-ins, height,
+            or body fat recorded by other apps flow back in.
           </>
         ) : (
           <>
-            Off — the app won&apos;t read Health Connect or ask for permission.
-            Log your activity by hand instead. Turning it back on re-syncs the
-            last week.
+            Off — the app won&apos;t read or write Health Connect, or ask for
+            permission. Log your activity and weight by hand instead. Turning
+            it back on re-syncs everything.
           </>
         )}
       </p>

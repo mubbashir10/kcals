@@ -6,6 +6,7 @@ import {
   syncHealthDays,
   type HealthDay,
 } from "@/lib/health-sync";
+import { finiteNumberOrNull as num } from "@/lib/utils";
 
 // Native-app Health Connect sync. The Android shell reads the last week of
 // de-duped per-day steps + active calories from Health Connect in NATIVE Kotlin
@@ -19,9 +20,6 @@ import {
 // it before reading Health Connect, so "off" suppresses the permission prompt
 // too — and syncHealthDays re-checks, so a stale shell can't write anyway.
 export const dynamic = "force-dynamic";
-
-const num = (v: unknown) =>
-  typeof v === "number" && Number.isFinite(v) ? v : null;
 
 export async function GET() {
   const session = await auth();

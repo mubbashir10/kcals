@@ -40,10 +40,13 @@ import {
   formatWeightDelta,
   kgToLb,
   lbToKg,
+  WEIGHT_MAX_KG,
+  WEIGHT_MIN_KG,
   type Units,
 } from "@/lib/bmr";
 import { parseWeightCsv } from "@/lib/weight-csv";
 import { formatShortDateInTz } from "@/lib/clock";
+import { nudgeMeasurementSync } from "@/lib/native";
 import { round1 } from "@/lib/utils";
 import { importWeightLogs, logWeight } from "@/app/actions/weight";
 import { setWidgetState } from "@/app/actions/widgets";
@@ -266,13 +269,14 @@ function LogWeightDialog({
       return;
     }
     const kg = units === "metric" ? num : lbToKg(num);
-    if (kg < 30 || kg > 300) {
+    if (kg < WEIGHT_MIN_KG || kg > WEIGHT_MAX_KG) {
       setError("Please enter a weight between 30–300 kg (66–660 lb).");
       return;
     }
     startTransition(async () => {
       try {
         await logWeight(kg);
+        nudgeMeasurementSync();
         onOpenChange(false);
       } catch {
         setError("Couldn't save. Try again.");
@@ -401,6 +405,7 @@ function WeightImportDialog({
     if (parsed.rows.length === 0) return;
     startTransition(async () => {
       const res = await importWeightLogs(parsed.rows);
+      if (res.imported > 0) nudgeMeasurementSync();
       setResult(res);
     });
   }
