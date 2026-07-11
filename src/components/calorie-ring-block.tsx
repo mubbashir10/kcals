@@ -17,13 +17,37 @@ import { AppLink } from "@/components/app-link";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
 import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
 import { setCalorieDisplay } from "@/app/actions/widgets";
+import { cn } from "@/lib/utils";
 import type { GoalType } from "@/lib/goal";
 
-const GOAL_CHIP: Record<GoalType, { label: string; icon: LucideIcon }> = {
-  loss: { label: "Lose", icon: TrendingDown },
-  maintain: { label: "Maintain", icon: Minus },
-  gain: { label: "Gain", icon: TrendingUp },
-  track: { label: "Tracking", icon: Activity },
+const GOAL_CHIP: Record<
+  GoalType,
+  { label: string; icon: LucideIcon; accent: string; bg: string }
+> = {
+  loss: {
+    label: "Lose",
+    icon: TrendingDown,
+    accent: "text-rose-500",
+    bg: "bg-rose-500/10",
+  },
+  maintain: {
+    label: "Maintain",
+    icon: Minus,
+    accent: "text-sky-500",
+    bg: "bg-sky-500/10",
+  },
+  gain: {
+    label: "Gain",
+    icon: TrendingUp,
+    accent: "text-emerald-500",
+    bg: "bg-emerald-500/10",
+  },
+  track: {
+    label: "Tracking",
+    icon: Activity,
+    accent: "text-muted-foreground",
+    bg: "bg-muted/50",
+  },
 };
 
 // The calorie ring block: a remaining/consumed toggle + goal chip, then the
@@ -131,7 +155,11 @@ function GoalChip({ type, offset }: { type: GoalType; offset: number }) {
   const Icon = meta.icon;
   return (
     <span
-      className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium uppercase tracking-[0.14em]",
+        meta.bg,
+        meta.accent
+      )}
       title={
         offset === 0
           ? meta.label

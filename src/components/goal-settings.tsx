@@ -8,6 +8,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -25,6 +26,7 @@ import {
 import {
   KCAL_PER_G,
   MACROS,
+  defaultAutoGrams,
   type Macro,
   type MacroMode,
 } from "@/lib/macros";
@@ -128,8 +130,12 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 
   return (
     <div className="space-y-3">
-      <Card className="rounded-2xl border-border/60 p-1.5 shadow-card">
-        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+      <section className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <Target className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-sm font-medium">Goal type</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1 shadow-card sm:grid-cols-4">
           {GOAL_TYPES.map((t) => {
             const meta = TYPE_META[t];
             const Icon = meta.icon;
@@ -140,19 +146,33 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
                 type="button"
                 onClick={() => onTypeClick(t)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-center transition-all",
+                  "flex min-h-16 flex-col items-center justify-center gap-1 rounded-[calc(theme(borderRadius.2xl)-0.25rem)] px-2 py-2 text-center transition-all",
                   active
-                    ? "bg-foreground text-background"
-                    : "text-foreground/70 hover:bg-accent/40 hover:text-foreground"
+                    ? "bg-background text-foreground shadow-card"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className={cn("h-4 w-4", active ? "" : meta.accent)} />
-                <span className="text-[11px] font-medium">{meta.label}</span>
+                <Icon
+                  className={cn("h-3.5 w-3.5", meta.accent)}
+                />
+                <span className="text-[11px] font-medium leading-none">
+                  {meta.label}
+                </span>
+                <span
+                  className={cn(
+                    "hidden text-[9px] leading-none sm:block",
+                    active
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/70"
+                  )}
+                >
+                  {meta.hint}
+                </span>
               </button>
             );
           })}
         </div>
-      </Card>
+      </section>
 
       {showPace && (
         <Card className="space-y-2 rounded-2xl border-border/60 p-3 shadow-card">
@@ -227,12 +247,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
           onMacroChange={updateMacro}
         />
       ) : (
-        <Card className="space-y-3 rounded-2xl border-border/60 p-4 shadow-card">
-          <p className="px-1 text-[11px] text-muted-foreground/80">
-            Macros default to a 30 / 40 / 30 split of your target. Switch any to{" "}
-            <span className="font-medium text-foreground/80">custom</span> to
-            lock your own grams.
-          </p>
+        <Card className="rounded-2xl border-border/60 p-4 shadow-card">
           <MacroEditor
             macros={macros}
             onMacroChange={updateMacro}
@@ -247,16 +262,25 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 function MaintainCard({ tdee }: { tdee: number }) {
   return (
     <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        Your maintenance
+      <div className="flex items-center gap-2">
+        <Minus className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-sm font-medium">Maintenance</span>
+        <span className="ml-auto rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          Hold steady
+        </span>
       </div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tabular-nums">
-          {Math.round(tdee).toLocaleString()}
-        </span>
-        <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          kcal / day
-        </span>
+      <div className="mt-4">
+        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Daily target
+        </div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tabular-nums tracking-tight">
+            {Math.round(tdee).toLocaleString()}
+          </span>
+          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            kcal
+          </span>
+        </div>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground/80">
         Eat about this much each day to hold your current weight. Based on your
@@ -381,16 +405,30 @@ function MacroEditor({
   const matches = diff != null && Math.abs(diff) <= MACRO_MATCH_TOLERANCE;
 
   return (
-    <div className="space-y-2">
-      <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        Macros
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-1">
+        <div>
+          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Macros
+          </div>
+          <p className="mt-1 max-w-md text-[11px] leading-relaxed text-muted-foreground/75">
+            Auto uses a 30 / 40 / 30 split. Choose custom only for macros you
+            want to lock.
+          </p>
+        </div>
+        {kcalTarget != null && (
+          <div className="rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-medium tabular-nums text-muted-foreground">
+            {kcalTarget.toLocaleString()} kcal target
+          </div>
+        )}
       </div>
-      <div className="space-y-2 rounded-xl border border-border/60 p-2.5">
+      <div className="divide-y divide-border/60">
         {MACROS.map((m) => (
           <MacroRow
             key={m}
             macro={m}
             state={macros[m]}
+            kcalTarget={kcalTarget}
             onChange={(next) => onMacroChange(m, next)}
           />
         ))}
@@ -409,15 +447,20 @@ function MacroEditor({
 function MacroRow({
   macro,
   state,
+  kcalTarget,
   onChange,
 }: {
   macro: Macro;
   state: MacroState;
+  kcalTarget: number | null;
   onChange: (next: MacroState) => void;
 }) {
   const [grams, setGrams] = useState<string>(
     state.g != null ? String(state.g) : ""
   );
+  const suggested =
+    kcalTarget != null ? defaultAutoGrams(macro, kcalTarget) : null;
+  const customReady = state.mode === "custom" && state.g != null;
 
   function pickMode(next: MacroMode) {
     if (next === state.mode) return;
@@ -433,10 +476,41 @@ function MacroRow({
   }
 
   return (
-    <div className="space-y-1.5 px-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium capitalize">{macro}</span>
-        <div className="inline-flex rounded-full bg-muted/60 p-0.5">
+    <div className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn("h-2 w-2 rounded-full", MACRO_DOT_CLASS[macro])}
+            aria-hidden
+          />
+          <span className="text-sm font-medium capitalize">{macro}</span>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {state.mode === "auto" && suggested != null
+              ? `${suggested}g auto`
+              : state.mode === "custom" && customReady
+                ? `${state.g}g locked`
+                : state.mode === "off"
+                  ? "not tracked"
+                  : "set grams"}
+          </span>
+        </div>
+        {state.mode === "custom" && (
+          <div className="relative mt-2 max-w-44">
+            <Input
+              inputMode="numeric"
+              placeholder={suggested != null ? String(suggested) : "grams"}
+              value={grams}
+              onChange={(e) => onGramsChange(e.target.value)}
+              className="h-9 rounded-full pr-9 text-sm tabular-nums"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
+              g
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="inline-flex w-full rounded-full bg-muted/60 p-0.5 sm:w-auto">
           {(["auto", "custom", "off"] as MacroMode[]).map((opt) => {
             const active = state.mode === opt;
             return (
@@ -445,7 +519,7 @@ function MacroRow({
                 type="button"
                 onClick={() => pickMode(opt)}
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-all",
+                  "min-w-0 flex-1 rounded-full px-3 py-1.5 text-[11px] font-medium capitalize transition-all sm:flex-none",
                   active
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground"
@@ -455,25 +529,16 @@ function MacroRow({
               </button>
             );
           })}
-        </div>
       </div>
-      {state.mode === "custom" && (
-        <div className="relative">
-          <Input
-            inputMode="numeric"
-            placeholder="grams"
-            value={grams}
-            onChange={(e) => onGramsChange(e.target.value)}
-            className="h-9 pr-9 text-sm tabular-nums"
-          />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-            g
-          </span>
-        </div>
-      )}
     </div>
   );
 }
+
+const MACRO_DOT_CLASS: Record<Macro, string> = {
+  protein: "bg-sky-400",
+  carbs: "bg-emerald-400",
+  fat: "bg-amber-400",
+};
 
 function Reconciliation({
   kcalTarget,

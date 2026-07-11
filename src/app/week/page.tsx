@@ -60,7 +60,7 @@ export default async function WeekPage({
       />
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-2 px-6">
+        <div className="mx-auto flex h-14 w-full max-w-2xl items-center px-6">
           <AppLink
             href="/"
             direction="back"
@@ -69,48 +69,40 @@ export default async function WeekPage({
           >
             <ArrowLeft className="h-4 w-4" />
           </AppLink>
-
-          {/* Week nav sits left of the fold and reads as one control, tinted so
-              it's obviously interactive rather than a title with decorations. */}
-          <div className="flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pl-0.5 pr-1 text-primary">
-            <AppLink
-              href={`/week?w=${summary.prevStartKey}`}
-              direction="back"
-              aria-label="Previous week"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </AppLink>
-            <span className="px-1.5 text-sm font-semibold tracking-tight tabular-nums">
-              {summary.isCurrentWeek ? "This week" : rangeLabel}
-            </span>
-            {summary.canGoNext ? (
-              <AppLink
-                href={`/week?w=${summary.nextStartKey}`}
-                direction="forward"
-                aria-label="Next week"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </AppLink>
-            ) : (
-              <span
-                aria-hidden
-                className="inline-flex h-7 w-7 items-center justify-center text-primary/25"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </span>
-            )}
-          </div>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        {summary.isCurrentWeek && (
-          <p className="mb-6 text-xs text-muted-foreground tabular-nums">
+        <div className="mb-8 flex items-center gap-0.5 rounded-full bg-primary/10 py-0.5 pl-0.5 pr-1 text-primary w-fit">
+          <AppLink
+            href={`/week?w=${summary.prevStartKey}`}
+            direction="back"
+            aria-label="Previous week"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </AppLink>
+          <span className="px-1.5 text-sm font-semibold tracking-tight tabular-nums">
             {rangeLabel}
-          </p>
-        )}
+          </span>
+          {summary.canGoNext ? (
+            <AppLink
+              href={`/week?w=${summary.nextStartKey}`}
+              direction="forward"
+              aria-label="Next week"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </AppLink>
+          ) : (
+            <span
+              aria-hidden
+              className="inline-flex h-7 w-7 items-center justify-center text-primary/25"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
+        </div>
 
         {/* Hero — net balance + predicted weight verdict */}
         <section>
