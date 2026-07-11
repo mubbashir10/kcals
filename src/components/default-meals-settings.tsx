@@ -55,14 +55,14 @@ export function DefaultMealsSettings({ initial }: { initial: DefaultMealRow[] })
       </p>
 
       {initial.length > 0 && (
-        <ul className="mb-3 space-y-2">
+        <ul className="mb-3 divide-y divide-border/60">
           {initial.map((m) => (
             <DefaultMealItem key={m.id} meal={m} />
           ))}
         </ul>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-2">
         <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
@@ -133,7 +133,7 @@ function DefaultMealItem({ meal }: { meal: DefaultMealRow }) {
   }
 
   return (
-    <li className={cn("flex items-center gap-2", pending && "opacity-60")}>
+    <li className={cn("flex items-center gap-2 py-2", pending && "opacity-60")}>
       <Input
         value={name}
         onChange={(e) => setName(e.target.value)}

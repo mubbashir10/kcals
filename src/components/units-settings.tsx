@@ -3,7 +3,6 @@
 import { useTransition } from "react";
 import { Ruler } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { setUnits } from "@/app/actions/widgets";
 import type { UnitsPreference } from "@/lib/widget-order";
@@ -24,7 +23,7 @@ export function UnitsSettings({ initial }: { initial: UnitsPreference }) {
   }
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
+    <div className="py-4">
       <div className="mb-3 flex items-center gap-2">
         <Ruler className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm font-medium">Units</span>
@@ -66,6 +65,6 @@ export function UnitsSettings({ initial }: { initial: UnitsPreference }) {
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }

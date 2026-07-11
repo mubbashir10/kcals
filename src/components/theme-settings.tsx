@@ -3,7 +3,6 @@
 import { Monitor, Moon, Sun, SunMoon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useTheme, type Theme } from "@/components/theme-provider";
 
@@ -17,7 +16,7 @@ export function ThemeSettings() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
+    <div className="pb-4">
       <div className="mb-3 flex items-center gap-2">
         <SunMoon className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm font-medium">Appearance</span>
@@ -47,6 +46,6 @@ export function ThemeSettings() {
       <p className="mt-2 text-[11px] text-muted-foreground/70">
         System follows your device&apos;s light or dark setting.
       </p>
-    </Card>
+    </div>
   );
 }

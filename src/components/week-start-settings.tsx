@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { CalendarRange } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { setWeekStartDay } from "@/app/actions/widgets";
 
@@ -36,7 +35,7 @@ export function WeekStartSettings({ initial }: { initial: number }) {
   }
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
+    <div className="pt-4">
       <div className="mb-3 flex items-center gap-2">
         <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm font-medium">Week starts on</span>
@@ -73,6 +72,6 @@ export function WeekStartSettings({ initial }: { initial: number }) {
         Sets the 7-day span on your{" "}
         <span className="text-foreground/70">week summary</span>.
       </p>
-    </Card>
+    </div>
   );
 }

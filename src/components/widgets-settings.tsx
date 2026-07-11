@@ -67,18 +67,20 @@ export function WidgetsSettings({ initial }: { initial: WidgetsSettingsProps }) 
         Choose how each widget appears on your home dashboard.
       </p>
 
-      <CalorieDisplayCard current={initial.calorieDisplay} />
+      <Card className="divide-y divide-border/60 rounded-2xl border-border/60 p-4 shadow-card">
+        <CalorieDisplayCard current={initial.calorieDisplay} />
 
-      {WIDGETS.map((w) => (
-        <WidgetRow
-          key={w.id}
-          id={w.id}
-          label={w.label}
-          icon={w.icon}
-          accent={w.accent}
-          current={initial.states[w.id] ?? "shown"}
-        />
-      ))}
+        {WIDGETS.map((w) => (
+          <WidgetRow
+            key={w.id}
+            id={w.id}
+            label={w.label}
+            icon={w.icon}
+            accent={w.accent}
+            current={initial.states[w.id] ?? "shown"}
+          />
+        ))}
+      </Card>
     </div>
   );
 }
@@ -96,7 +98,7 @@ function CalorieDisplayCard({ current }: { current: CalorieDisplayMode }) {
   }
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
+    <div className="pb-4">
       <div className="mb-3 flex items-center gap-2">
         <Circle className="h-3.5 w-3.5 text-emerald-500" />
         <span className="text-sm font-medium">Calorie ring</span>
@@ -128,7 +130,7 @@ function CalorieDisplayCard({ current }: { current: CalorieDisplayMode }) {
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -155,8 +157,8 @@ function WidgetRow({
   }
 
   return (
-    <Card className="rounded-2xl border-border/60 p-4 shadow-card">
-      <div className="mb-3 flex items-center gap-2">
+    <div className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,18rem)] sm:items-center">
+      <div className="flex items-center gap-2">
         <Icon className={cn("h-3.5 w-3.5", accent)} />
         <span className="text-sm font-medium">{label}</span>
       </div>
@@ -187,6 +189,6 @@ function WidgetRow({
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }

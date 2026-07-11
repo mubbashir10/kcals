@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
+import { Card } from "@/components/ui/card";
 import { requireProfile } from "@/lib/session";
 import type { Units } from "@/lib/bmr";
 import { parseWidgetStates } from "@/lib/widget-order";
@@ -51,11 +52,11 @@ export default async function SettingsPage() {
           <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Preferences
           </h2>
-          <ThemeSettings />
-          <UnitsSettings
-            initial={profile.units as Units}
-          />
-          <WeekStartSettings initial={profile.weekStartDay} />
+          <Card className="divide-y divide-border/60 rounded-2xl border-border/60 p-4 shadow-card">
+            <ThemeSettings />
+            <UnitsSettings initial={profile.units as Units} />
+            <WeekStartSettings initial={profile.weekStartDay} />
+          </Card>
           <DefaultMealsSettings initial={defaultMeals} />
           <HealthConnectSettings enabled={profile.healthSync} />
         </section>
