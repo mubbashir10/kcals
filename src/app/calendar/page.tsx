@@ -3,18 +3,15 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  Flame,
   Footprints,
-  HeartPulse,
   Scale,
-  Utensils,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
+import { EqDayBalance } from "@/components/energy-equation";
 import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calendar";
 import { displayWeight, type Units } from "@/lib/bmr";
 import { dayKeyInTz, formatLongDateInTz, isDayKey, startOfDayForDayKey } from "@/lib/clock";
@@ -93,6 +90,7 @@ export default async function CalendarPage({
   const eaten = Math.round(detail.consumed.kcal);
   const burned = Math.round(detail.activeKcal);
   const bmr = Math.round(detail.bmrKcal);
+  const goal = Math.round(detail.calorieGoal);
   const steps = detail.activityLog?.steps ?? null;
   const weightDisplay =
     detail.weight != null ? displayWeight(detail.weight.weightKg, units) : null;
@@ -195,12 +193,7 @@ export default async function CalendarPage({
           </AppLink>
 
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-border/60 px-5 py-4 text-[13px] sm:px-6">
-            <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
-            <EqOp>+</EqOp>
-            <EqTerm icon={Flame} value={burned} />
-            <EqOp>−</EqOp>
-            <EqTerm icon={Utensils} value={eaten} />
-            <EqResult remaining={bmr + burned - eaten} />
+            <EqDayBalance bmr={bmr} burned={burned} eaten={eaten} goal={goal} />
           </div>
 
           <div className="space-y-3.5 border-t border-border/60 px-5 py-4 sm:px-6">

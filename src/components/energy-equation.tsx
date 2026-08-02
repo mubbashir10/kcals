@@ -1,10 +1,10 @@
-// The "at a glance" energy equation, shared by the home hero
-// (BMR + burned − eaten) and the week page (eaten − burned). Same icons, same
-// operators, same sign language everywhere: a positive result is what's left in
-// the bank, a negative one is an overshoot and gets the destructive tone rather
-// than a leading minus.
+// The "at a glance" energy equation, shared by the day views
+// (BMR + burned ± goal − eaten) and the week page (eaten − burned). Same icons,
+// same operators, same sign language everywhere: a positive result is what's
+// left in the bank, a negative one is an overshoot and gets the destructive
+// tone rather than a leading minus.
 
-import { Sigma } from "lucide-react";
+import { Flame, HeartPulse, Sigma, Target, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -51,6 +51,64 @@ export function EqTerm({
 
 export function EqOp({ children }: { children: React.ReactNode }) {
   return <span className="text-muted-foreground/40">{children}</span>;
+}
+
+/**
+ * A day's whole equation, terms only — the caller owns the container. Shared
+ * verbatim by the day hero and the calendar's day preview so the preview stays
+ * a preview rather than a second, differently-shaped truth.
+ *
+ * The goal term is derived from the target instead of read off the raw pace
+ * offset, so the line reconciles with the ring whatever moved the target — the
+ * deficit or surplus, a lactation allowance, the BMR floor, a hand-set "just
+ * track" number — and so the printed terms always sum to the printed result
+ * rather than drifting by a rounding step. Without it the line would total
+ * what's left of the *burn* while the ring counts down from the *target*: two
+ * different numbers, both called "remaining".
+ */
+export function EqDayBalance({
+  bmr,
+  burned,
+  eaten,
+  goal,
+}: {
+  bmr: number;
+  burned: number;
+  eaten: number;
+  /** Effective calorie target — the number the ring counts down from. */
+  goal: number;
+}) {
+  // Burned/eaten aren't labelled — the flame/fork icons carry them, which keeps
+  // the line to one row.
+  return (
+    <>
+      <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
+      <EqOp>+</EqOp>
+      <EqTerm icon={Flame} value={burned} />
+      <EqGoalTerm adjust={goal - (bmr + burned)} />
+      <EqOp>−</EqOp>
+      <EqTerm icon={Utensils} value={eaten} />
+      <EqResult remaining={goal - eaten} />
+    </>
+  );
+}
+
+// The goal's slice of the day: eat this far above (surplus) or below (deficit)
+// what you burn. Nothing to show at zero — maintain puts target and burn on the
+// same number.
+function EqGoalTerm({ adjust }: { adjust: number }) {
+  if (adjust === 0) return null;
+  const surplus = adjust > 0;
+  return (
+    <>
+      <EqOp>{surplus ? "+" : "−"}</EqOp>
+      <EqTerm
+        icon={Target}
+        value={Math.abs(adjust)}
+        label={surplus ? "surplus" : "deficit"}
+      />
+    </>
+  );
 }
 
 /**

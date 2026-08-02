@@ -4,18 +4,15 @@ import { useState, useTransition } from "react";
 import {
   Activity,
   ArrowLeftRight,
-  Flame,
-  HeartPulse,
   Minus,
   TrendingDown,
   TrendingUp,
-  Utensils,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
-import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
+import { EqDayBalance } from "@/components/energy-equation";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import { cn } from "@/lib/utils";
 import type { GoalType } from "@/lib/goal";
@@ -115,37 +112,17 @@ export function CalorieRingBlock({
         <CalorieRing consumed={consumed} goal={goal} mode={mode} size={220} />
       </AppLink>
 
+      {/* The ring's number, spelled out as the day's equation. */}
       {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
-        <EnergyBalance
-          bmr={Math.round(bmrKcal)}
-          burned={Math.round(activeKcal)}
-          eaten={consumed}
-        />
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground sm:mt-9">
+          <EqDayBalance
+            bmr={Math.round(bmrKcal)}
+            burned={Math.round(activeKcal)}
+            eaten={consumed}
+            goal={Math.round(goal)}
+          />
+        </div>
       )}
-    </div>
-  );
-}
-
-// BMR + Burned − Eaten = what's left of your burn. Independent of the goal.
-function EnergyBalance({
-  bmr,
-  burned,
-  eaten,
-}: {
-  bmr: number;
-  burned: number;
-  eaten: number;
-}) {
-  return (
-    <div className="mt-7 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground sm:mt-9">
-      {/* Burned/Eaten aren't labelled — the flame/fork icons carry them, which
-          keeps the line to one row. */}
-      <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
-      <EqOp>+</EqOp>
-      <EqTerm icon={Flame} value={burned} />
-      <EqOp>−</EqOp>
-      <EqTerm icon={Utensils} value={eaten} />
-      <EqResult remaining={bmr + burned - eaten} />
     </div>
   );
 }
