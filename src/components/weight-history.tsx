@@ -23,7 +23,7 @@ import {
   type Units,
 } from "@/lib/bmr";
 import { nudgeMeasurementSync } from "@/lib/native";
-import { formatTimeInTz, startOfDayInTz, yearInTz } from "@/lib/clock";
+import { formatRelativeDateInTz, formatTimeInTz } from "@/lib/clock";
 import {
   deleteWeightLog,
   updateWeightLog,
@@ -112,7 +112,7 @@ function WeightHistoryRow({
 
   const value = units === "imperial" ? kgToLb(entry.weightKg) : entry.weightKg;
   const unit = units === "imperial" ? "lb" : "kg";
-  const dateStr = formatHistoryDate(entry.loggedAt, timezone);
+  const dateStr = formatRelativeDateInTz(new Date(entry.loggedAt), timezone);
   const timeStr = formatTimeInTz(entry.loggedAt, timezone);
 
   return (
@@ -332,28 +332,3 @@ function EditWeightForm({
     </>
   );
 }
-
-function formatHistoryDate(iso: string, tz: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const startToday = startOfDayInTz(tz, now);
-  const startYesterday = new Date(startToday.getTime() - 24 * 60 * 60 * 1000);
-
-  if (date >= startToday) return "Today";
-  if (date >= startYesterday) return "Yesterday";
-
-  const daysAgo = Math.floor(
-    (startToday.getTime() - date.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  if (daysAgo < 7) {
-    return date.toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
-  }
-  return date.toLocaleDateString("en-US", {
-    timeZone: tz,
-    month: "short",
-    day: "numeric",
-    year: yearInTz(date, tz) !== yearInTz(now, tz) ? "numeric" : undefined,
-  });
-}
-
-

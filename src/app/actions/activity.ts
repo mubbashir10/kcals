@@ -71,10 +71,7 @@ export async function clearActivity(dayKey: string | null) {
     wearableKcal: null,
     manual: false,
     source: null,
-    bmrKcal: snapshot.bmrKcal,
-    defaultActiveKcal: snapshot.defaultActiveKcal,
-    overrideActiveKcal: null,
-    tdeeKcal: snapshot.tdeeKcal,
+    ...snapshot.columns,
   };
 
   await db.activityLog.upsert({

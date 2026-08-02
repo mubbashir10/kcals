@@ -15,6 +15,7 @@
 // Server-side only — never import from a client component. Requires
 // GOOGLE_GENERATIVE_AI_API_KEY (get one at https://aistudio.google.com).
 
+import type { Nutrients } from "@/lib/nutrition";
 import { generateObject, generateText } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -83,12 +84,7 @@ export type AiFoodResult = {
   brand: null;
   /** Tag used by the client to render the AI badge. */
   dataType: "AI";
-  per100g: {
-    kcal: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-  };
+  per100g: Nutrients;
   servingSizeG: number | null;
   servingLabel: string | null;
   /** Model id we used. Persisted onto the CustomFood row on approval. */

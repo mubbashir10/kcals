@@ -2,28 +2,13 @@
 // Used by the home dashboard (own data) and friend view pages (read-only).
 
 import { db } from "@/lib/db";
-import { calculateBmr, type BmrResult, type Sex } from "@/lib/bmr";
-import {
-  activeKcal,
-  activeKcalDaily,
-  calculateTdee,
-  type ActivityMode,
-  type ActiveResult,
-} from "@/lib/tdee";
+import type { ActivityMode } from "@/lib/tdee";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
-import {
-  computeEffectiveTarget,
-  computeKcalOffset,
-  isGoalPace,
-  isGoalType,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
-import { lactationKcal, lactationFloor } from "@/lib/lactation";
-import { computeMacroGoals } from "@/lib/macros";
+import { computeDayTargets } from "@/lib/day-energy";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
+import { weekAgoFrom, weightDelta7dKg } from "@/lib/weight";
 
 export type DailyStats = Awaited<ReturnType<typeof loadDailyStats>>;
 
@@ -49,11 +34,11 @@ export async function loadDailyStats(
     where: { userId_dayKey: { userId, dayKey: todayKey } },
   });
 
-  // Today's snapshot must track the *current* profile. This function only ever
-  // runs for "today", where BMR/active are recomputed live below — so a stale
-  // stored TDEE would freeze the calorie goal while edits to steps/weight move
-  // the displayed BMR+active. Rebuild from the row's override and refresh the
-  // row whenever it drifts (also back-fills rows predating the snapshot fields).
+  // Today's snapshot must track the *current* profile — this function only ever
+  // runs for "today", so a stale stored TDEE would freeze the calorie goal while
+  // edits to steps or weight moved the numbers around it. Rebuild from the row's
+  // override, then refresh the row whenever it drifts (which also back-fills
+  // rows predating the snapshot columns). Everything below reads this snapshot.
   const snapshot = buildDailySnapshot(
     profile,
     todayActivity
@@ -66,19 +51,14 @@ export async function loadDailyStats(
         }
       : null
   );
-  const snapshotFields = {
-    bmrKcal: snapshot.bmrKcal,
-    defaultActiveKcal: snapshot.defaultActiveKcal,
-    overrideActiveKcal: snapshot.overrideActiveKcal,
-    tdeeKcal: snapshot.tdeeKcal,
-  };
+  const snapshotFields = snapshot.columns;
 
   const snapshotStale =
     !todayActivity ||
-    todayActivity.bmrKcal !== snapshot.bmrKcal ||
-    todayActivity.defaultActiveKcal !== snapshot.defaultActiveKcal ||
-    todayActivity.overrideActiveKcal !== snapshot.overrideActiveKcal ||
-    todayActivity.tdeeKcal !== snapshot.tdeeKcal;
+    todayActivity.bmrKcal !== snapshotFields.bmrKcal ||
+    todayActivity.defaultActiveKcal !== snapshotFields.defaultActiveKcal ||
+    todayActivity.overrideActiveKcal !== snapshotFields.overrideActiveKcal ||
+    todayActivity.tdeeKcal !== snapshotFields.tdeeKcal;
 
   if (snapshotStale) {
     if (opts.readOnly) {
@@ -97,87 +77,17 @@ export async function loadDailyStats(
     }
   }
 
-  // BMR for display — prefer the stored snapshot (historically stable),
-  // fall back to live computation if for some reason it's null.
-  const bmr: BmrResult =
-    todayActivity?.bmrKcal != null
-      ? {
-          kcal: todayActivity.bmrKcal,
-          formula:
-            profile.bodyFatPct != null ? "katch-mcardle" : "mifflin-st-jeor",
-        }
-      : calculateBmr({
-          sex: profile.sex as Sex,
-          age: profile.age,
-          heightCm: profile.heightCm,
-          weightKg: profile.weightKg,
-          bodyFatPct: profile.bodyFatPct,
-        });
+  // The snapshot already decided override-vs-typical-day, so reading its
+  // breakdown back keeps the displayed terms and the stored TDEE in agreement.
+  const { bmr, active } = snapshot;
 
-  // Active source: override if present, else the default snapshot.
-  const hasOverride =
-    todayActivity != null &&
-    (todayActivity.overrideActiveKcal != null ||
-      (todayActivity.mode === "estimate" &&
-        ((todayActivity.steps ?? 0) > 0 ||
-          (todayActivity.liftingMin ?? 0) > 0 ||
-          (todayActivity.cardioMin ?? 0) > 0)) ||
-      (todayActivity.mode === "override" &&
-        (todayActivity.wearableKcal ?? 0) > 0));
+  const targets = computeDayTargets({
+    bmrKcal: snapshotFields.bmrKcal,
+    baseTdeeKcal: snapshotFields.tdeeKcal,
+    profile,
+  });
 
-  const active: ActiveResult = hasOverride
-    ? activeKcalDaily({
-        weightKg: profile.weightKg,
-        mode: todayActivity!.mode as ActivityMode,
-        steps: todayActivity!.steps,
-        liftingMin: todayActivity!.liftingMin,
-        cardioMin: todayActivity!.cardioMin,
-        wearableKcal: todayActivity!.wearableKcal,
-      })
-    : activeKcal({
-        weightKg: profile.weightKg,
-        mode: profile.activityMode as ActivityMode,
-        stepsPerDay: profile.stepsPerDay,
-        liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
-        liftingMinutesPerSession: profile.liftingMinutesPerSession,
-        cardioSessionsPerWeek: profile.cardioSessionsPerWeek,
-        cardioMinutesPerSession: profile.cardioMinutesPerSession,
-        activeKcalOverride: profile.activeKcalOverride,
-      });
-
-  // TDEE comes from the stored snapshot when available, otherwise compute.
-  const baseTdee =
-    todayActivity?.tdeeKcal != null
-      ? todayActivity.tdeeKcal
-      : calculateTdee(bmr.kcal, active);
-
-  // Lactation: the energy cost of making milk, added on top of what she
-  // burns so "maintenance" actually holds a nursing mother's weight. Like
-  // the goal, this lives on Profile and applies forward (not snapshotted).
-  const lactationExtra = lactationKcal(profile);
-  const tdee = baseTdee + lactationExtra;
-
-  // Goal-aware target. Goal lives on Profile and changes apply forward —
-  // we deliberately don't snapshot it per-day yet (would let historical
-  // days "freeze" old goals but adds storage churn for a feature we just
-  // shipped). Revisit if users start comparing days across goal changes.
-  const goalType: GoalType = isGoalType(profile.goalType)
-    ? profile.goalType
-    : "maintain";
-  const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
-    ? profile.goalPace
-    : null;
-  const kcalOffset = computeKcalOffset(goalType, goalPace);
-  const calorieGoal = computeEffectiveTarget(
-    tdee,
-    bmr.kcal,
-    goalType,
-    goalPace,
-    profile.trackKcal,
-    lactationFloor(profile)
-  );
-
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const weekAgo = weekAgoFrom(now);
   const [meals, latestWeight, baselineWeightRaw] = await Promise.all([
     db.meal.findMany({
       where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
@@ -193,12 +103,6 @@ export async function loadDailyStats(
       orderBy: { loggedAt: "desc" },
     }),
   ]);
-  const baselineWeight = latestWeight ? baselineWeightRaw : null;
-  const delta7dKg =
-    latestWeight && baselineWeight
-      ? latestWeight.weightKg - baselineWeight.weightKg
-      : null;
-
   const allFoods = meals.flatMap((m) => m.foods);
   const consumed = {
     kcal: sumBy(allFoods, "kcal"),
@@ -207,29 +111,24 @@ export async function loadDailyStats(
     fat: sumBy(allFoods, "fatG"),
   };
 
-  const macroGoals = computeMacroGoals(calorieGoal, profile);
-
   return {
     profile,
     tz,
     bmr,
     active,
-    tdee,
-    lactationKcal: lactationExtra,
-    calorieGoal,
-    goalType,
-    goalPace,
-    kcalOffset,
+    tdee: targets.tdeeKcal,
+    lactationKcal: targets.lactationKcal,
+    calorieGoal: targets.calorieGoal,
+    goalType: targets.goalType,
+    goalPace: targets.goalPace,
+    kcalOffset: targets.kcalOffset,
     todayActivity,
     meals,
     latestWeight,
-    delta7dKg,
+    delta7dKg: weightDelta7dKg(latestWeight, baselineWeightRaw),
     consumed,
     foodCount: allFoods.length,
-    macroGoals,
+    macroGoals: targets.macroGoals,
     todayKey,
   };
 }
-
-
-export type { ActiveResult, BmrResult };

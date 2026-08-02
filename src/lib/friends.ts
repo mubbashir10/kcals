@@ -3,14 +3,7 @@
 import { db } from "@/lib/db";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
-import {
-  computeEffectiveTarget,
-  isGoalPace,
-  isGoalType,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
-import { lactationKcal, lactationFloor } from "@/lib/lactation";
+import { computeDayTargets } from "@/lib/day-energy";
 import type { ActivityMode } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
 
@@ -217,26 +210,11 @@ export async function listFriendSummaries(
           }
         : null
     );
-    const bmrKcal = activity?.bmrKcal ?? snapshot.bmrKcal;
-    // Add the friend's lactation bump on top of burned energy (forward from
-    // their current profile, mirroring loadDailyStats).
-    const tdeeKcal =
-      (activity?.tdeeKcal ?? snapshot.tdeeKcal) + lactationKcal(profile);
-
-    const goalType: GoalType = isGoalType(profile.goalType)
-      ? profile.goalType
-      : "maintain";
-    const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
-      ? profile.goalPace
-      : null;
-    const goalKcal = computeEffectiveTarget(
-      tdeeKcal,
-      bmrKcal,
-      goalType,
-      goalPace,
-      profile.trackKcal,
-      lactationFloor(profile)
-    );
+    const targets = computeDayTargets({
+      bmrKcal: activity?.bmrKcal ?? snapshot.columns.bmrKcal,
+      baseTdeeKcal: activity?.tdeeKcal ?? snapshot.columns.tdeeKcal,
+      profile,
+    });
 
     const todaysFoods = meals
       .filter((m) => m.userId === u.id && m.loggedAt >= start)
@@ -249,7 +227,7 @@ export async function listFriendSummaries(
       image: u.image,
       hasProfile: true,
       consumedKcal: Math.round(sumBy(todaysFoods, "kcal")),
-      goalKcal,
+      goalKcal: targets.calorieGoal,
       consumedProtein: Math.round(sumBy(todaysFoods, "proteinG")),
       consumedCarbs: Math.round(sumBy(todaysFoods, "carbsG")),
       consumedFat: Math.round(sumBy(todaysFoods, "fatG")),

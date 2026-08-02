@@ -13,9 +13,13 @@ import {
   type LactationStage,
   type LactationStatus,
 } from "@/lib/lactation";
+import type { Sex } from "@/lib/bmr";
 import { cn } from "@/lib/utils";
 
 type Props = {
+  /** Passed through to the same gated math the server uses, so the preview
+   *  can't drift from the number that lands on the target. */
+  sex: Sex;
   initial: {
     status: LactationStatus;
     stage: LactationStage;
@@ -51,7 +55,7 @@ const BASIS_OPTIONS: { value: LactationBasis; label: string; hint: string }[] = 
   },
 ];
 
-export function LactationSettings({ initial }: Props) {
+export function LactationSettings({ sex, initial }: Props) {
   const [status, setStatus] = useState<LactationStatus>(initial.status);
   const [stage, setStage] = useState<LactationStage>(initial.stage);
   const [basis, setBasis] = useState<LactationBasis>(initial.basis);
@@ -76,6 +80,7 @@ export function LactationSettings({ initial }: Props) {
 
   const nursing = status !== "none";
   const extra = lactationKcal({
+    sex,
     lactationStatus: status,
     lactationStage: stage,
     lactationBasis: basis,

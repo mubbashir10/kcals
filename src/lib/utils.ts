@@ -46,6 +46,18 @@ export function roundN(n: number, dp: number): number {
   return Math.round(n * f) / f;
 }
 
+/**
+ * Progress toward a goal as a 0–100 percentage. Capped at 100 — going over is
+ * real and the numbers say so, but a bar can't render past full.
+ */
+export function percentOfGoal(
+  value: number,
+  goal: number | null | undefined
+): number {
+  if (goal == null || goal <= 0) return 0;
+  return Math.min((value / goal) * 100, 100);
+}
+
 /** Sum `rows.map(r => r[key])`, treating null/undefined as 0. */
 export function sumBy<K extends string>(
   rows: ReadonlyArray<{ [P in K]?: number | null }>,

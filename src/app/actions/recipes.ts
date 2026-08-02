@@ -6,6 +6,15 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import { persistableFdcId, round1 } from "@/lib/utils";
+import {
+  clampMacroG,
+  MAX_MACRO_PER_100G,
+  per100gOf,
+  roundNutrients,
+} from "@/lib/nutrition";
+
+/** Recipe ingredients are stored per 100 g, so macros cap at 100 g. */
+const clampMacroPer100 = (n: number) => clampMacroG(n, MAX_MACRO_PER_100G);
 
 export type RecipeIngredientInput = {
   // Positive = USDA fdcId, negative = -customFoodId, null = manual.
@@ -67,9 +76,9 @@ function validateIngredient(input: RecipeIngredientInput): RecipeIngredientInput
     name,
     brand: input.brand?.trim() || null,
     per100Kcal: round1(input.per100Kcal),
-    per100ProteinG: clampMacro(input.per100ProteinG),
-    per100CarbsG: clampMacro(input.per100CarbsG),
-    per100FatG: clampMacro(input.per100FatG),
+    per100ProteinG: clampMacroPer100(input.per100ProteinG),
+    per100CarbsG: clampMacroPer100(input.per100CarbsG),
+    per100FatG: clampMacroPer100(input.per100FatG),
     grams: round1(input.grams),
   };
 }
@@ -183,16 +192,16 @@ export async function createRecipeFromFoods(
         // are preserved. We skip validateIngredient's input-sanity caps here:
         // these values come from real logged data, not free-form entry.
         const basis = f.grams > 0 ? f.grams : 100;
-        const per100 = (v: number) => round1((v / basis) * 100);
+        const per100 = roundNutrients(per100gOf(f, basis)!);
         return {
           recipeId: created.id,
           fdcId: persistableFdcId(f.fdcId),
           name: f.name,
           brand: f.brand,
-          per100Kcal: per100(f.kcal),
-          per100ProteinG: per100(f.proteinG),
-          per100CarbsG: per100(f.carbsG),
-          per100FatG: per100(f.fatG),
+          per100Kcal: per100.kcal,
+          per100ProteinG: per100.proteinG,
+          per100CarbsG: per100.carbsG,
+          per100FatG: per100.fatG,
           grams: round1(basis),
           position: i,
         };
@@ -268,8 +277,4 @@ export async function removeRecipeIngredient(ingredientId: number) {
   revalidatePath(`/recipes/${ing.recipeId}`);
 }
 
-function clampMacro(n: number): number {
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return round1(Math.min(n, 100));
-}
 

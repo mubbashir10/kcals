@@ -17,16 +17,9 @@ import {
 } from "@/lib/food-day";
 import { calculateBmr, type Sex } from "@/lib/bmr";
 import { activeKcal, calculateTdee, type ActivityMode } from "@/lib/tdee";
-import { computeMacroGoals, type MacroGoals } from "@/lib/macros";
-import {
-  computeEffectiveTarget,
-  computeKcalOffset,
-  isGoalPace,
-  isGoalType,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
-import { lactationKcal, lactationFloor } from "@/lib/lactation";
+import type { MacroGoals } from "@/lib/macros";
+import { dayTargetsFor, resolveGoal } from "@/lib/day-energy";
+import type { GoalPace, GoalType } from "@/lib/goal";
 
 export type DayConsumed = {
   kcal: number;
@@ -141,17 +134,10 @@ export async function loadDailyHistory(
   });
   const fallbackTdee = calculateTdee(fallbackBmr.kcal, fallbackActive);
 
-  const goalType: GoalType = isGoalType(profile.goalType)
-    ? profile.goalType
-    : "maintain";
-  const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
-    ? profile.goalPace
-    : null;
-  const kcalOffset = computeKcalOffset(goalType, goalPace);
-  // Lactation bump + safety floor — applied to every day's target, forward
-  // from the current profile (same non-retroactive treatment as the goal).
-  const lactExtra = lactationKcal(profile);
-  const lactFloor = lactationFloor(profile);
+  const goal = resolveGoal(profile);
+  // Profile-level settings bound once; the per-day call only takes the day's
+  // own BMR/TDEE.
+  const targetsForDay = dayTargetsFor(profile);
 
   const allKeys = new Set<string>([
     ...foodByDay.keys(),
@@ -169,27 +155,20 @@ export async function loadDailyHistory(
       const foodCount = f?.count ?? 0;
 
       const tdeeSnap = tdeeByDay.get(dayKey);
-      const bmrKcal = tdeeSnap?.bmr ?? fallbackBmr.kcal;
-      const tdeeKcal = (tdeeSnap?.tdee ?? fallbackTdee) + lactExtra;
-      const calorieGoal = computeEffectiveTarget(
-        tdeeKcal,
-        bmrKcal,
-        goalType,
-        goalPace,
-        profile.trackKcal,
-        lactFloor
+      const targets = targetsForDay(
+        tdeeSnap?.bmr ?? fallbackBmr.kcal,
+        tdeeSnap?.tdee ?? fallbackTdee
       );
-      const macroGoals = computeMacroGoals(calorieGoal, profile);
       const weightKg = weightByDay.get(dayKey) ?? null;
 
       return {
         dayKey,
         consumed,
         foodCount,
-        calorieGoal,
-        macroGoals,
-        bmrKcal,
-        tdeeKcal,
+        calorieGoal: targets.calorieGoal,
+        macroGoals: targets.macroGoals,
+        bmrKcal: targets.bmrKcal,
+        tdeeKcal: targets.tdeeKcal,
         weightKg,
         hasFood: !!f,
         hasActivity: tdeeByDay.has(dayKey),
@@ -197,5 +176,5 @@ export async function loadDailyHistory(
       };
     });
 
-  return { profile, tz, entries, goalType, goalPace, kcalOffset };
+  return { profile, tz, entries, ...goal };
 }

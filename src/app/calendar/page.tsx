@@ -16,6 +16,7 @@ import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calenda
 import { displayWeight, type Units } from "@/lib/bmr";
 import { dayKeyInTz, formatLongDateInTz, isDayKey, startOfDayForDayKey } from "@/lib/clock";
 import { metricColor } from "@/lib/metric-colors";
+import { percentOfGoal } from "@/lib/utils";
 import { formatMonthLabel, shiftDayKey, shiftMonth } from "@/lib/calendar-build";
 import { loadDayMarkers } from "@/lib/calendar-data";
 import { loadDayDetail } from "@/lib/day-detail";
@@ -299,7 +300,7 @@ function MacroRow({
 }) {
   const tracked = goal.kind !== "off";
   const goalG = tracked ? goal.g : null;
-  const pct = goalG && goalG > 0 ? Math.min((value / goalG) * 100, 100) : 0;
+  const pct = percentOfGoal(value, goalG);
 
   return (
     <div>

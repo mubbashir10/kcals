@@ -3,7 +3,7 @@ import { ChevronRight, Infinity as InfinityIcon } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { parseDayKey, startOfDayInTz } from "@/lib/clock";
+import { dayKeyToNoonUtc, formatRelativeDateInTz } from "@/lib/clock";
 import type { MacroGoal, MacroGoals } from "@/lib/macros";
 
 // Match the dots used in MacrosWidget so the same macro reads the same color
@@ -64,7 +64,7 @@ function CaloriesHistoryRow({
   const overGoal = delta > 0;
   const empty = consumed === 0;
 
-  const dateStr = formatHistoryDate(entry.dayKey, timezone);
+  const dateStr = formatRelativeDateInTz(dayKeyToNoonUtc(entry.dayKey), timezone);
 
   return (
     <li>
@@ -161,40 +161,4 @@ function Macro({
       )}
     </span>
   );
-}
-
-// "Today" / "Yesterday" / weekday for the past week, otherwise short date.
-function formatHistoryDate(dayKey: string, tz: string): string {
-  const { year, month, day } = parseDayKey(dayKey);
-  // Use noon UTC so toLocaleDateString in the user's tz lands on the right day.
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-
-  const now = new Date();
-  const startToday = startOfDayInTz(tz, now);
-  const startYesterday = new Date(startToday.getTime() - 24 * 60 * 60 * 1000);
-
-  if (date >= startToday) return "Today";
-  if (date >= startYesterday) return "Yesterday";
-
-  const daysAgo = Math.floor(
-    (startToday.getTime() - date.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  if (daysAgo < 7) {
-    return date.toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
-  }
-  return date.toLocaleDateString("en-US", {
-    timeZone: tz,
-    month: "short",
-    day: "numeric",
-    year:
-      getYearInTz(date, tz) !== getYearInTz(now, tz) ? "numeric" : undefined,
-  });
-}
-
-function getYearInTz(date: Date, tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-  }).formatToParts(date);
-  return parseInt(parts.find((p) => p.type === "year")?.value ?? "0", 10);
 }

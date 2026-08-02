@@ -3,6 +3,7 @@ import { Infinity as InfinityIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { MacroGoal } from "@/lib/macros";
+import { percentOfGoal } from "@/lib/utils";
 
 type Props = {
   label: string;
@@ -17,9 +18,7 @@ type Props = {
 export function MacroCard({ label, value, goal, unit = "g", color, flat = false }: Props) {
   const tracked = goal.kind !== "off";
   const goalG = tracked ? goal.g : null;
-  const pct = tracked && goalG && goalG > 0
-    ? Math.min((value / goalG) * 100, 100)
-    : 0;
+  const pct = percentOfGoal(value, goalG);
 
   const inner = (
     <>
@@ -55,7 +54,7 @@ export function MacroCard({ label, value, goal, unit = "g", color, flat = false 
       </div>
 
       <Progress
-        value={tracked ? pct : 0}
+        value={pct}
         indicatorColor={color}
         className="mt-3 sm:mt-4"
       />

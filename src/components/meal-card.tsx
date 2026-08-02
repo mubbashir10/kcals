@@ -35,6 +35,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
 import {
+  parseMacroInput,
+  per100gOf,
+  scaleFrom100g,
+} from "@/lib/nutrition";
+import {
   dayKeyInTz,
   formatTimeInTz,
   setTimeOnDateInTz,
@@ -1182,26 +1187,9 @@ function FoodEditForm({
 
   const valid = isQuickAdd ? validKcal : validGrams;
 
-  // Per-100g basis — only meaningful when food has a real serving size.
-  const per100g =
-    food.grams > 0
-      ? {
-          kcal: (food.kcal / food.grams) * 100,
-          proteinG: (food.proteinG / food.grams) * 100,
-          carbsG: (food.carbsG / food.grams) * 100,
-          fatG: (food.fatG / food.grams) * 100,
-        }
-      : null;
-
-  const factor = validGrams ? g / 100 : 0;
-  const computed = per100g
-    ? {
-        kcal: per100g.kcal * factor,
-        proteinG: per100g.proteinG * factor,
-        carbsG: per100g.carbsG * factor,
-        fatG: per100g.fatG * factor,
-      }
-    : null;
+  // Null for quick-adds — see per100gOf.
+  const per100g = per100gOf(food, food.grams);
+  const computed = per100g ? scaleFrom100g(per100g, validGrams ? g : 0) : null;
 
   function onSave() {
     if (!valid) return;
@@ -1209,9 +1197,9 @@ function FoodEditForm({
       if (isQuickAdd) {
         await updateFoodQuickAdd(food.id, {
           kcal: round1(kVal),
-          proteinG: parseMacro(proteinInput),
-          carbsG: parseMacro(carbsInput),
-          fatG: parseMacro(fatInput),
+          proteinG: parseMacroInput(proteinInput),
+          carbsG: parseMacroInput(carbsInput),
+          fatG: parseMacroInput(fatInput),
         });
       } else {
         await updateFoodGrams(food.id, round1(g));
@@ -1414,12 +1402,6 @@ function FoodStat({
 // field blank if it's zero so the placeholder ("0") guides the user.
 function macroInitial(g: number): string {
   return g > 0 ? String(round1(g)) : "";
-}
-
-function parseMacro(s: string): number {
-  const n = parseFloat(s);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return round1(Math.min(n, 1000));
 }
 
 function MacroEditInput({

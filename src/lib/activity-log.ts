@@ -56,9 +56,6 @@ export function activityLogFields(
 
   return {
     ...override,
-    bmrKcal: snapshot.bmrKcal,
-    defaultActiveKcal: snapshot.defaultActiveKcal,
-    overrideActiveKcal: snapshot.overrideActiveKcal,
-    tdeeKcal: snapshot.tdeeKcal,
+    ...snapshot.columns,
   };
 }

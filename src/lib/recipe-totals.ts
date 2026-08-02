@@ -8,13 +8,16 @@
 // bowl, a smoothie), and we let the user override when it does (kheer
 // reduces, a curry adds liquid).
 
-export type RecipeIngredientForTotals = {
-  grams: number;
-  per100Kcal: number;
-  per100ProteinG: number;
-  per100CarbsG: number;
-  per100FatG: number;
-};
+import {
+  ingredientBasis,
+  per100gOf,
+  scaleFrom100g,
+  sumNutrients,
+  type Nutrients,
+  type Per100Basis,
+} from "@/lib/nutrition";
+
+export type RecipeIngredientForTotals = Per100Basis & { grams: number };
 
 export type RecipeForTotals = {
   totalWeightG: number | null;
@@ -40,50 +43,37 @@ export type RecipeTotals = {
   perServingKcal: number | null;
 };
 
+const NO_NUTRIENTS: Nutrients = { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+
 export function computeRecipeTotals(r: RecipeForTotals): RecipeTotals {
   const ingredientsTotalG = r.ingredients.reduce((a, i) => a + i.grams, 0);
   const weightIsDerived = r.totalWeightG == null;
   const effectiveTotalWeightG = r.totalWeightG ?? ingredientsTotalG;
 
-  const totalKcal = r.ingredients.reduce(
-    (a, i) => a + i.per100Kcal * (i.grams / 100),
-    0
+  const totals = sumNutrients(
+    r.ingredients.map((i) => scaleFrom100g(ingredientBasis(i), i.grams))
   );
-  const totalProteinG = r.ingredients.reduce(
-    (a, i) => a + i.per100ProteinG * (i.grams / 100),
-    0
-  );
-  const totalCarbsG = r.ingredients.reduce(
-    (a, i) => a + i.per100CarbsG * (i.grams / 100),
-    0
-  );
-  const totalFatG = r.ingredients.reduce(
-    (a, i) => a + i.per100FatG * (i.grams / 100),
-    0
-  );
+  // A weightless recipe has no per-100g basis to state; zeros keep the shape
+  // without implying a density we can't know.
+  const per100 = per100gOf(totals, effectiveTotalWeightG) ?? NO_NUTRIENTS;
 
-  const factor =
-    effectiveTotalWeightG > 0 ? 100 / effectiveTotalWeightG : 0;
-
-  const servingG =
-    r.servings != null && r.servings > 0 && effectiveTotalWeightG > 0
-      ? effectiveTotalWeightG / r.servings
-      : null;
-  const perServingKcal =
-    r.servings != null && r.servings > 0 ? totalKcal / r.servings : null;
+  const servings = r.servings != null && r.servings > 0 ? r.servings : null;
 
   return {
-    totalKcal,
-    totalProteinG,
-    totalCarbsG,
-    totalFatG,
+    totalKcal: totals.kcal,
+    totalProteinG: totals.proteinG,
+    totalCarbsG: totals.carbsG,
+    totalFatG: totals.fatG,
     effectiveTotalWeightG,
     weightIsDerived,
-    per100Kcal: totalKcal * factor,
-    per100ProteinG: totalProteinG * factor,
-    per100CarbsG: totalCarbsG * factor,
-    per100FatG: totalFatG * factor,
-    servingG,
-    perServingKcal,
+    per100Kcal: per100.kcal,
+    per100ProteinG: per100.proteinG,
+    per100CarbsG: per100.carbsG,
+    per100FatG: per100.fatG,
+    servingG:
+      servings != null && effectiveTotalWeightG > 0
+        ? effectiveTotalWeightG / servings
+        : null,
+    perServingKcal: servings != null ? totals.kcal / servings : null,
   };
 }

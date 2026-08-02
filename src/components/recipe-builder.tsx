@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchInput } from "@/components/search-input";
 import { cn, round1 } from "@/lib/utils";
+import { scaleFrom100g } from "@/lib/nutrition";
 import { dataTypeLabel, titleCase } from "@/lib/food-format";
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
@@ -638,15 +639,7 @@ function IngredientPortionDialog({
 
   const g = parseFloat(grams);
   const valid = Number.isFinite(g) && g > 0 && g < 50000;
-  const factor = valid ? g / 100 : 0;
-  const preview = food
-    ? {
-        kcal: food.per100g.kcal * factor,
-        proteinG: food.per100g.proteinG * factor,
-        carbsG: food.per100g.carbsG * factor,
-        fatG: food.per100g.fatG * factor,
-      }
-    : null;
+  const preview = food ? scaleFrom100g(food.per100g, valid ? g : 0) : null;
 
   return (
     <Dialog open={!!food} onOpenChange={(o) => !o && !pending && onClose()}>

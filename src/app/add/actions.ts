@@ -15,6 +15,7 @@ import { getProfileTimezone } from "@/lib/clock.server";
 import { titleCase } from "@/lib/food-format";
 import { requireUserId } from "@/lib/session";
 import { persistableFdcId, round1 } from "@/lib/utils";
+import { clampMacroG, MAX_MACRO_PER_100G } from "@/lib/nutrition";
 import { revalidateDiary } from "@/lib/revalidate";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -216,9 +217,9 @@ export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> 
       name,
       brand: null,
       kcal: round1(input.kcal),
-      proteinG: clamp01(input.proteinG, 100),
-      carbsG: clamp01(input.carbsG, 100),
-      fatG: clamp01(input.fatG, 100),
+      proteinG: clampMacroG(input.proteinG, MAX_MACRO_PER_100G),
+      carbsG: clampMacroG(input.carbsG, MAX_MACRO_PER_100G),
+      fatG: clampMacroG(input.fatG, MAX_MACRO_PER_100G),
       servingSizeG:
         input.servingSizeG != null && input.servingSizeG > 0
           ? round1(Math.min(input.servingSizeG, 5000))
@@ -235,8 +236,4 @@ export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> 
   return food.id;
 }
 
-function clamp01(n: number, max: number): number {
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return round1(Math.min(n, max));
-}
 

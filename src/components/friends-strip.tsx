@@ -9,6 +9,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import type { FriendSummary } from "@/lib/friends";
+import { percentOfGoal } from "@/lib/utils";
 
 // Vertical list of friend rows shown on the home page. Each row has the
 // friend's progress bar inline so the user can scan everyone's day without
@@ -49,10 +50,7 @@ function FriendRow({ friend }: { friend: FriendSummary }) {
     "?";
   const displayName = friend.name ?? friend.email.split("@")[0];
 
-  // Cap visual fill at 100%; >100% is real but the bar can't show it.
-  const pct = friend.goalKcal
-    ? Math.min((friend.consumedKcal / friend.goalKcal) * 100, 100)
-    : 0;
+  const pct = percentOfGoal(friend.consumedKcal, friend.goalKcal);
 
   return (
     <AppLink

@@ -8,6 +8,7 @@ import { computeRecipeTotals } from "@/lib/recipe-totals";
 import { requireUserId } from "@/lib/session";
 import { searchFoods, type UsdaFood } from "@/lib/usda";
 import { round1 } from "@/lib/utils";
+import { per100gOf, roundNutrients } from "@/lib/nutrition";
 
 // Synthetic fdcId offset for Recipe rows in the search response. The
 // client uses fdcId as a React key; a CustomFood is mapped to -id (small
@@ -122,18 +123,14 @@ export async function GET(req: Request) {
       const key = f.name.trim().toLowerCase();
       if (seenRecent.has(key)) continue;
       seenRecent.add(key);
-      const per = (n: number) => round1((n / f.grams) * 100);
+      // The query filters `grams: { gt: 0 }`, so a basis always exists.
+      const basis = roundNutrients(per100gOf(f, f.grams)!);
       recentResults.push({
         fdcId: RECENT_FDC_FLOOR - f.id,
         name: f.name,
         brand: f.brand,
         dataType: "Recent",
-        per100g: {
-          kcal: per(f.kcal),
-          proteinG: per(f.proteinG),
-          carbsG: per(f.carbsG),
-          fatG: per(f.fatG),
-        },
+        per100g: basis,
         servingSizeG: round1(f.grams),
         servingLabel: null,
         createdAtIso: f.loggedAt.toISOString(),

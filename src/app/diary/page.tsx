@@ -4,7 +4,11 @@ import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { MealCard } from "@/components/meal-card";
 import { db } from "@/lib/db";
-import { dayKeyInTz, parseDayKey, startOfDayInTz, yearInTz } from "@/lib/clock";
+import {
+  dayKeyInTz,
+  dayKeyToNoonUtc,
+  formatRelativeDateInTz,
+} from "@/lib/clock";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { requireProfile } from "@/lib/session";
 
@@ -152,30 +156,6 @@ function DaySection({
 }
 
 function formatDayHeading(dayKey: string, tz: string): string {
-  const { year, month, day } = parseDayKey(dayKey);
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-
-  const now = new Date();
-  const startToday = startOfDayInTz(tz, now);
-  const startYesterday = new Date(startToday.getTime() - 24 * 60 * 60 * 1000);
-
-  if (date >= startToday) return "Today";
-  if (date >= startYesterday) return "Yesterday";
-
-  const daysAgo = Math.floor(
-    (startToday.getTime() - date.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  if (daysAgo < 7) {
-    return date.toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
-  }
-
-  const sameYear = yearInTz(date, tz) === yearInTz(now, tz);
-  return date.toLocaleDateString("en-US", {
-    timeZone: tz,
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    year: sameYear ? undefined : "numeric",
-  });
+  return formatRelativeDateInTz(dayKeyToNoonUtc(dayKey), tz, { weekday: true });
 }
 

@@ -15,15 +15,8 @@ import {
 } from "@/lib/food-day";
 import { shiftDayKey } from "@/lib/calendar-build";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
-import {
-  KCAL_PER_KG,
-  computeKcalOffset,
-  isGoalPace,
-  isGoalType,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
-import { lactationKcal } from "@/lib/lactation";
+import { dayBurnKcal, resolveGoal } from "@/lib/day-energy";
+import { KCAL_PER_KG, type GoalPace, type GoalType } from "@/lib/goal";
 
 const DAY_MS = 86_400_000;
 
@@ -141,26 +134,21 @@ export async function loadWeekSummary(
     if (a.tdeeKcal != null) tdeeByDay.set(a.dayKey, a.tdeeKcal);
   }
 
-  // Fallback TDEE for days without a snapshot row — the same "typical day"
-  // estimate buildDailySnapshot computes from the current profile. Lactation
-  // is real expended energy (milk), so it's folded into every day's burn
-  // below for an accurate net / predicted-weight.
-  const lactExtra = lactationKcal(profile);
-  const fallbackTdee = buildDailySnapshot(profile, null).tdeeKcal + lactExtra;
+  // Fallback burn for days without a snapshot row — the same "typical day"
+  // estimate buildDailySnapshot computes from the current profile. Milk is real
+  // expended energy, so dayBurnKcal folds it into every day for an accurate net
+  // and predicted weight.
+  const typicalDayTdee = buildDailySnapshot(profile, null).columns.tdeeKcal;
+  const fallbackBurn = dayBurnKcal(typicalDayTdee, profile);
 
-  const goalType: GoalType = isGoalType(profile.goalType)
-    ? profile.goalType
-    : "maintain";
-  const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
-    ? profile.goalPace
-    : null;
-  const dailyKcalOffset = computeKcalOffset(goalType, goalPace);
+  const { goalType, goalPace, kcalOffset: dailyKcalOffset } = resolveGoal(profile);
 
   const days: WeekDay[] = dayKeys.map((dayKey) => {
     const hasFood = consumedByDay.has(dayKey);
     const consumedKcal = consumedByDay.get(dayKey) ?? 0;
     const snapTdee = tdeeByDay.get(dayKey);
-    const tdeeKcal = snapTdee != null ? snapTdee + lactExtra : fallbackTdee;
+    const tdeeKcal =
+      snapTdee != null ? dayBurnKcal(snapTdee, profile) : fallbackBurn;
     return {
       dayKey,
       isToday: dayKey === todayKey,

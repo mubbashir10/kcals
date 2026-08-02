@@ -1,5 +1,6 @@
 "use client";
 
+import type { Nutrients } from "@/lib/nutrition";
 import { useEffect, useRef, useState } from "react";
 
 // The shape /api/foods/search returns. Recipe rows carry an extra
@@ -11,7 +12,7 @@ export type SearchFood = {
   name: string;
   brand: string | null;
   dataType: string;
-  per100g: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+  per100g: Nutrients;
   servingSizeG: number | null;
   servingLabel: string | null;
   createdAtIso?: string;

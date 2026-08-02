@@ -514,6 +514,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
                   <span className="font-semibold text-foreground tabular-nums">
                     +
                     {lactationKcal({
+                      sex,
                       lactationStatus,
                       lactationStage,
                       lactationBasis,

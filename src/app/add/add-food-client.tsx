@@ -24,6 +24,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn, round1 } from "@/lib/utils";
 import {
+  parseMacroInput,
+  roundNutrients,
+  scaleFrom100g,
+} from "@/lib/nutrition";
+import {
   dataTypeLabel,
   extractUnitName,
   formatGrams,
@@ -820,13 +825,7 @@ function PortionForm({
 
   const g = parseFloat(grams);
   const valid = Number.isFinite(g) && g > 0 && g < 5000;
-  const factor = valid ? g / 100 : 0;
-  const computed = {
-    kcal: food.per100g.kcal * factor,
-    proteinG: food.per100g.proteinG * factor,
-    carbsG: food.per100g.carbsG * factor,
-    fatG: food.per100g.fatG * factor,
-  };
+  const computed = scaleFrom100g(food.per100g, valid ? g : 0);
 
   function onLog() {
     if (!valid) return;
@@ -845,10 +844,7 @@ function PortionForm({
             name: isRecipe ? food.name : titleCase(food.name),
             brand: food.brand,
             grams: round1(g),
-            kcal: round1(computed.kcal),
-            proteinG: round1(computed.proteinG),
-            carbsG: round1(computed.carbsG),
-            fatG: round1(computed.fatG),
+            ...roundNutrients(computed),
           },
           logOptions(target, dayKey)
         );
@@ -1037,9 +1033,9 @@ function QuickAddDialog({
             brand: null,
             grams: 0, // sentinel: "kcal-only, no portion"
             kcal: round1(k),
-            proteinG: parseMacro(protein),
-            carbsG: parseMacro(carbs),
-            fatG: parseMacro(fat),
+            proteinG: parseMacroInput(protein),
+            carbsG: parseMacroInput(carbs),
+            fatG: parseMacroInput(fat),
           },
           logOptions(target, dayKey)
         );
@@ -1201,13 +1197,6 @@ function MacroInput({
       </span>
     </div>
   );
-}
-
-// Optional macros: blank → 0, otherwise clamp/round to a sane value.
-function parseMacro(s: string): number {
-  const n = parseFloat(s);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return round1(Math.min(n, 1000));
 }
 
 function Stat({

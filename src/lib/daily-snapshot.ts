@@ -3,10 +3,11 @@
 // kcal at write time so historical days stay stable even when the user
 // changes their profile later.
 
-import { calculateBmr, type Sex } from "@/lib/bmr";
+import { calculateBmr, type BmrResult, type Sex } from "@/lib/bmr";
 import {
   activeKcal,
   activeKcalDaily,
+  type ActiveResult,
   type ActivityMode,
 } from "@/lib/tdee";
 
@@ -28,11 +29,30 @@ export type SnapshotProfile = {
   activeKcalOverride: number | null;
 };
 
-export type DailySnapshot = {
+/**
+ * Exactly the ActivityLog columns — the only part of a snapshot that may reach
+ * a Prisma `data` argument. Kept as its own type because TypeScript drops
+ * excess-property checking through a spread: with the rich fields alongside
+ * these, `data: { ...snapshot }` type-checks and then fails at runtime on an
+ * unknown argument. Writers spread `snapshot.columns`, which can't.
+ */
+export type DailySnapshotColumns = {
   bmrKcal: number;
   defaultActiveKcal: number;
   overrideActiveKcal: number | null;
   tdeeKcal: number;
+};
+
+export type DailySnapshot = {
+  columns: DailySnapshotColumns;
+  /** BMR with the formula actually used — for the "how we got this" readout. */
+  bmr: BmrResult;
+  /**
+   * The active-energy result behind `columns.tdeeKcal` — the day's override if
+   * it had one, else the typical day. Exposed so callers render the
+   * steps/lifting/cardio breakdown without re-deciding which source won.
+   */
+  active: ActiveResult;
 };
 
 export type DailyOverrideInputs = {
@@ -73,7 +93,7 @@ export function buildDailySnapshot(
     activeKcalOverride: profile.activeKcalOverride,
   });
 
-  let overrideActive: number | null = null;
+  let override: ActiveResult | null = null;
   if (overrideInputs) {
     const ov = activeKcalDaily({
       weightKg: profile.weightKg,
@@ -86,16 +106,20 @@ export function buildDailySnapshot(
     // `none` means the user "logged" but provided nothing useful — treat
     // as no override so we fall back to default.
     if (ov.source !== "none") {
-      overrideActive = ov.kcal;
+      override = ov;
     }
   }
 
-  const activeForTdee = overrideActive ?? def.kcal;
+  const active = override ?? def;
 
   return {
-    bmrKcal: bmr.kcal,
-    defaultActiveKcal: def.kcal,
-    overrideActiveKcal: overrideActive,
-    tdeeKcal: bmr.kcal + activeForTdee,
+    columns: {
+      bmrKcal: bmr.kcal,
+      defaultActiveKcal: def.kcal,
+      overrideActiveKcal: override?.kcal ?? null,
+      tdeeKcal: bmr.kcal + active.kcal,
+    },
+    bmr,
+    active,
   };
 }

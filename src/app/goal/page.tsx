@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { requireUserId } from "@/lib/session";
 import { loadDailyStats } from "@/lib/daily-stats";
-import { isGoalPace, isGoalType } from "@/lib/goal";
 import { isMacroMode } from "@/lib/macros";
 import {
   isLactationBasis,
@@ -24,7 +23,7 @@ export default async function GoalPage() {
   const stats = await loadDailyStats(userId);
   // Onboarding must finish first.
   if (!stats) redirect("/setup");
-  const { profile, tdee, calorieGoal } = stats;
+  const { profile, tdee, calorieGoal, goalType, goalPace } = stats;
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -56,8 +55,8 @@ export default async function GoalPage() {
 
         <GoalSettings
           initial={{
-            type: isGoalType(profile.goalType) ? profile.goalType : "maintain",
-            pace: isGoalPace(profile.goalPace) ? profile.goalPace : null,
+            type: goalType,
+            pace: goalPace,
             trackKcal: profile.trackKcal,
             tdee,
             effectiveTarget: calorieGoal,
@@ -91,6 +90,7 @@ export default async function GoalPage() {
               Breastfeeding
             </h2>
             <LactationSettings
+              sex={profile.sex}
               initial={{
                 status: isLactationStatus(profile.lactationStatus)
                   ? profile.lactationStatus

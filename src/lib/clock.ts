@@ -113,6 +113,79 @@ export function yearInTz(date: Date, tz: string): number {
   return getDateParts(date, tz).year;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How a logged entry's date reads in a history list: "Today", "Yesterday", the
+ * weekday name within the past week, then a short date. The year is appended
+ * only once it differs from the current one, so recent entries stay compact.
+ *
+ * `weekday` keeps the weekday name on the dated form too ("Tuesday, Mar 4") —
+ * what a day-grouped heading wants, where the row is a whole day rather than
+ * one entry among several.
+ */
+export function formatRelativeDateInTz(
+  date: Date,
+  tz: string,
+  opts: { weekday?: boolean } = {}
+): string {
+  const now = new Date();
+  const startToday = startOfDayInTz(tz, now);
+  if (date >= startToday) return "Today";
+  if (date >= new Date(startToday.getTime() - DAY_MS)) return "Yesterday";
+
+  const daysAgo = Math.floor(
+    (startToday.getTime() - date.getTime()) / DAY_MS
+  );
+  if (daysAgo < 7) return weekdayFormatter(tz).format(date);
+
+  const sameYear = yearInTz(date, tz) === yearInTz(now, tz);
+  return datedFormatter(tz, !!opts.weekday, sameYear).format(date);
+}
+
+// Same reason getDateParts caches: constructing a DateTimeFormat is one of the
+// slowest hot-path JS APIs, and /calories formats up to 365 rows in one render.
+const relativeFormatters = new Map<string, Intl.DateTimeFormat>();
+function cachedFormat(
+  key: string,
+  make: () => Intl.DateTimeFormat
+): Intl.DateTimeFormat {
+  let f = relativeFormatters.get(key);
+  if (!f) {
+    f = make();
+    relativeFormatters.set(key, f);
+  }
+  return f;
+}
+
+function weekdayFormatter(tz: string): Intl.DateTimeFormat {
+  return cachedFormat(`wd:${tz}`, () =>
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long" })
+  );
+}
+
+function datedFormatter(
+  tz: string,
+  weekday: boolean,
+  sameYear: boolean
+): Intl.DateTimeFormat {
+  return cachedFormat(`dt:${tz}:${weekday}:${sameYear}`, () =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      weekday: weekday ? "long" : undefined,
+      month: "short",
+      day: "numeric",
+      year: sameYear ? undefined : "numeric",
+    })
+  );
+}
+
+/** A dayKey's noon-UTC instant — lands on the right calendar day in any tz. */
+export function dayKeyToNoonUtc(dayKey: string): Date {
+  const { year, month, day } = parseDayKey(dayKey);
+  return new Date(Date.UTC(year, month - 1, day, 12));
+}
+
 export function greetingInTz(tz: string, ref: Date = new Date()): string {
   const h = hourInTz(ref, tz);
   if (h < 12) return "Good morning";

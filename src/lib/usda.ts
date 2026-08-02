@@ -1,6 +1,7 @@
 // USDA FoodData Central client. Server-side only.
 // Docs: https://fdc.nal.usda.gov/api-guide.html
 
+import { per100gOf, type Nutrients } from "@/lib/nutrition";
 import { unstable_cache } from "next/cache";
 
 const BASE = "https://api.nal.usda.gov/fdc/v1";
@@ -22,12 +23,7 @@ export type UsdaFood = {
   brand: string | null;
   dataType: string;
   /** Nutrients per 100g of the raw food. */
-  per100g: {
-    kcal: number;
-    proteinG: number;
-    carbsG: number;
-    fatG: number;
-  };
+  per100g: Nutrients;
   /** Suggested serving size in grams, if the entry provides one (mainly Branded foods). */
   servingSizeG: number | null;
   /** Only set for community-contributed (dataType "Custom") entries. */
@@ -335,15 +331,9 @@ async function searchFoodsUncached(
         fatG: pickNutrient(nutrients, NUM.FAT),
       };
 
+      // Branded entries report per serving; everything else is already per 100g.
       const per100g =
-        isBranded && servingG && servingG > 0
-          ? {
-              kcal: (raw.kcal / servingG) * 100,
-              proteinG: (raw.proteinG / servingG) * 100,
-              carbsG: (raw.carbsG / servingG) * 100,
-              fatG: (raw.fatG / servingG) * 100,
-            }
-          : raw;
+        (isBranded && per100gOf(raw, servingG ?? 0)) || raw;
 
       return {
         fdcId: f.fdcId,

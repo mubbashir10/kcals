@@ -8,6 +8,13 @@ import { getProfileTimezone } from "@/lib/clock.server";
 import { dayKeyInTz } from "@/lib/clock";
 import { revalidateDiary } from "@/lib/revalidate";
 import { round1 } from "@/lib/utils";
+import {
+  ingredientBasis,
+  rescaleToGrams,
+  roundNutrients,
+  scaleFrom100g,
+  type Nutrients,
+} from "@/lib/nutrition";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
 
 // A loggedAt for a food landing in `target`: just after the meal's latest
@@ -34,7 +41,7 @@ function landingInstant(
 // scale from, so every nutrient is entered directly.
 export async function updateFoodQuickAdd(
   id: number,
-  values: { kcal: number; proteinG: number; carbsG: number; fatG: number }
+  values: Nutrients
 ) {
   const { kcal, proteinG, carbsG, fatG } = values;
   if (!Number.isFinite(kcal) || kcal <= 0 || kcal > 10000) {
@@ -55,12 +62,7 @@ export async function updateFoodQuickAdd(
 
   await db.food.update({
     where: { id },
-    data: {
-      kcal: round1(kcal),
-      proteinG: round1(proteinG),
-      carbsG: round1(carbsG),
-      fatG: round1(fatG),
-    },
+    data: roundNutrients(values),
   });
   revalidatePath("/");
 }
@@ -76,16 +78,16 @@ export async function updateFoodGrams(id: number, grams: number) {
     where: { id, meal: { userId } },
   });
   if (!food) return;
+  // No weight behind the calories means no basis to rescale from, and dividing
+  // by 0 here would write Infinity (see per100gOf). The editor routes these to
+  // updateFoodQuickAdd; refuse rather than corrupt the row if one lands here.
+  if (food.grams <= 0) throw new Error("Cannot resize a quick-add entry");
 
-  const factor = grams / food.grams;
   await db.food.update({
     where: { id },
     data: {
       grams,
-      kcal: round1(food.kcal * factor),
-      proteinG: round1(food.proteinG * factor),
-      carbsG: round1(food.carbsG * factor),
-      fatG: round1(food.fatG * factor),
+      ...roundNutrients(rescaleToGrams(food, food.grams, grams)),
     },
   });
   revalidatePath("/");
@@ -166,7 +168,6 @@ export async function explodeRecipeFood(foodId: number) {
   await db.$transaction([
     ...recipe.ingredients.map((ing, i) => {
       const grams = ing.grams * fraction;
-      const scale = grams / 100;
       return db.food.create({
         data: {
           mealId: food.mealId,
@@ -174,10 +175,7 @@ export async function explodeRecipeFood(foodId: number) {
           name: ing.name,
           brand: ing.brand,
           grams: round1(grams),
-          kcal: round1(ing.per100Kcal * scale),
-          proteinG: round1(ing.per100ProteinG * scale),
-          carbsG: round1(ing.per100CarbsG * scale),
-          fatG: round1(ing.per100FatG * scale),
+          ...roundNutrients(scaleFrom100g(ingredientBasis(ing), grams)),
           loggedAt: new Date(base + i),
         },
       });

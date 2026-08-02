@@ -5,27 +5,16 @@
 // fall back to the current profile (same compromise as daily-history.ts).
 
 import { db } from "@/lib/db";
-import { calculateBmr, type BmrResult, type Sex } from "@/lib/bmr";
+import type { BmrResult } from "@/lib/bmr";
 import { startOfDayForDayKey } from "@/lib/clock";
+import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import { normalizeMealSort } from "@/lib/widget-order";
-import {
-  computeEffectiveTarget,
-  computeKcalOffset,
-  isGoalPace,
-  isGoalType,
-  type GoalPace,
-  type GoalType,
-} from "@/lib/goal";
-import { lactationKcal, lactationFloor } from "@/lib/lactation";
-import { computeMacroGoals, type MacroGoals } from "@/lib/macros";
-import {
-  activeKcal,
-  activeKcalDaily,
-  calculateTdee,
-  type ActivityMode,
-  type ActiveResult,
-} from "@/lib/tdee";
+import { computeDayTargets } from "@/lib/day-energy";
+import type { GoalPace, GoalType } from "@/lib/goal";
+import type { MacroGoals } from "@/lib/macros";
+import type { ActiveResult, ActivityMode } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
+import { weekAgoFrom, weightDelta7dKg } from "@/lib/weight";
 
 type LoadedProfile = NonNullable<
   Awaited<ReturnType<typeof db.profile.findUnique>>
@@ -74,7 +63,7 @@ export async function loadDayDetail(
   const dayStart = startOfDayForDayKey(tz, dayKey);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weekAgo = weekAgoFrom(new Date());
   const [meals, activityLog, weightLogs, latestWeightLog, baselineWeightRaw] =
     await Promise.all([
       db.meal.findMany({
@@ -104,64 +93,32 @@ export async function loadDayDetail(
     fat: sumBy(allFoods, "fatG"),
   };
 
-  const fallbackBmr = calculateBmr({
-    sex: profile.sex as Sex,
-    age: profile.age,
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    bodyFatPct: profile.bodyFatPct,
-  });
-  const fallbackActive = activeKcal({
-    weightKg: profile.weightKg,
-    mode: profile.activityMode as ActivityMode,
-    stepsPerDay: profile.stepsPerDay,
-    liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
-    liftingMinutesPerSession: profile.liftingMinutesPerSession,
-    cardioSessionsPerWeek: profile.cardioSessionsPerWeek,
-    cardioMinutesPerSession: profile.cardioMinutesPerSession,
-    activeKcalOverride: profile.activeKcalOverride,
-  });
-  const fallbackTdee = calculateTdee(fallbackBmr.kcal, fallbackActive);
-
-  const bmrKcal = activityLog?.bmrKcal ?? fallbackBmr.kcal;
-  // Lactation adds the milk-production cost on top of burned energy (applies
-  // forward from the current profile, same as the goal — not snapshotted).
-  const tdeeKcal = (activityLog?.tdeeKcal ?? fallbackTdee) + lactationKcal(profile);
-
-  const goalType: GoalType = isGoalType(profile.goalType)
-    ? profile.goalType
-    : "maintain";
-  const goalPace: GoalPace | null = isGoalPace(profile.goalPace)
-    ? profile.goalPace
-    : null;
-  const calorieGoal = computeEffectiveTarget(
-    tdeeKcal,
-    bmrKcal,
-    goalType,
-    goalPace,
-    profile.trackKcal,
-    lactationFloor(profile)
+  // The same snapshot the write path builds. It picks override-vs-typical-day
+  // once, so the active breakdown shown here always sums to the TDEE beside it
+  // — a row that exists but is empty (the dashboard creates one per user per
+  // day) would otherwise display "NEAT 0" against a TDEE that includes it.
+  const snapshot = buildDailySnapshot(
+    profile,
+    activityLog
+      ? {
+          mode: activityLog.mode as ActivityMode,
+          steps: activityLog.steps,
+          liftingMin: activityLog.liftingMin,
+          cardioMin: activityLog.cardioMin,
+          wearableKcal: activityLog.wearableKcal,
+        }
+      : null
   );
-  const macroGoals = computeMacroGoals(calorieGoal, profile);
 
-  const activeKcalToday = activityLog
-    ? activeKcalDaily({
-        weightKg: profile.weightKg,
-        mode: activityLog.mode as ActivityMode,
-        steps: activityLog.steps,
-        liftingMin: activityLog.liftingMin,
-        cardioMin: activityLog.cardioMin,
-        wearableKcal: activityLog.wearableKcal,
-      })
-    : fallbackActive;
+  // A past day keeps the BMR/TDEE stored with it; the fresh estimate is only
+  // for rows written before those columns existed.
+  const targets = computeDayTargets({
+    bmrKcal: activityLog?.bmrKcal ?? snapshot.columns.bmrKcal,
+    baseTdeeKcal: activityLog?.tdeeKcal ?? snapshot.columns.tdeeKcal,
+    profile,
+  });
 
   const dayWeight = weightLogs.at(-1) ?? null;
-
-  const baselineWeight = latestWeightLog ? baselineWeightRaw : null;
-  const delta7dKg =
-    latestWeightLog && baselineWeight
-      ? latestWeightLog.weightKg - baselineWeight.weightKg
-      : null;
 
   return {
     dayKey,
@@ -169,11 +126,11 @@ export async function loadDayDetail(
     activityLog,
     consumed,
     foodCount: allFoods.length,
-    calorieGoal,
-    macroGoals,
-    bmrKcal,
-    tdeeKcal,
-    activeKcal: activeKcalToday.kcal,
+    calorieGoal: targets.calorieGoal,
+    macroGoals: targets.macroGoals,
+    bmrKcal: targets.bmrKcal,
+    tdeeKcal: targets.tdeeKcal,
+    activeKcal: snapshot.active.kcal,
     weight: dayWeight ? { id: dayWeight.id, weightKg: dayWeight.weightKg } : null,
     hasActivity:
       activityLog != null &&
@@ -181,15 +138,17 @@ export async function loadDayDetail(
         (activityLog.liftingMin ?? 0) > 0 ||
         (activityLog.cardioMin ?? 0) > 0 ||
         (activityLog.wearableKcal ?? 0) > 0),
-    bmr: { kcal: bmrKcal, formula: fallbackBmr.formula },
-    active: activeKcalToday,
-    goalType,
-    goalPace,
-    kcalOffset: computeKcalOffset(goalType, goalPace),
-    lactationKcal: lactationKcal(profile),
+    // Stored kcal for the day, with the formula/LBM of the compute that would
+    // produce it — the same BmrResult shape the dashboard renders.
+    bmr: { ...snapshot.bmr, kcal: targets.bmrKcal },
+    active: snapshot.active,
+    goalType: targets.goalType,
+    goalPace: targets.goalPace,
+    kcalOffset: targets.kcalOffset,
+    lactationKcal: targets.lactationKcal,
     latestWeight: latestWeightLog
       ? { weightKg: latestWeightLog.weightKg, loggedAt: latestWeightLog.loggedAt }
       : null,
-    delta7dKg,
+    delta7dKg: weightDelta7dKg(latestWeightLog, baselineWeightRaw),
   };
 }

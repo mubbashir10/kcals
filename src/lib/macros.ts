@@ -47,10 +47,15 @@ export function computeMacroGoal(
   if (mode === "custom" && customG != null && customG >= 0) {
     return { kind: "custom", g: customG };
   }
-  return {
-    kind: "auto",
-    g: Math.round((calorieGoal * DEFAULT_SPLIT[macro]) / KCAL_PER_G[macro]),
-  };
+  return { kind: "auto", g: defaultAutoGrams(macro, calorieGoal) };
+}
+
+/**
+ * Grams of `macro` the auto split implies for a calorie goal. Also the
+ * starting suggestion when a user flips a macro from auto/off into custom.
+ */
+export function defaultAutoGrams(macro: Macro, calorieGoal: number): number {
+  return Math.round((calorieGoal * DEFAULT_SPLIT[macro]) / KCAL_PER_G[macro]);
 }
 
 // All three at once — what the dashboard / friends list both need.
@@ -87,13 +92,4 @@ export function computeMacroGoals(
       calorieGoal
     ),
   };
-}
-
-// Auto-derived default grams for a given calorie goal — useful as a starting
-// suggestion when a user switches a macro from "off"/"auto" into "custom".
-export function defaultAutoGrams(
-  macro: Macro,
-  calorieGoal: number
-): number {
-  return Math.round((calorieGoal * DEFAULT_SPLIT[macro]) / KCAL_PER_G[macro]);
 }

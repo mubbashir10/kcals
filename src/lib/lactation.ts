@@ -73,20 +73,28 @@ export function isLactationBasis(s: unknown): s is LactationBasis {
 // The Profile fields this module reads. Kept narrow so callers can pass a
 // whole `profile` row straight in.
 export type LactationInput = {
+  sex: string;
   lactationStatus: string;
   lactationStage: string | null;
   lactationBasis: string;
 };
 
+// The sex gate lives here rather than at the call sites. `saveProfile` already
+// clears the lactation columns when sex isn't female, so a row that disagrees
+// shouldn't exist — but nothing in the schema enforces that, and a stale or
+// imported row would otherwise carry a silent +500 kcal/day bump and an 1,800
+// kcal floor with no UI left to clear them (the settings card renders only for
+// female profiles). Gating in the math costs nothing and can't be forgotten.
 function isBreastfeeding(input: LactationInput): boolean {
   return (
+    input.sex === "female" &&
     isLactationStatus(input.lactationStatus) &&
     input.lactationStatus !== "none"
   );
 }
 
-// Extra kcal/day to add to TDEE for a nursing mother. 0 when not
-// breastfeeding (or sex isn't female — callers gate on that).
+// Extra kcal/day to add to TDEE for a nursing mother. 0 when she isn't
+// breastfeeding, and for any profile whose sex isn't female.
 export function lactationKcal(input: LactationInput): number {
   if (!isBreastfeeding(input)) return 0;
 
