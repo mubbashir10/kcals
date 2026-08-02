@@ -8,6 +8,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  Info,
   Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -41,6 +42,7 @@ type Props = {
     pace: GoalPace | null;
     trackKcal: number | null;
     tdee: number | null;
+    bmr: number | null;
     // The goal's computed daily calorie target (TDEE ± deficit, floored).
     // Used to reconcile custom macros outside Track mode, where the user
     // doesn't type a kcal number directly.
@@ -127,6 +129,10 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 
   const showPace = type === "loss" || type === "gain";
   const direction = type === "gain" ? "surplus" : "deficit";
+  const belowBmr =
+    initial.bmr != null &&
+    initial.effectiveTarget != null &&
+    initial.effectiveTarget < Math.round(initial.bmr);
 
   return (
     <div className="space-y-3">
@@ -233,6 +239,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
             {TYPE_META[type].hint}. Your calorie target adjusts by the chosen{" "}
             {direction}.
           </p>
+          {belowBmr && <BelowBmrNote bmr={initial.bmr!} />}
         </Card>
       )}
 
@@ -256,6 +263,24 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
         </Card>
       )}
     </div>
+  );
+}
+
+// Eating under resting burn isn't a hard danger line — the body spends well
+// above BMR across a day — so this informs rather than blocks or clamps.
+function BelowBmrNote({ bmr }: { bmr: number }) {
+  return (
+    <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-amber-500/[0.07] px-2.5 py-2 text-[11px] leading-relaxed text-amber-600/90 dark:text-amber-400/90">
+      <Info className="mt-px h-3 w-3 shrink-0" />
+      <span>
+        This puts your target under your{" "}
+        <span className="font-medium tabular-nums">
+          {Math.round(bmr).toLocaleString()}
+        </span>{" "}
+        kcal resting burn. Common at a fast pace, but a gentler one is easier to
+        hold and protects muscle.
+      </span>
+    </p>
   );
 }
 

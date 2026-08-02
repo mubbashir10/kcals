@@ -54,24 +54,23 @@ export function computeKcalOffset(
   return 0;
 }
 
-// Effective calorie target. For loss/gain/maintain, TDEE + offset floored at
-// BMR so an aggressive deficit never asks someone to eat below their resting
-// requirements. For track, the user picks a number directly — we respect it
-// verbatim (no BMR floor; if they set it, they own it). Falls back to TDEE
-// when track is selected but no number is set yet.
+// Effective calorie target: maintenance (TDEE) plus the goal's signed offset,
+// applied as chosen. Deliberately NOT floored at BMR — TDEE already exceeds
+// BMR by the day's activity, so flooring there cancels most of a deficit
+// (a 1,642 BMR against a 2,140 TDEE would swallow anything past ~500) and
+// silently hands back a target the user didn't pick. Under-BMR targets get a
+// heads-up in the UI instead; see isBelowBmr.
 //
-// `minKcal` is an extra hard floor applied to every mode (track included) —
-// used by the lactation feature to keep a nursing mother's target above the
-// minimum that protects milk supply. Defaults to 0 (no extra floor).
+// For track, the user picks the number directly and we respect it verbatim.
+// Falls back to TDEE when track is selected but no number is set yet.
 //
-// The floor is capped at TDEE so it can only ever lift a *deficit* back up —
-// it never pushes the target above maintenance. Otherwise a petite nursing
-// mother whose maintenance already sits below the floor (e.g. TDEE 1,660 vs a
-// 1,800 floor) would be told to eat *above* maintenance, which would make her
-// gain. Eating at maintenance is already safe, so that's as high as we go.
+// `minKcal` is the one real floor — the lactation minimum that protects milk
+// supply. It's capped at TDEE so it can only lift a *deficit* back up, never
+// push the target above maintenance: a petite nursing mother whose maintenance
+// already sits below the floor (TDEE 1,660 vs an 1,800 floor) would otherwise
+// be told to eat above maintenance, which would make her gain.
 export function computeEffectiveTarget(
   tdee: number,
-  bmr: number,
   type: GoalType,
   pace: GoalPace | null,
   trackKcal: number | null = null,
@@ -84,7 +83,13 @@ export function computeEffectiveTarget(
     return Math.max(Math.round(target), floor);
   }
   const target = tdee + computeKcalOffset(type, pace);
-  return Math.max(Math.round(bmr), Math.round(target), floor);
+  return Math.max(Math.round(target), floor);
+}
+
+// Eating under BMR isn't a hard danger line — you burn above BMR over a day,
+// so a real deficit often lands there. It's worth a quiet heads-up, not a cap.
+export function isBelowBmr(target: number, bmr: number): boolean {
+  return target < Math.round(bmr);
 }
 
 export function goalTypeLabel(type: GoalType): string {

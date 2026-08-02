@@ -6,7 +6,7 @@
 
 import { db } from "@/lib/db";
 import type { BmrResult } from "@/lib/bmr";
-import { startOfDayForDayKey } from "@/lib/clock";
+import { dayKeyInTz, startOfDayForDayKey } from "@/lib/clock";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { computeDayTargets } from "@/lib/day-energy";
@@ -107,7 +107,8 @@ export async function loadDayDetail(
           cardioMin: activityLog.cardioMin,
           wearableKcal: activityLog.wearableKcal,
         }
-      : null
+      : null,
+    { inProgress: dayKey === dayKeyInTz(tz) }
   );
 
   // A past day keeps the BMR/TDEE stored with it; the fresh estimate is only

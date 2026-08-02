@@ -71,7 +71,9 @@ export type DailyOverrideInputs = {
  */
 export function buildDailySnapshot(
   profile: SnapshotProfile,
-  overrideInputs?: DailyOverrideInputs | null
+  overrideInputs?: DailyOverrideInputs | null,
+  /** `inProgress` = this is today, still being lived. See `active` below. */
+  opts: { inProgress?: boolean } = {}
 ): DailySnapshot {
   const bmr = calculateBmr({
     sex: profile.sex as Sex,
@@ -110,7 +112,15 @@ export function buildDailySnapshot(
     }
   }
 
-  const active = override ?? def;
+  // A day still in progress has only burned part of itself. The band reports
+  // 11 kcal at 8am, which is a true "so far" but a useless *maintenance* — it
+  // would put the day's target near BMR every morning and walk it upward all
+  // day. Until the live figure overtakes the typical day, the typical day is
+  // the better estimate of what this day will actually cost.
+  const active =
+    opts.inProgress && override != null && override.kcal < def.kcal
+      ? def
+      : override ?? def;
 
   return {
     columns: {

@@ -14,6 +14,7 @@
 import {
   computeEffectiveTarget,
   computeKcalOffset,
+  isBelowBmr,
   isGoalPace,
   isGoalType,
   type GoalPace,
@@ -67,6 +68,8 @@ export type DayTargets = ResolvedGoal & {
   lactationKcal: number;
   /** Effective calorie target — what the ring counts down from. */
   calorieGoal: number;
+  /** Target sits under resting burn — worth flagging, not worth blocking. */
+  belowBmr: boolean;
   macroGoals: MacroGoals;
 };
 
@@ -88,7 +91,6 @@ export function dayTargetsFor(profile: DayEnergyProfile) {
     const tdeeKcal = baseTdeeKcal + lactation;
     const calorieGoal = computeEffectiveTarget(
       tdeeKcal,
-      bmrKcal,
       goal.goalType,
       goal.goalPace,
       profile.trackKcal,
@@ -100,6 +102,7 @@ export function dayTargetsFor(profile: DayEnergyProfile) {
       tdeeKcal,
       lactationKcal: lactation,
       calorieGoal,
+      belowBmr: isBelowBmr(calorieGoal, bmrKcal),
       macroGoals: computeMacroGoals(calorieGoal, profile),
     };
   };

@@ -49,7 +49,9 @@ export async function loadDailyStats(
           cardioMin: todayActivity.cardioMin,
           wearableKcal: todayActivity.wearableKcal,
         }
-      : null
+      : null,
+    // loadDailyStats only ever runs for today.
+    { inProgress: true }
   );
   const snapshotFields = snapshot.columns;
 
