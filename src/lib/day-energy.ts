@@ -88,7 +88,12 @@ export function dayTargetsFor(profile: DayEnergyProfile) {
     /** Burn BEFORE the lactation bump — pass the raw snapshot or estimate. */
     baseTdeeKcal: number
   ): DayTargets {
-    const tdeeKcal = baseTdeeKcal + lactation;
+    // Round maintenance once, here, and derive everything from that integer.
+    // The pace offsets are whole numbers, so the target, the offset and the
+    // burn terms then agree exactly — rounding each separately for display
+    // leaves a stray kcal that the goal term absorbs and reports as a "1
+    // surplus" on a maintain goal.
+    const tdeeKcal = Math.round(baseTdeeKcal + lactation);
     const calorieGoal = computeEffectiveTarget(
       tdeeKcal,
       goal.goalType,

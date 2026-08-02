@@ -29,7 +29,7 @@ export function DayHero({
   weekStartDay,
   consumed,
   goal,
-  activeKcal,
+  tdeeKcal,
   bmrKcal,
   goalType,
   kcalOffset,
@@ -44,7 +44,7 @@ export function DayHero({
   weekStartDay: number;
   consumed: number;
   goal: number;
-  activeKcal?: number;
+  tdeeKcal?: number;
   bmrKcal?: number;
   goalType: GoalType;
   kcalOffset: number;
@@ -81,7 +81,7 @@ export function DayHero({
         <CalorieRingBlock
           consumed={consumed}
           goal={goal}
-          activeKcal={activeKcal}
+          tdeeKcal={tdeeKcal}
           bmrKcal={bmrKcal}
           goalType={goalType}
           kcalOffset={kcalOffset}

@@ -54,7 +54,7 @@ export function CalorieRingBlock({
   consumed,
   goal,
   initialMode,
-  activeKcal,
+  tdeeKcal,
   bmrKcal,
   goalType,
   kcalOffset,
@@ -62,8 +62,9 @@ export function CalorieRingBlock({
   consumed: number;
   goal: number;
   initialMode: CalorieDisplayMode;
-  /** Active (exercise/NEAT) kcal — shown as the "Burned" flank next to the ring. */
-  activeKcal?: number;
+  /** Maintenance for the day. The active term is derived from it and BMR so
+   *  the printed terms sum to the target exactly. */
+  tdeeKcal?: number;
   /** Basal metabolic rate — the resting term in the energy-balance readout. */
   bmrKcal?: number;
   goalType: GoalType;
@@ -113,11 +114,11 @@ export function CalorieRingBlock({
       </AppLink>
 
       {/* The ring's number, spelled out as the day's equation. */}
-      {typeof bmrKcal === "number" && typeof activeKcal === "number" && (
+      {typeof bmrKcal === "number" && typeof tdeeKcal === "number" && (
         <div className="mt-7 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground sm:mt-9">
           <EqDayBalance
             bmr={Math.round(bmrKcal)}
-            burned={Math.round(activeKcal)}
+            burned={Math.round(tdeeKcal) - Math.round(bmrKcal)}
             eaten={consumed}
             goal={Math.round(goal)}
           />

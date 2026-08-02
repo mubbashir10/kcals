@@ -120,7 +120,7 @@ export function DayDashboard({
           weekStartDay={profile.weekStartDay ?? 1}
           consumed={Math.round(consumed.kcal)}
           goal={stats.calorieGoal}
-          activeKcal={active.kcal}
+          tdeeKcal={stats.tdee}
           bmrKcal={bmr.kcal}
           goalType={stats.goalType}
           kcalOffset={stats.kcalOffset}

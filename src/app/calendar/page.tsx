@@ -89,8 +89,8 @@ export default async function CalendarPage({
   // Selected-day figures. Same equation the day page leads with, so this reads
   // as a preview of it rather than a second, differently-shaped truth.
   const eaten = Math.round(detail.consumed.kcal);
-  const burned = Math.round(detail.activeKcal);
   const bmr = Math.round(detail.bmrKcal);
+  const burned = Math.round(detail.tdeeKcal) - bmr;
   const goal = Math.round(detail.calorieGoal);
   const steps = detail.activityLog?.steps ?? null;
   const weightDisplay =
