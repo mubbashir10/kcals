@@ -6,8 +6,12 @@
 
 import { db } from "@/lib/db";
 import type { BmrResult } from "@/lib/bmr";
-import { dayKeyInTz, startOfDayForDayKey } from "@/lib/clock";
-import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import { elapsedForDayKey, startOfDayForDayKey } from "@/lib/clock";
+import {
+  buildDailySnapshot,
+  dayOutlook,
+  type DayOutlook,
+} from "@/lib/daily-snapshot";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { computeDayTargets } from "@/lib/day-energy";
 import type { GoalPace, GoalType } from "@/lib/goal";
@@ -45,6 +49,8 @@ export type DayDetail = {
   // Dashboard extras — the fuller picture the home + day pages render.
   bmr: BmrResult;
   active: ActiveResult;
+  /** How the day's burn reads now — a forecast for today, settled before it. */
+  outlook: DayOutlook;
   goalType: GoalType;
   goalPace: GoalPace | null;
   kcalOffset: number;
@@ -57,13 +63,16 @@ export type DayDetail = {
 export async function loadDayDetail(
   userId: string,
   profile: LoadedProfile,
-  dayKey: string
+  dayKey: string,
+  /** Pinned like its sibling loaders: a request that straddles local midnight
+   *  must not resolve "is this today" and "how far into today" either side. */
+  now: Date = new Date()
 ): Promise<DayDetail> {
   const tz = profile.timezone || "UTC";
   const dayStart = startOfDayForDayKey(tz, dayKey);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-  const weekAgo = weekAgoFrom(new Date());
+  const weekAgo = weekAgoFrom(now);
   const [meals, activityLog, weightLogs, latestWeightLog, baselineWeightRaw] =
     await Promise.all([
       db.meal.findMany({
@@ -107,15 +116,25 @@ export async function loadDayDetail(
           cardioMin: activityLog.cardioMin,
           wearableKcal: activityLog.wearableKcal,
         }
-      : null,
-    { inProgress: dayKey === dayKeyInTz(tz) }
+      : null
   );
 
-  // A past day keeps the BMR/TDEE stored with it; the fresh estimate is only
-  // for rows written before those columns existed.
-  const targets = computeDayTargets({
+  // A past day keeps the BMR/active stored with it; the fresh snapshot is only
+  // the fallback for rows written before those columns existed. Today is the
+  // one day still being lived, so it — and only it — reads through the burn
+  // projection, which is what the dashboard's ring counts down from.
+  const outlook = dayOutlook({
     bmrKcal: activityLog?.bmrKcal ?? snapshot.columns.bmrKcal,
-    baseTdeeKcal: activityLog?.tdeeKcal ?? snapshot.columns.tdeeKcal,
+    defaultActiveKcal:
+      activityLog?.defaultActiveKcal ?? snapshot.columns.defaultActiveKcal,
+    overrideActiveKcal:
+      activityLog?.overrideActiveKcal ?? snapshot.columns.overrideActiveKcal,
+    elapsed: elapsedForDayKey(tz, dayKey, now),
+  });
+
+  const targets = computeDayTargets({
+    bmrKcal: outlook.bmrKcal,
+    baseTdeeKcal: outlook.tdeeKcal,
     profile,
   });
 
@@ -131,7 +150,7 @@ export async function loadDayDetail(
     macroGoals: targets.macroGoals,
     bmrKcal: targets.bmrKcal,
     tdeeKcal: targets.tdeeKcal,
-    activeKcal: snapshot.active.kcal,
+    activeKcal: outlook.activeKcal,
     weight: dayWeight ? { id: dayWeight.id, weightKg: dayWeight.weightKg } : null,
     hasActivity:
       activityLog != null &&
@@ -143,6 +162,7 @@ export async function loadDayDetail(
     // produce it — the same BmrResult shape the dashboard renders.
     bmr: { ...snapshot.bmr, kcal: targets.bmrKcal },
     active: snapshot.active,
+    outlook,
     goalType: targets.goalType,
     goalPace: targets.goalPace,
     kcalOffset: targets.kcalOffset,

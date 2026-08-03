@@ -9,7 +9,11 @@
 // for that day" — accurate forward but not retroactive across goal changes.
 
 import { db } from "@/lib/db";
-import { dayKeyInTz } from "@/lib/clock";
+import { dayKeyInTz, elapsedForDayKey } from "@/lib/clock";
+import {
+  ACTIVITY_OUTLOOK_SELECT,
+  loggedDayTdee,
+} from "@/lib/daily-snapshot";
 import {
   FOOD_MEAL_DAY_SELECT,
   foodDayKey,
@@ -55,13 +59,14 @@ export type DailyHistoryResult = {
 // reasonable window without paging.
 export async function loadDailyHistory(
   userId: string,
-  sinceDays: number = 365
+  sinceDays: number = 365,
+  now: Date = new Date()
 ): Promise<DailyHistoryResult | null> {
   const profile = await db.profile.findUnique({ where: { userId } });
   if (!profile) return null;
 
   const tz = profile.timezone || "UTC";
-  const since = new Date(Date.now() - sinceDays * 86400_000);
+  const since = new Date(now.getTime() - sinceDays * 86400_000);
 
   const [foods, activityLogs, weightLogs] = await Promise.all([
     db.food.findMany({
@@ -76,7 +81,7 @@ export async function loadDailyHistory(
     }),
     db.activityLog.findMany({
       where: { userId, loggedAt: { gte: since } },
-      select: { dayKey: true, tdeeKcal: true, bmrKcal: true },
+      select: { dayKey: true, ...ACTIVITY_OUTLOOK_SELECT },
     }),
     db.weightLog.findMany({
       where: { userId, loggedAt: { gte: since } },
@@ -99,10 +104,13 @@ export async function loadDailyHistory(
     foodByDay.set(key, ex);
   }
 
+  // Today's stored TDEE is a running total, so it re-projects; every earlier
+  // day is settled and reads back as stored. Same helper the week page uses.
   const tdeeByDay = new Map<string, { tdee: number; bmr: number }>();
   for (const a of activityLogs) {
-    if (a.tdeeKcal != null && a.bmrKcal != null) {
-      tdeeByDay.set(a.dayKey, { tdee: a.tdeeKcal, bmr: a.bmrKcal });
+    const tdee = loggedDayTdee(a, elapsedForDayKey(tz, a.dayKey, now));
+    if (tdee != null && a.bmrKcal != null) {
+      tdeeByDay.set(a.dayKey, { tdee, bmr: a.bmrKcal });
     }
   }
 

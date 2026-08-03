@@ -15,6 +15,7 @@ import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring"
 import { EqDayBalance } from "@/components/energy-equation";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import { cn } from "@/lib/utils";
+import type { BurnProjection } from "@/lib/daily-snapshot";
 import type { GoalType } from "@/lib/goal";
 
 const GOAL_CHIP: Record<
@@ -58,6 +59,8 @@ export function CalorieRingBlock({
   bmrKcal,
   goalType,
   kcalOffset,
+  burnProjection = null,
+  lactationKcal = 0,
 }: {
   consumed: number;
   goal: number;
@@ -70,6 +73,10 @@ export function CalorieRingBlock({
   goalType: GoalType;
   /** Signed kcal offset applied to TDEE for the effective target (negative = deficit). */
   kcalOffset: number;
+  /** Set while today's burn is still part forecast — see EqDayBalance. */
+  burnProjection?: BurnProjection | null;
+  /** Milk, already inside `tdeeKcal` — see EqDayBalance. */
+  lactationKcal?: number;
 }) {
   const [mode, setMode] = useState<CalorieDisplayMode>(initialMode);
   const [, startTransition] = useTransition();
@@ -121,6 +128,8 @@ export function CalorieRingBlock({
             burned={Math.round(tdeeKcal) - Math.round(bmrKcal)}
             eaten={consumed}
             goal={Math.round(goal)}
+            burnProjection={burnProjection}
+            lactationKcal={lactationKcal}
           />
         </div>
       )}

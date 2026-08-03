@@ -2,6 +2,8 @@
 // Anything that needs the DB (e.g. resolving the user's stored tz) lives in
 // `clock.server.ts` instead.
 
+import { clamp01 } from "@/lib/utils";
+
 // Build a Date that represents 00:00 *local* time in `tz`, expressed as the
 // equivalent UTC instant. Used to filter "today's" rows from the DB, where
 // loggedAt is stored as UTC. We pick the local Y/M/D using Intl, then offset
@@ -18,6 +20,39 @@ export function startOfDayInTz(tz: string, ref: Date = new Date()): Date {
 // Hour-of-day (0–23) at `date` in the given timezone.
 export function hourInTz(date: Date, tz: string): number {
   return getDateParts(date, tz).hour;
+}
+
+// Active energy accrues in waking hours, not evenly across the calendar day —
+// nobody walks between 2am and 6am. So "how much of this day has been lived"
+// measures the waking window rather than midnight to midnight, or every day
+// would look two-thirds spent by the time its owner got out of bed.
+const WAKING_START_HOUR = 6;
+const WAKING_END_HOUR = 23;
+
+/**
+ * How much of `ref`'s waking day has passed in `tz`, as 0–1. Zero before the
+ * window opens (nothing lived yet), one after it closes (the day's movement is
+ * done). Weights the partial-day burn projection — see `dayOutlook` in
+ * lib/daily-snapshot.ts.
+ */
+export function dayElapsedFraction(tz: string, ref: Date = new Date()): number {
+  const { hour, minute } = getDateParts(ref, tz);
+  const start = WAKING_START_HOUR * 60;
+  const end = WAKING_END_HOUR * 60;
+  return clamp01((hour * 60 + minute - start) / (end - start));
+}
+
+/**
+ * The same fraction for a specific calendar day: today is partly lived, and
+ * every other day is done. Callers that hold a `dayKey` want this rather than
+ * re-deriving "is this today" against `dayKeyInTz` for themselves.
+ */
+export function elapsedForDayKey(
+  tz: string,
+  dayKey: string,
+  ref: Date = new Date()
+): number {
+  return dayKey === dayKeyInTz(tz, ref) ? dayElapsedFraction(tz, ref) : 1;
 }
 
 // "YYYY-MM-DD" for the calendar day that contains `date` in `tz`. Used as a

@@ -7,14 +7,23 @@
 // surface `loggedDays` of 7 so that's transparent.
 
 import { db } from "@/lib/db";
-import { dayKeyInTz, parseDayKey, startOfDayForDayKey } from "@/lib/clock";
+import {
+  dayKeyInTz,
+  elapsedForDayKey,
+  parseDayKey,
+  startOfDayForDayKey,
+} from "@/lib/clock";
 import {
   FOOD_MEAL_DAY_SELECT,
   foodDayKey,
   foodsOfMealsInRange,
 } from "@/lib/food-day";
 import { shiftDayKey } from "@/lib/calendar-build";
-import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import {
+  ACTIVITY_OUTLOOK_SELECT,
+  buildDailySnapshot,
+  loggedDayTdee,
+} from "@/lib/daily-snapshot";
 import { dayBurnKcal, resolveGoal } from "@/lib/day-energy";
 import { KCAL_PER_KG, type GoalPace, type GoalType } from "@/lib/goal";
 
@@ -119,7 +128,7 @@ export async function loadWeekSummary(
     }),
     db.activityLog.findMany({
       where: { userId, dayKey: { gte: startKey, lte: endKey } },
-      select: { dayKey: true, tdeeKcal: true },
+      select: { dayKey: true, ...ACTIVITY_OUTLOOK_SELECT },
     }),
   ]);
 
@@ -129,9 +138,13 @@ export async function loadWeekSummary(
     if (key < startKey || key > endKey) continue;
     consumedByDay.set(key, (consumedByDay.get(key) ?? 0) + f.kcal);
   }
+  // Today's row records what it has burned so far, which isn't what the day
+  // will cost — loggedDayTdee re-projects it exactly as the dashboard does, so
+  // the week's "burned" agrees with the ring.
   const tdeeByDay = new Map<string, number>();
   for (const a of activityLogs) {
-    if (a.tdeeKcal != null) tdeeByDay.set(a.dayKey, a.tdeeKcal);
+    const tdee = loggedDayTdee(a, elapsedForDayKey(tz, a.dayKey, now));
+    if (tdee != null) tdeeByDay.set(a.dayKey, tdee);
   }
 
   // Fallback burn for days without a snapshot row — the same "typical day"

@@ -7,6 +7,8 @@
 import { Flame, HeartPulse, Sigma, Target, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { projectedPill, projectionSentence } from "@/components/projected-value";
+import type { BurnProjection } from "@/lib/daily-snapshot";
 import { cn } from "@/lib/utils";
 
 export function EqTerm({
@@ -15,6 +17,8 @@ export function EqTerm({
   label,
   strong = false,
   danger = false,
+  projected = false,
+  title,
 }: {
   icon: LucideIcon;
   value: number;
@@ -22,9 +26,21 @@ export function EqTerm({
   strong?: boolean;
   /** Over-budget — paint the icon + number in the destructive tone. */
   danger?: boolean;
+  /** Part forecast rather than measured — tilde it and tint the term. */
+  projected?: boolean;
+  /** Hover explanation. Touch can't reach it, so never put the only
+   *  explanation here — this repeats what a nearby caption already says. */
+  title?: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <span
+      className={cn(
+        "inline-flex items-center gap-1",
+        projected && projectedPill,
+        projected && "gap-1.5"
+      )}
+      title={title}
+    >
       <Icon
         className={cn(
           "h-3.5 w-3.5 shrink-0",
@@ -37,11 +53,12 @@ export function EqTerm({
           "tabular-nums",
           danger
             ? "font-semibold text-destructive"
-            : strong
+            : strong || projected
               ? "font-semibold text-foreground"
               : "font-medium text-foreground/70"
         )}
       >
+        {projected && "~"}
         {value.toLocaleString()}
       </span>
       {label && <span className="text-muted-foreground/70">{label}</span>}
@@ -71,20 +88,40 @@ export function EqDayBalance({
   burned,
   eaten,
   goal,
+  burnProjection = null,
+  lactationKcal = 0,
 }: {
   bmr: number;
   burned: number;
   eaten: number;
   /** Effective calorie target — the number the ring counts down from. */
   goal: number;
+  /** Set while `burned` is still part forecast — today, before today is over.
+   *  Marks the term so the line doesn't pass an estimate off as a reading. */
+  burnProjection?: BurnProjection | null;
+  /** Milk, which `burned` also folds in. Named in the projection's tooltip so
+   *  its parts still add up to the term they annotate. */
+  lactationKcal?: number;
 }) {
   // Burned/eaten aren't labelled — the flame/fork icons carry them, which keeps
-  // the line to one row.
+  // the line to one row. The projected burn is the exception: it earns the word
+  // because a number nobody can reconcile against their band is worse than a
+  // slightly longer line.
   return (
     <>
       <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
       <EqOp>+</EqOp>
-      <EqTerm icon={Flame} value={burned} />
+      <EqTerm
+        icon={Flame}
+        value={burned}
+        label={burnProjection ? "est." : undefined}
+        projected={!!burnProjection}
+        title={
+          burnProjection
+            ? projectionSentence(burnProjection, lactationKcal)
+            : undefined
+        }
+      />
       <EqGoalTerm adjust={goal - (bmr + burned)} />
       <EqOp>−</EqOp>
       <EqTerm icon={Utensils} value={eaten} />

@@ -1,8 +1,8 @@
 // Helpers for the friends feature. Server-only (touches the DB).
 
 import { db } from "@/lib/db";
-import { buildDailySnapshot } from "@/lib/daily-snapshot";
-import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import { buildDailySnapshot, dayOutlook } from "@/lib/daily-snapshot";
+import { dayElapsedFraction, dayKeyInTz, startOfDayInTz } from "@/lib/clock";
 import { computeDayTargets } from "@/lib/day-energy";
 import type { ActivityMode } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
@@ -196,8 +196,10 @@ export async function listFriendSummaries(
     const todayKey = todayKeyByUser.get(u.id)!;
     const activity = activityByUserDay.get(`${u.id}:${todayKey}`) ?? null;
 
-    // Prefer the friend's stored snapshot; fall back to a fresh compute
-    // from their current profile (same precedence as loadDailyStats).
+    // Recomputed from their current profile and today's row rather than read
+    // off the stored snapshot, exactly as loadDailyStats does — it's their
+    // today, in their timezone, so their burn has to project the same way it
+    // does for them. Otherwise their ring here wouldn't match their own.
     const snapshot = buildDailySnapshot(
       profile,
       activity
@@ -210,9 +212,13 @@ export async function listFriendSummaries(
           }
         : null
     );
+    const outlook = dayOutlook({
+      ...snapshot.columns,
+      elapsed: dayElapsedFraction(tz, now),
+    });
     const targets = computeDayTargets({
-      bmrKcal: activity?.bmrKcal ?? snapshot.columns.bmrKcal,
-      baseTdeeKcal: activity?.tdeeKcal ?? snapshot.columns.tdeeKcal,
+      bmrKcal: outlook.bmrKcal,
+      baseTdeeKcal: outlook.tdeeKcal,
       profile,
     });
 

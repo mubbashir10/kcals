@@ -13,6 +13,7 @@ import { CalorieRingBlock } from "@/components/calorie-ring-block";
 import type { CalorieDisplayMode } from "@/components/calorie-ring";
 import { metricColor } from "@/lib/metric-colors";
 import { displayWeight, type Units } from "@/lib/bmr";
+import type { BurnProjection } from "@/lib/daily-snapshot";
 import { netBalanceWord } from "@/lib/week";
 import type { GoalType } from "@/lib/goal";
 import type { MacroGoals } from "@/lib/macros";
@@ -38,6 +39,8 @@ export function DayHero({
   macroGoals,
   weekSummary,
   units,
+  burnProjection = null,
+  lactationKcal = 0,
 }: {
   activeDayKey: string;
   todayKey: string;
@@ -48,6 +51,10 @@ export function DayHero({
   bmrKcal?: number;
   goalType: GoalType;
   kcalOffset: number;
+  /** Set while the day's burn is still part forecast — see EqDayBalance. */
+  burnProjection?: BurnProjection | null;
+  /** Milk, already inside `tdeeKcal` — see EqDayBalance. */
+  lactationKcal?: number;
   initialMode: CalorieDisplayMode;
   macros: { protein: number; carbs: number; fat: number };
   macroGoals: MacroGoals;
@@ -86,6 +93,8 @@ export function DayHero({
           goalType={goalType}
           kcalOffset={kcalOffset}
           initialMode={initialMode}
+          burnProjection={burnProjection}
+          lactationKcal={lactationKcal}
         />
       </div>
 

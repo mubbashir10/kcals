@@ -15,6 +15,7 @@ import { ActivityCard, type ActivityCardProps } from "@/components/activity-card
 import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
+import { projectionHint } from "@/components/projected-value";
 import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
@@ -30,6 +31,11 @@ import {
   parseWidgetStates,
 } from "@/lib/widget-order";
 import type { Units, BmrResult } from "@/lib/bmr";
+import {
+  burnProjectionOf,
+  type BurnProjection,
+  type DayOutlook,
+} from "@/lib/daily-snapshot";
 import type { ActivityMode, ActiveResult } from "@/lib/tdee";
 import type { GoalType } from "@/lib/goal";
 import type { CalorieDisplayMode } from "@/components/calorie-ring";
@@ -64,6 +70,8 @@ export type DayDashboardStats = {
   macroGoals: MacroGoals;
   bmr: BmrResult;
   active: ActiveResult;
+  /** How the day's burn reads now — a forecast for today, settled before it. */
+  outlook: DayOutlook;
   tdee: number;
   lactationKcal: number;
   goalType: GoalType;
@@ -108,8 +116,11 @@ export function DayDashboard({
   const mealsState = getWidgetState(widgetStates, "meals");
   const friendsState = getWidgetState(widgetStates, "friends");
 
-  const { consumed, active, bmr } = stats;
+  const { consumed, active, bmr, outlook } = stats;
   const units = profile.units as Units;
+
+  // Only today carries a forecast; every other day is settled and reads plain.
+  const burnProjection = burnProjectionOf(outlook);
 
   return (
     <>
@@ -135,6 +146,8 @@ export function DayDashboard({
           macroGoals={stats.macroGoals}
           weekSummary={weekSummary}
           units={units}
+          burnProjection={burnProjection}
+          lactationKcal={stats.lactationKcal}
         />
       </div>
 
@@ -147,28 +160,14 @@ export function DayDashboard({
               <MaintenanceCard
                 tdee={stats.tdee}
                 lactationKcal={stats.lactationKcal}
-                breakdown={
-                  active.source === "override"
-                    ? {
-                        kind: "override",
-                        bmrKcal: bmr.kcal,
-                        bmrFormula: bmr.formula,
-                        activeKcal: active.kcal,
-                        activeHint: "From wearable",
-                      }
-                    : {
-                        kind: "estimate",
-                        bmrKcal: bmr.kcal,
-                        bmrFormula: bmr.formula,
-                        neatKcal: active.fromSteps,
-                        neatHint: neatHintFor(
-                          stats.activity?.steps ?? null,
-                          profile.stepsPerDay
-                        ),
-                        eatKcal: active.fromLifting + active.fromCardio,
-                        eatHint: eatHintFor(stats.activity, active),
-                      }
-                }
+                breakdown={maintenanceBreakdown({
+                  bmr,
+                  active,
+                  outlook,
+                  burnProjection,
+                  activity: stats.activity,
+                  stepsPerDay: profile.stepsPerDay,
+                })}
               />
             ),
           },
@@ -197,6 +196,7 @@ export function DayDashboard({
               <ActivityCard
                 today={activityOverride(stats.activity)}
                 dayKey={isToday ? null : dayKey}
+                projection={burnProjection}
                 defaults={{
                   stepsPerDay: profile.stepsPerDay,
                   liftingMinutesPerSession: profile.liftingMinutesPerSession,
@@ -283,6 +283,52 @@ export function DayDashboard({
       />
     </>
   );
+}
+
+// Which shape the maintenance breakdown takes. A forecast can't be split into
+// NEAT and EAT — the part still to come hasn't chosen which it will be — so it
+// gets its own single-Active shape, and the three tiles still sum to the TDEE
+// printed above them either way.
+function maintenanceBreakdown({
+  bmr,
+  active,
+  outlook,
+  burnProjection,
+  activity,
+  stepsPerDay,
+}: {
+  bmr: BmrResult;
+  active: ActiveResult;
+  outlook: DayOutlook;
+  burnProjection: BurnProjection | null;
+  activity: ActivityRow;
+  stepsPerDay: number | null;
+}): React.ComponentProps<typeof MaintenanceCard>["breakdown"] {
+  const base = { bmrKcal: bmr.kcal, bmrFormula: bmr.formula };
+  if (burnProjection) {
+    return {
+      ...base,
+      kind: "projected",
+      activeKcal: outlook.activeKcal,
+      activeHint: projectionHint(burnProjection),
+    };
+  }
+  if (active.source === "override") {
+    return {
+      ...base,
+      kind: "override",
+      activeKcal: active.kcal,
+      activeHint: "From wearable",
+    };
+  }
+  return {
+    ...base,
+    kind: "estimate",
+    neatKcal: active.fromSteps,
+    neatHint: neatHintFor(activity?.steps ?? null, stepsPerDay),
+    eatKcal: active.fromLifting + active.fromCardio,
+    eatHint: eatHintFor(activity, active),
+  };
 }
 
 function neatHintFor(steps: number | null, stepsPerDay: number | null): string {

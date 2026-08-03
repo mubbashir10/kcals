@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  TrendingUp,
   Watch,
 } from "lucide-react";
 
@@ -32,11 +33,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  ProjectedValue,
+  projectionSentence,
+} from "@/components/projected-value";
 import { Label } from "@/components/ui/label";
 import { cn, parseOptionalInt } from "@/lib/utils";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
 import type { ActivityMode } from "@/lib/tdee";
+import type { BurnProjection } from "@/lib/daily-snapshot";
 
 // Every icon on this card is the same size and carries its own colour — no
 // chips, no tinted backgrounds. The card is the only surface here.
@@ -62,12 +68,19 @@ export type ActivityCardProps = {
   };
   /** Day being edited. `null`/omitted means today. */
   dayKey?: string | null;
+  /**
+   * Today's burn is part measured, part forecast. Without this the card shows
+   * the band's running total while the ring counts down from a bigger number,
+   * and the two never explain each other.
+   */
+  projection?: BurnProjection | null;
 };
 
 export function ActivityCard({
   today,
   defaults,
   dayKey = null,
+  projection = null,
 }: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
@@ -146,6 +159,10 @@ export function ActivityCard({
               </span>
             </p>
           )}
+          {/* Outside the logged/unlogged split on purpose: a row can carry a
+              figure the card doesn't count as "logged" (a wearable zero), and
+              the ring would still be counting down from a projection. */}
+          <ProjectionLine projection={projection} />
         </div>
       </Card>
 
@@ -276,6 +293,30 @@ function ActivitySummary({
       </div>
       <Provenance today={today} />
     </div>
+  );
+}
+
+// The bridge between this card and the ring above it. The band's number is a
+// running total, the target needs a whole day, and the gap between them is the
+// single most confusing thing on the dashboard until it's spelled out.
+function ProjectionLine({
+  projection,
+}: {
+  projection: ActivityCardProps["projection"];
+}) {
+  if (!projection) return null;
+  return (
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+      <TrendingUp className={cn(ICON, "mr-1.5 inline align-text-bottom")} />
+      Today&apos;s target counts on{" "}
+      {/* The figure and its unit wrap as one word — a line break between the
+          pill and "kcal" leaves the number looking unitless. */}
+      <span className="whitespace-nowrap">
+        <ProjectedValue value={projection.soFarKcal + projection.restOfDayKcal} />{" "}
+        kcal
+      </span>{" "}
+      — {projectionSentence(projection)}.
+    </p>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   Flame,
   Footprints,
   Heart,
+  TrendingUp,
   Watch,
 } from "lucide-react";
 
@@ -31,6 +32,16 @@ type Breakdown =
       bmrFormula: BmrFormula;
       activeKcal: number;
       activeHint: string;
+    }
+  // Today, mid-day: part of `activeKcal` hasn't been burned yet. It can't be
+  // split into NEAT and EAT the way an estimate can, because the part still to
+  // come hasn't chosen yet which it will be.
+  | {
+      kind: "projected";
+      bmrKcal: number;
+      bmrFormula: BmrFormula;
+      activeKcal: number;
+      activeHint: string;
     };
 
 export function MaintenanceCard({
@@ -44,6 +55,7 @@ export function MaintenanceCard({
    *  surface it as its own line so the breakdown still adds up. */
   lactationKcal?: number;
 }) {
+  const projected = breakdown.kind === "projected";
   return (
     <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
       <div className="flex items-center justify-between">
@@ -56,21 +68,27 @@ export function MaintenanceCard({
         <WidgetMenu widgetId="maintenance" label="Maintenance" />
       </div>
       <div className="mt-3 text-5xl font-semibold leading-none tabular-nums tracking-tight">
+        {projected && "~"}
         {Math.round(tdee).toLocaleString()}
         <span className="ml-2 text-base font-normal text-muted-foreground">
           kcal/day
         </span>
       </div>
+      {/* Composed, not branched: a nursing mother looking at today needs both
+          halves of this, and picking one would drop the milk line that the
+          breakdown below still shows. */}
       <p className="mt-3 text-xs text-muted-foreground">
-        {lactationKcal > 0
-          ? "What you burn plus the energy to make milk — eat this to maintain weight while nursing."
+        {projected
+          ? "What today is on course to cost — part measured, part your typical day. It settles as the day does."
           : "What you burn on a typical day — eat this to maintain weight."}
+        {lactationKcal > 0 &&
+          " The energy to make milk is included, so eating this holds your weight while nursing."}
       </p>
 
       <div
         className={cn(
           "mt-5 grid gap-3 border-t border-border/60 pt-4",
-          breakdown.kind === "override" ? "grid-cols-2" : "grid-cols-3"
+          breakdown.kind === "estimate" ? "grid-cols-3" : "grid-cols-2"
         )}
       >
         <BreakdownItem
@@ -83,12 +101,13 @@ export function MaintenanceCard({
               : "Mifflin-St Jeor"
           }
         />
-        {breakdown.kind === "override" ? (
+        {breakdown.kind !== "estimate" ? (
           <BreakdownItem
-            icon={Watch}
-            label="Active"
+            icon={projected ? TrendingUp : Watch}
+            label={projected ? "Active est." : "Active"}
             value={breakdown.activeKcal}
             hint={breakdown.activeHint}
+            projected={projected}
           />
         ) : (
           <>
@@ -131,11 +150,13 @@ function BreakdownItem({
   label,
   value,
   hint,
+  projected = false,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   hint: string;
+  projected?: boolean;
 }) {
   return (
     <div>
@@ -146,6 +167,7 @@ function BreakdownItem({
         </div>
       </div>
       <div className="mt-1 text-2xl font-semibold leading-none tabular-nums tracking-tight">
+        {projected && "~"}
         {Math.round(value).toLocaleString()}
         <span className="ml-1 text-xs font-normal text-muted-foreground">
           kcal

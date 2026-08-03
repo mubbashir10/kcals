@@ -3,8 +3,8 @@
 
 import { db } from "@/lib/db";
 import type { ActivityMode } from "@/lib/tdee";
-import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
-import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import { dayElapsedFraction, dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import { buildDailySnapshot, dayOutlook } from "@/lib/daily-snapshot";
 import { computeDayTargets } from "@/lib/day-energy";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
@@ -49,9 +49,7 @@ export async function loadDailyStats(
           cardioMin: todayActivity.cardioMin,
           wearableKcal: todayActivity.wearableKcal,
         }
-      : null,
-    // loadDailyStats only ever runs for today.
-    { inProgress: true }
+      : null
   );
   const snapshotFields = snapshot.columns;
 
@@ -83,9 +81,29 @@ export async function loadDailyStats(
   // breakdown back keeps the displayed terms and the stored TDEE in agreement.
   const { bmr, active } = snapshot;
 
+  // This function only ever runs for today, so the day is always partly
+  // unlived and its burn always reads through the projection.
+  const outlook = dayOutlook({
+    ...snapshotFields,
+    elapsed: dayElapsedFraction(tz, now),
+  });
+
+  // The target follows the outlook, not the stored column: the row records
+  // what the day has actually burned, while the ring has to count down from
+  // what it's expected to cost.
   const targets = computeDayTargets({
+    bmrKcal: outlook.bmrKcal,
+    baseTdeeKcal: outlook.tdeeKcal,
+    profile,
+  });
+
+  // The same chain on the typical day instead of this one. Choosing a goal is
+  // a forward-looking decision, so the screen that previews it wants a number
+  // that holds still — not one that walks down the afternoon as the projection
+  // narrows onto today's actual burn.
+  const typicalTargets = computeDayTargets({
     bmrKcal: snapshotFields.bmrKcal,
-    baseTdeeKcal: snapshotFields.tdeeKcal,
+    baseTdeeKcal: snapshotFields.bmrKcal + snapshotFields.defaultActiveKcal,
     profile,
   });
 
@@ -118,7 +136,13 @@ export async function loadDailyStats(
     tz,
     bmr,
     active,
+    outlook,
     tdee: targets.tdeeKcal,
+    /** Maintenance + target for a typical day — see `typicalTargets` above. */
+    typical: {
+      tdee: typicalTargets.tdeeKcal,
+      calorieGoal: typicalTargets.calorieGoal,
+    },
     lactationKcal: targets.lactationKcal,
     calorieGoal: targets.calorieGoal,
     goalType: targets.goalType,

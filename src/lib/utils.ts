@@ -40,6 +40,11 @@ export function isNextRedirectError(err: unknown): boolean {
   return err instanceof Error && err.message.includes("NEXT_REDIRECT");
 }
 
+/** Constrain `n` to the 0–1 range — for fractions of a whole. */
+export function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
 /** Round to `dp` decimal places. */
 export function roundN(n: number, dp: number): number {
   const f = 10 ** dp;
