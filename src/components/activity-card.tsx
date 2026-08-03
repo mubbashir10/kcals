@@ -12,7 +12,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  TrendingUp,
   Watch,
 } from "lucide-react";
 
@@ -33,16 +32,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  ProjectedValue,
-  projectionSentence,
-} from "@/components/projected-value";
 import { Label } from "@/components/ui/label";
-import { cn, parseOptionalInt } from "@/lib/utils";
+import { parseOptionalInt } from "@/lib/utils";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
-import type { ActivityMode } from "@/lib/tdee";
-import type { BurnProjection } from "@/lib/daily-snapshot";
 
 // Every icon on this card is the same size and carries its own colour — no
 // chips, no tinted backgrounds. The card is the only surface here.
@@ -50,37 +43,26 @@ const ICON = "h-4 w-4 shrink-0";
 
 export type ActivityCardProps = {
   today: {
-    mode: ActivityMode;
     steps: number | null;
     liftingMin: number | null;
     cardioMin: number | null;
-    wearableKcal: number | null;
+    /** A supplied total — synced or typed. Wins over the three above. */
+    activeKcal: number | null;
     /** Typed in by hand — Health Connect will not overwrite it. */
     manual: boolean;
     /** App the sync credited, e.g. "Mi Fitness". Null on manual entries. */
     source: string | null;
   } | null;
-  defaults: {
-    stepsPerDay: number | null;
-    liftingMinutesPerSession: number | null;
-    cardioMinutesPerSession: number | null;
-    activeKcalOverride: number | null;
-  };
+  /** Profile fallbacks used to prefill the form. */
+  defaults: { stepsPerDay: number | null };
   /** Day being edited. `null`/omitted means today. */
   dayKey?: string | null;
-  /**
-   * Today's burn is part measured, part forecast. Without this the card shows
-   * the band's running total while the ring counts down from a bigger number,
-   * and the two never explain each other.
-   */
-  projection?: BurnProjection | null;
 };
 
 export function ActivityCard({
   today,
   defaults,
   dayKey = null,
-  projection = null,
 }: ActivityCardProps) {
   const [open, setOpen] = useState(false);
   const logged = today != null;
@@ -151,18 +133,14 @@ export function ActivityCard({
             <ActivitySummary today={today!} />
           ) : (
             <p className="text-sm text-foreground/80">
-              Using your typical-day estimate.
+              Running on your typical day.
               <span className="ml-1 text-muted-foreground">
                 {isToday
-                  ? "Log today's actual activity before bed for an accurate TDEE."
-                  : "Log this day's actual activity for an accurate TDEE."}
+                  ? "It'll switch over as soon as your watch syncs, or you can enter today yourself."
+                  : "Enter what this day actually was to correct it."}
               </span>
             </p>
           )}
-          {/* Outside the logged/unlogged split on purpose: a row can carry a
-              figure the card doesn't count as "logged" (a wearable zero), and
-              the ring would still be counting down from a projection. */}
-          <ProjectionLine projection={projection} />
         </div>
       </Card>
 
@@ -178,7 +156,7 @@ export function ActivityCard({
 }
 
 // One movement metric: colored icon, caption, big tabular number, unit. Two of
-// these sit side by side in override mode.
+// these sit side by side when a day has a supplied total and steps to go with it.
 function StatTile({
   icon: Icon,
   color,
@@ -215,34 +193,35 @@ function ActivitySummary({
 }: {
   today: NonNullable<ActivityCardProps["today"]>;
 }) {
-  if (today.mode === "override") {
-    const kcal = today.wearableKcal ?? 0;
+  // A supplied total is the day's headline; the steps beside it are context,
+  // not another term. Without one, the movement chips carry the day.
+  if (today.activeKcal != null) {
+    const kcal = today.activeKcal;
     const steps = today.steps ?? 0;
-    const tiles: {
-      icon: typeof Flame;
-      color: string;
-      value: number;
-      unit: string;
-      label: string;
-    }[] = [];
-    if (kcal > 0 || steps <= 0) {
-      tiles.push({
+    // The energy tile always shows, even at zero. A supplied zero is what the
+    // day's burn is actually running on, and hiding it behind a step count that
+    // isn't driving anything is how you get "8,000 steps" over a BMR-only
+    // target with nothing on screen explaining the gap.
+    const tiles = [
+      {
         icon: Flame,
         color: metricColor.energy,
         value: kcal,
         unit: "kcal",
         label: "Active energy",
-      });
-    }
-    if (steps > 0) {
-      tiles.push({
-        icon: Footprints,
-        color: metricColor.activity,
-        value: steps,
-        unit: "steps",
-        label: "Steps",
-      });
-    }
+      },
+      ...(steps > 0
+        ? [
+            {
+              icon: Footprints,
+              color: metricColor.activity,
+              value: steps,
+              unit: "steps",
+              label: "Steps",
+            },
+          ]
+        : []),
+    ];
     return (
       <div>
         <div className="flex gap-6">
@@ -278,9 +257,9 @@ function ActivitySummary({
     });
   }
 
-  // chips.length === 0 isn't reachable: page.tsx only passes `today` when
-  // there's an actual override (≥1 non-zero field). An empty snapshot row
-  // shows the "Using your typical-day estimate" copy instead.
+  // chips.length === 0 isn't reachable: `dayActivity` in day-dashboard.tsx only
+  // passes `today` for a day carrying activity of its own. A lazily-created
+  // empty row gets the "Running on your typical day" copy instead.
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -293,30 +272,6 @@ function ActivitySummary({
       </div>
       <Provenance today={today} />
     </div>
-  );
-}
-
-// The bridge between this card and the ring above it. The band's number is a
-// running total, the target needs a whole day, and the gap between them is the
-// single most confusing thing on the dashboard until it's spelled out.
-function ProjectionLine({
-  projection,
-}: {
-  projection: ActivityCardProps["projection"];
-}) {
-  if (!projection) return null;
-  return (
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-      <TrendingUp className={cn(ICON, "mr-1.5 inline align-text-bottom")} />
-      Today&apos;s target counts on{" "}
-      {/* The figure and its unit wrap as one word — a line break between the
-          pill and "kcal" leaves the number looking unitless. */}
-      <span className="whitespace-nowrap">
-        <ProjectedValue value={projection.soFarKcal + projection.restOfDayKcal} />{" "}
-        kcal
-      </span>{" "}
-      — {projectionSentence(projection)}.
-    </p>
   );
 }
 
@@ -387,7 +342,6 @@ function LogActivityForm({
   dayKey: string | null;
   onSaved: () => void;
 }) {
-  const [mode, setMode] = useState<ActivityMode>(today?.mode ?? "estimate");
   const [steps, setSteps] = useState<string>(() =>
     today?.steps != null
       ? String(today.steps)
@@ -401,49 +355,29 @@ function LogActivityForm({
   const [cardioMin, setCardioMin] = useState<string>(() =>
     today?.cardioMin != null ? String(today.cardioMin) : ""
   );
-  const [wearableKcal, setWearableKcal] = useState<string>(() =>
-    today?.wearableKcal != null
-      ? String(today.wearableKcal)
-      : defaults.activeKcalOverride != null
-      ? String(defaults.activeKcalOverride)
-      : ""
+  const [activeKcal, setActiveKcal] = useState<string>(() =>
+    today?.activeKcal != null ? String(today.activeKcal) : ""
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function onSave() {
     setError(null);
-    if (mode === "override") {
-      const k = parseOptionalInt(wearableKcal, 10000);
-      if (k === "invalid") {
-        setError("Enter a kcal value between 0 and 10,000.");
-        return;
-      }
-      startTransition(async () => {
-        try {
-          await upsertActivity(dayKey, { mode, wearableKcal: k });
-          onSaved();
-        } catch {
-          setError("Couldn't save. Try again.");
-        }
-      });
-      return;
-    }
-
     const s = parseOptionalInt(steps, 200000);
     const lm = parseOptionalInt(liftingMin, 600);
     const cm = parseOptionalInt(cardioMin, 600);
-    if (s === "invalid" || lm === "invalid" || cm === "invalid") {
+    const k = parseOptionalInt(activeKcal, 10000);
+    if (s === "invalid" || lm === "invalid" || cm === "invalid" || k === "invalid") {
       setError("One of the values is out of range.");
       return;
     }
     startTransition(async () => {
       try {
         await upsertActivity(dayKey, {
-          mode,
           steps: s,
           liftingMin: lm,
           cardioMin: cm,
+          activeKcal: k,
         });
         onSaved();
       } catch {
@@ -458,78 +392,53 @@ function LogActivityForm({
         Log today&apos;s activity
       </DialogTitle>
       <DialogDescription className="text-xs text-muted-foreground">
-        Updates today&apos;s TDEE for an accurate calorie target.
+        Sets what today cost you, and the calorie target that follows from it.
       </DialogDescription>
 
       <div className="mt-4 space-y-4">
-        <div className="space-y-2">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Source
-          </Label>
-          <div className="inline-flex w-full rounded-full bg-muted p-1">
-            {[
-              { value: "estimate" as const, label: "Steps + workout" },
-              { value: "override" as const, label: "From wearable" },
-            ].map((opt) => {
-              const active = opt.value === mode;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setMode(opt.value)}
-                  className={cn(
-                    "flex-1 rounded-full px-4 py-1.5 text-xs font-medium transition-all",
-                    active
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+        <NumberField
+          id="activity-steps"
+          label="Steps"
+          suffix="steps"
+          placeholder="8,000"
+          value={steps}
+          onChange={setSteps}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            id="activity-lift"
+            label="Lifting"
+            suffix="min"
+            placeholder="0"
+            value={liftingMin}
+            onChange={setLiftingMin}
+          />
+          <NumberField
+            id="activity-cardio"
+            label="Cardio"
+            suffix="min"
+            placeholder="0"
+            value={cardioMin}
+            onChange={setCardioMin}
+          />
         </div>
 
-        {mode === "estimate" ? (
-          <>
-            <NumberField
-              id="activity-steps"
-              label="Steps"
-              suffix="steps"
-              placeholder="8,000"
-              value={steps}
-              onChange={setSteps}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <NumberField
-                id="activity-lift"
-                label="Lifting"
-                suffix="min"
-                placeholder="0"
-                value={liftingMin}
-                onChange={setLiftingMin}
-              />
-              <NumberField
-                id="activity-cardio"
-                label="Cardio"
-                suffix="min"
-                placeholder="0"
-                value={cardioMin}
-                onChange={setCardioMin}
-              />
-            </div>
-          </>
-        ) : (
+        {/* One field, one rule: fill it in and it's the answer. Leave it empty
+            and the movement above is worked out for you. */}
+        <div className="space-y-2 border-t border-border/60 pt-4">
           <NumberField
-            id="activity-wearable"
+            id="activity-kcal"
             label="Active calories"
             suffix="kcal"
             placeholder="450"
-            value={wearableKcal}
-            onChange={setWearableKcal}
+            value={activeKcal}
+            onChange={setActiveKcal}
           />
-        )}
+          <p className="text-[11px] text-muted-foreground/70">
+            If your watch gives you a number, put it here — it replaces
+            everything above.
+          </p>
+        </div>
 
         {error && (
           <p className="text-xs text-destructive" role="alert">

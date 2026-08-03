@@ -9,18 +9,16 @@
 // for that day" — accurate forward but not retroactive across goal changes.
 
 import { db } from "@/lib/db";
-import { dayKeyInTz, elapsedForDayKey } from "@/lib/clock";
+import { dayKeyInTz } from "@/lib/clock";
 import {
-  ACTIVITY_OUTLOOK_SELECT,
-  loggedDayTdee,
+  ACTIVITY_BURN_SELECT,
+  buildDailySnapshot,
 } from "@/lib/daily-snapshot";
 import {
   FOOD_MEAL_DAY_SELECT,
   foodDayKey,
   foodsOfMealsInRange,
 } from "@/lib/food-day";
-import { calculateBmr, type Sex } from "@/lib/bmr";
-import { activeKcal, calculateTdee, type ActivityMode } from "@/lib/tdee";
 import type { MacroGoals } from "@/lib/macros";
 import { dayTargetsFor, resolveGoal } from "@/lib/day-energy";
 import type { GoalPace, GoalType } from "@/lib/goal";
@@ -81,7 +79,7 @@ export async function loadDailyHistory(
     }),
     db.activityLog.findMany({
       where: { userId, loggedAt: { gte: since } },
-      select: { dayKey: true, ...ACTIVITY_OUTLOOK_SELECT },
+      select: { dayKey: true, ...ACTIVITY_BURN_SELECT },
     }),
     db.weightLog.findMany({
       where: { userId, loggedAt: { gte: since } },
@@ -104,13 +102,11 @@ export async function loadDailyHistory(
     foodByDay.set(key, ex);
   }
 
-  // Today's stored TDEE is a running total, so it re-projects; every earlier
-  // day is settled and reads back as stored. Same helper the week page uses.
+  // A day reads back exactly as it was stored, today included.
   const tdeeByDay = new Map<string, { tdee: number; bmr: number }>();
   for (const a of activityLogs) {
-    const tdee = loggedDayTdee(a, elapsedForDayKey(tz, a.dayKey, now));
-    if (tdee != null && a.bmrKcal != null) {
-      tdeeByDay.set(a.dayKey, { tdee, bmr: a.bmrKcal });
+    if (a.tdeeKcal != null && a.bmrKcal != null) {
+      tdeeByDay.set(a.dayKey, { tdee: a.tdeeKcal, bmr: a.bmrKcal });
     }
   }
 
@@ -122,25 +118,9 @@ export async function loadDailyHistory(
     weightByDay.set(key, w.weightKg);
   }
 
-  // Fallback BMR/TDEE for any day without an ActivityLog snapshot.
-  const fallbackBmr = calculateBmr({
-    sex: profile.sex as Sex,
-    age: profile.age,
-    heightCm: profile.heightCm,
-    weightKg: profile.weightKg,
-    bodyFatPct: profile.bodyFatPct,
-  });
-  const fallbackActive = activeKcal({
-    weightKg: profile.weightKg,
-    mode: profile.activityMode as ActivityMode,
-    stepsPerDay: profile.stepsPerDay,
-    liftingSessionsPerWeek: profile.liftingSessionsPerWeek,
-    liftingMinutesPerSession: profile.liftingMinutesPerSession,
-    cardioSessionsPerWeek: profile.cardioSessionsPerWeek,
-    cardioMinutesPerSession: profile.cardioMinutesPerSession,
-    activeKcalOverride: profile.activeKcalOverride,
-  });
-  const fallbackTdee = calculateTdee(fallbackBmr.kcal, fallbackActive);
+  // Fallback burn for any day without an ActivityLog snapshot — the typical
+  // day, which is what such a day was running on.
+  const fallback = buildDailySnapshot(profile, null).columns;
 
   const goal = resolveGoal(profile);
   // Profile-level settings bound once; the per-day call only takes the day's
@@ -164,8 +144,8 @@ export async function loadDailyHistory(
 
       const tdeeSnap = tdeeByDay.get(dayKey);
       const targets = targetsForDay(
-        tdeeSnap?.bmr ?? fallbackBmr.kcal,
-        tdeeSnap?.tdee ?? fallbackTdee
+        tdeeSnap?.bmr ?? fallback.bmrKcal,
+        tdeeSnap?.tdee ?? fallback.tdeeKcal
       );
       const weightKg = weightByDay.get(dayKey) ?? null;
 

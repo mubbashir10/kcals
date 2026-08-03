@@ -1,10 +1,9 @@
 // Helpers for the friends feature. Server-only (touches the DB).
 
 import { db } from "@/lib/db";
-import { buildDailySnapshot, dayOutlook } from "@/lib/daily-snapshot";
-import { dayElapsedFraction, dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
 import { computeDayTargets } from "@/lib/day-energy";
-import type { ActivityMode } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
 
 // Lowercased canonical email — same shape Auth.js stores. We always compare
@@ -151,6 +150,14 @@ export async function listFriendSummaries(
     dayKeys.length > 0
       ? db.activityLog.findMany({
           where: { userId: { in: friendIds }, dayKey: { in: dayKeys } },
+          select: {
+            userId: true,
+            dayKey: true,
+            steps: true,
+            liftingMin: true,
+            cardioMin: true,
+            activeKcal: true,
+          },
         })
       : Promise.resolve([]),
     earliestStart != null
@@ -198,27 +205,12 @@ export async function listFriendSummaries(
 
     // Recomputed from their current profile and today's row rather than read
     // off the stored snapshot, exactly as loadDailyStats does — it's their
-    // today, in their timezone, so their burn has to project the same way it
+    // today, in their timezone, so their burn has to resolve the same way it
     // does for them. Otherwise their ring here wouldn't match their own.
-    const snapshot = buildDailySnapshot(
-      profile,
-      activity
-        ? {
-            mode: activity.mode as ActivityMode,
-            steps: activity.steps,
-            liftingMin: activity.liftingMin,
-            cardioMin: activity.cardioMin,
-            wearableKcal: activity.wearableKcal,
-          }
-        : null
-    );
-    const outlook = dayOutlook({
-      ...snapshot.columns,
-      elapsed: dayElapsedFraction(tz, now),
-    });
+    const snapshot = buildDailySnapshot(profile, activity);
     const targets = computeDayTargets({
-      bmrKcal: outlook.bmrKcal,
-      baseTdeeKcal: outlook.tdeeKcal,
+      bmrKcal: snapshot.columns.bmrKcal,
+      baseTdeeKcal: snapshot.columns.tdeeKcal,
       profile,
     });
 

@@ -1,13 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  Baby,
-  Dumbbell,
-  Flame,
-  Footprints,
-  Heart,
-  TrendingUp,
-  Watch,
-} from "lucide-react";
+import { Baby, Dumbbell, Flame, Footprints, Heart, Watch } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { MetricBadge } from "@/components/metric-badge";
@@ -16,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { metricColor } from "@/lib/metric-colors";
 import type { BmrFormula } from "@/lib/bmr";
 
+// A supplied total is one number and stays one number — only movement we
+// worked out ourselves can be split into NEAT and EAT.
 type Breakdown =
   | {
       kind: "estimate";
@@ -27,17 +21,7 @@ type Breakdown =
       eatHint: string;
     }
   | {
-      kind: "override";
-      bmrKcal: number;
-      bmrFormula: BmrFormula;
-      activeKcal: number;
-      activeHint: string;
-    }
-  // Today, mid-day: part of `activeKcal` hasn't been burned yet. It can't be
-  // split into NEAT and EAT the way an estimate can, because the part still to
-  // come hasn't chosen yet which it will be.
-  | {
-      kind: "projected";
+      kind: "direct";
       bmrKcal: number;
       bmrFormula: BmrFormula;
       activeKcal: number;
@@ -55,7 +39,6 @@ export function MaintenanceCard({
    *  surface it as its own line so the breakdown still adds up. */
   lactationKcal?: number;
 }) {
-  const projected = breakdown.kind === "projected";
   return (
     <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
       <div className="flex items-center justify-between">
@@ -68,19 +51,13 @@ export function MaintenanceCard({
         <WidgetMenu widgetId="maintenance" label="Maintenance" />
       </div>
       <div className="mt-3 text-5xl font-semibold leading-none tabular-nums tracking-tight">
-        {projected && "~"}
         {Math.round(tdee).toLocaleString()}
         <span className="ml-2 text-base font-normal text-muted-foreground">
           kcal/day
         </span>
       </div>
-      {/* Composed, not branched: a nursing mother looking at today needs both
-          halves of this, and picking one would drop the milk line that the
-          breakdown below still shows. */}
       <p className="mt-3 text-xs text-muted-foreground">
-        {projected
-          ? "What today is on course to cost — part measured, part your typical day. It settles as the day does."
-          : "What you burn on a typical day — eat this to maintain weight."}
+        What this day costs you — eat this to hold your weight.
         {lactationKcal > 0 &&
           " The energy to make milk is included, so eating this holds your weight while nursing."}
       </p>
@@ -101,13 +78,12 @@ export function MaintenanceCard({
               : "Mifflin-St Jeor"
           }
         />
-        {breakdown.kind !== "estimate" ? (
+        {breakdown.kind === "direct" ? (
           <BreakdownItem
-            icon={projected ? TrendingUp : Watch}
-            label={projected ? "Active est." : "Active"}
+            icon={Watch}
+            label="Active"
             value={breakdown.activeKcal}
             hint={breakdown.activeHint}
-            projected={projected}
           />
         ) : (
           <>
@@ -150,13 +126,11 @@ function BreakdownItem({
   label,
   value,
   hint,
-  projected = false,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   hint: string;
-  projected?: boolean;
 }) {
   return (
     <div>
@@ -167,7 +141,6 @@ function BreakdownItem({
         </div>
       </div>
       <div className="mt-1 text-2xl font-semibold leading-none tabular-nums tracking-tight">
-        {projected && "~"}
         {Math.round(value).toLocaleString()}
         <span className="ml-1 text-xs font-normal text-muted-foreground">
           kcal

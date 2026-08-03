@@ -5,7 +5,6 @@ import { activityLogFields, type ActivityLogInput } from "@/lib/activity-log";
 import { dayKeyInTz, isFutureDayKey } from "@/lib/clock";
 import { revalidateDiary } from "@/lib/revalidate";
 import { requireUserId } from "@/lib/session";
-import { buildDailySnapshot } from "@/lib/daily-snapshot";
 
 function revalidateActivity() {
   revalidateDiary();
@@ -60,18 +59,12 @@ export async function clearActivity(dayKey: string | null) {
   }
   const key = dayKey ?? dayKeyInTz(tz);
 
-  // Default snapshot only — no override.
-  const snapshot = buildDailySnapshot(profile, null);
-
+  // Back to the typical day — an empty input set is exactly that, and it goes
+  // through the same builder every other write uses.
   const cleared = {
-    mode: "estimate",
-    steps: null,
-    liftingMin: null,
-    cardioMin: null,
-    wearableKcal: null,
+    ...activityLogFields(profile, {}),
     manual: false,
     source: null,
-    ...snapshot.columns,
   };
 
   await db.activityLog.upsert({

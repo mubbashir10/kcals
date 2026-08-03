@@ -15,7 +15,6 @@ import { ActivityCard, type ActivityCardProps } from "@/components/activity-card
 import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
-import { projectionHint } from "@/components/projected-value";
 import { DayMealList } from "@/components/day-meal-list";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
@@ -31,12 +30,8 @@ import {
   parseWidgetStates,
 } from "@/lib/widget-order";
 import type { Units, BmrResult } from "@/lib/bmr";
-import {
-  burnProjectionOf,
-  type BurnProjection,
-  type DayOutlook,
-} from "@/lib/daily-snapshot";
-import type { ActivityMode, ActiveResult } from "@/lib/tdee";
+import { dayHasOwnActivity } from "@/lib/daily-snapshot";
+import type { ActiveResult } from "@/lib/tdee";
 import type { GoalType } from "@/lib/goal";
 import type { CalorieDisplayMode } from "@/components/calorie-ring";
 import type { MacroGoals } from "@/lib/macros";
@@ -45,24 +40,15 @@ type DashboardProfile = {
   units: string;
   weekStartDay: number | null;
   stepsPerDay: number | null;
-  liftingMinutesPerSession: number | null;
-  cardioMinutesPerSession: number | null;
-  activeKcalOverride: number | null;
   calorieDisplay: string | null;
   mealSortDir: string | null;
   widgetOrder: string | null;
   widgetStates: string | null;
 };
 
-type ActivityRow = {
-  mode: string;
-  steps: number | null;
-  liftingMin: number | null;
-  cardioMin: number | null;
-  wearableKcal: number | null;
-  manual: boolean;
-  source: string | null;
-} | null;
+// The card's own shape, so the two can't drift apart by hand. Widened to allow
+// the extra columns a full ActivityLog row carries.
+type ActivityRow = NonNullable<ActivityCardProps["today"]> | null;
 
 export type DayDashboardStats = {
   consumed: { kcal: number; protein: number; carbs: number; fat: number };
@@ -70,8 +56,6 @@ export type DayDashboardStats = {
   macroGoals: MacroGoals;
   bmr: BmrResult;
   active: ActiveResult;
-  /** How the day's burn reads now — a forecast for today, settled before it. */
-  outlook: DayOutlook;
   tdee: number;
   lactationKcal: number;
   goalType: GoalType;
@@ -116,11 +100,8 @@ export function DayDashboard({
   const mealsState = getWidgetState(widgetStates, "meals");
   const friendsState = getWidgetState(widgetStates, "friends");
 
-  const { consumed, active, bmr, outlook } = stats;
+  const { consumed, active, bmr } = stats;
   const units = profile.units as Units;
-
-  // Only today carries a forecast; every other day is settled and reads plain.
-  const burnProjection = burnProjectionOf(outlook);
 
   return (
     <>
@@ -146,8 +127,6 @@ export function DayDashboard({
           macroGoals={stats.macroGoals}
           weekSummary={weekSummary}
           units={units}
-          burnProjection={burnProjection}
-          lactationKcal={stats.lactationKcal}
         />
       </div>
 
@@ -163,8 +142,6 @@ export function DayDashboard({
                 breakdown={maintenanceBreakdown({
                   bmr,
                   active,
-                  outlook,
-                  burnProjection,
                   activity: stats.activity,
                   stepsPerDay: profile.stepsPerDay,
                 })}
@@ -194,15 +171,9 @@ export function DayDashboard({
             ) : null;
             const activityNode = showActivity ? (
               <ActivityCard
-                today={activityOverride(stats.activity)}
+                today={dayActivity(stats.activity)}
                 dayKey={isToday ? null : dayKey}
-                projection={burnProjection}
-                defaults={{
-                  stepsPerDay: profile.stepsPerDay,
-                  liftingMinutesPerSession: profile.liftingMinutesPerSession,
-                  cardioMinutesPerSession: profile.cardioMinutesPerSession,
-                  activeKcalOverride: profile.activeKcalOverride,
-                }}
+                defaults={{ stepsPerDay: profile.stepsPerDay }}
               />
             ) : null;
             return {
@@ -285,54 +256,60 @@ export function DayDashboard({
   );
 }
 
-// Which shape the maintenance breakdown takes. A forecast can't be split into
-// NEAT and EAT — the part still to come hasn't chosen which it will be — so it
-// gets its own single-Active shape, and the three tiles still sum to the TDEE
-// printed above them either way.
+// Which shape the maintenance breakdown takes. A supplied total is one number
+// and can't be split into NEAT and EAT, so it gets its own single-Active shape;
+// either way the tiles sum to the TDEE printed above them.
 function maintenanceBreakdown({
   bmr,
   active,
-  outlook,
-  burnProjection,
   activity,
   stepsPerDay,
 }: {
   bmr: BmrResult;
   active: ActiveResult;
-  outlook: DayOutlook;
-  burnProjection: BurnProjection | null;
   activity: ActivityRow;
   stepsPerDay: number | null;
 }): React.ComponentProps<typeof MaintenanceCard>["breakdown"] {
   const base = { bmrKcal: bmr.kcal, bmrFormula: bmr.formula };
-  if (burnProjection) {
+  if (active.direct) {
+    // A direct figure is either this day's own or the profile's standing one —
+    // the row says which, and the hint has to agree with it.
     return {
       ...base,
-      kind: "projected",
-      activeKcal: outlook.activeKcal,
-      activeHint: projectionHint(burnProjection),
-    };
-  }
-  if (active.source === "override") {
-    return {
-      ...base,
-      kind: "override",
+      kind: "direct",
       activeKcal: active.kcal,
-      activeHint: "From wearable",
+      activeHint:
+        activity?.activeKcal != null
+          ? (activity.source ?? "Logged for this day")
+          : "Your typical day",
     };
   }
+  // Same question for the split, and BOTH hints have to answer it the same way:
+  // a day logged with lifting only would otherwise print "NEAT 0" under the
+  // caption "8,000 steps/day avg", naming a typical day the tile isn't showing.
+  const ownMovement =
+    (activity?.steps ?? 0) > 0 ||
+    (activity?.liftingMin ?? 0) > 0 ||
+    (activity?.cardioMin ?? 0) > 0;
+  const day = ownMovement ? activity : null;
   return {
     ...base,
     kind: "estimate",
     neatKcal: active.fromSteps,
-    neatHint: neatHintFor(activity?.steps ?? null, stepsPerDay),
+    neatHint: neatHintFor(day, stepsPerDay),
     eatKcal: active.fromLifting + active.fromCardio,
-    eatHint: eatHintFor(activity, active),
+    eatHint: eatHintFor(day, active),
   };
 }
 
-function neatHintFor(steps: number | null, stepsPerDay: number | null): string {
-  if (steps && steps > 0) return `${steps.toLocaleString()} steps`;
+function neatHintFor(
+  activity: ActivityRow,
+  stepsPerDay: number | null
+): string {
+  if (activity) {
+    const steps = activity.steps ?? 0;
+    return steps > 0 ? `${steps.toLocaleString()} steps` : "No steps logged";
+  }
   if (stepsPerDay && stepsPerDay > 0)
     return `${stepsPerDay.toLocaleString()} steps/day avg`;
   return "No steps logged";
@@ -354,25 +331,22 @@ function eatHintFor(activity: ActivityRow, active: ActiveResult): string {
   );
 }
 
-// The activity card only treats the day as "logged" when there's an actual
-// override — not just because a snapshot row exists (we lazy-create one for
-// TDEE snapshotting). An empty/cleared row uses the profile default instead.
-function activityOverride(row: ActivityRow): ActivityCardProps["today"] {
-  if (!row) return null;
-  const hasOverride =
-    (row.mode === "override" && (row.wearableKcal ?? 0) > 0) ||
-    (row.mode === "estimate" &&
-      ((row.steps ?? 0) > 0 ||
-        (row.liftingMin ?? 0) > 0 ||
-        (row.cardioMin ?? 0) > 0));
-  if (!hasOverride) return null;
+// The activity card only treats the day as "logged" when the row actually says
+// something — not just because a row exists (we lazy-create one per day to hold
+// the snapshot). An empty or cleared row is back on the profile default.
+//
+// Rebuilt field by field rather than passed through: ActivityCard is a client
+// component, so whatever comes back here is serialized into the RSC payload,
+// and a bare `return row` quietly ships the user id, the row id, the stored
+// burn and three Dates to the browser on every dashboard render.
+function dayActivity(row: ActivityRow): ActivityCardProps["today"] {
+  if (!dayHasOwnActivity(row)) return null;
   return {
-    mode: row.mode as ActivityMode,
-    steps: row.steps,
-    liftingMin: row.liftingMin,
-    cardioMin: row.cardioMin,
-    wearableKcal: row.wearableKcal,
-    manual: row.manual,
-    source: row.source,
+    steps: row!.steps,
+    liftingMin: row!.liftingMin,
+    cardioMin: row!.cardioMin,
+    activeKcal: row!.activeKcal,
+    manual: row!.manual,
+    source: row!.source,
   };
 }

@@ -125,7 +125,6 @@ function FriendDayView({
     profile,
     tz,
     tdee,
-    outlook,
     calorieGoal,
     meals,
     latestWeight,
@@ -179,16 +178,13 @@ function FriendDayView({
             </span>
           </div>
           <div className="text-2xl font-semibold tabular-nums tracking-tight">
-            {outlook.projected && "~"}
             {Math.round(tdee).toLocaleString()}
             <span className="ml-1 text-sm font-normal text-muted-foreground">
               kcal
             </span>
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {outlook.projected
-              ? "Daily energy goal, still settling"
-              : "Daily energy goal"}
+            Daily energy goal
           </div>
         </Card>
 

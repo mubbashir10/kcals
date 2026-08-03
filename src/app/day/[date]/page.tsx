@@ -91,7 +91,6 @@ export default async function DayPage({
             macroGoals: detail.macroGoals,
             bmr: detail.bmr,
             active: detail.active,
-            outlook: detail.outlook,
             tdee: detail.tdeeKcal,
             lactationKcal: detail.lactationKcal,
             goalType: detail.goalType,

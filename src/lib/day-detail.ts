@@ -6,17 +6,13 @@
 
 import { db } from "@/lib/db";
 import type { BmrResult } from "@/lib/bmr";
-import { elapsedForDayKey, startOfDayForDayKey } from "@/lib/clock";
-import {
-  buildDailySnapshot,
-  dayOutlook,
-  type DayOutlook,
-} from "@/lib/daily-snapshot";
+import { startOfDayForDayKey } from "@/lib/clock";
+import { buildDailySnapshot, dayHasOwnActivity } from "@/lib/daily-snapshot";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { computeDayTargets } from "@/lib/day-energy";
 import type { GoalPace, GoalType } from "@/lib/goal";
 import type { MacroGoals } from "@/lib/macros";
-import type { ActiveResult, ActivityMode } from "@/lib/tdee";
+import type { ActiveResult } from "@/lib/tdee";
 import { sumBy } from "@/lib/utils";
 import { weekAgoFrom, weightDelta7dKg } from "@/lib/weight";
 
@@ -49,8 +45,6 @@ export type DayDetail = {
   // Dashboard extras — the fuller picture the home + day pages render.
   bmr: BmrResult;
   active: ActiveResult;
-  /** How the day's burn reads now — a forecast for today, settled before it. */
-  outlook: DayOutlook;
   goalType: GoalType;
   goalPace: GoalPace | null;
   kcalOffset: number;
@@ -64,8 +58,8 @@ export async function loadDayDetail(
   userId: string,
   profile: LoadedProfile,
   dayKey: string,
-  /** Pinned like its sibling loaders: a request that straddles local midnight
-   *  must not resolve "is this today" and "how far into today" either side. */
+  /** Pinned like its sibling loaders, so a request that straddles local
+   *  midnight measures its 7-day weight trend from one instant. */
   now: Date = new Date()
 ): Promise<DayDetail> {
   const tz = profile.timezone || "UTC";
@@ -102,39 +96,23 @@ export async function loadDayDetail(
     fat: sumBy(allFoods, "fatG"),
   };
 
-  // The same snapshot the write path builds. It picks override-vs-typical-day
+  // The same snapshot the write path builds. It picks this-day-vs-typical-day
   // once, so the active breakdown shown here always sums to the TDEE beside it
   // — a row that exists but is empty (the dashboard creates one per user per
   // day) would otherwise display "NEAT 0" against a TDEE that includes it.
-  const snapshot = buildDailySnapshot(
-    profile,
-    activityLog
-      ? {
-          mode: activityLog.mode as ActivityMode,
-          steps: activityLog.steps,
-          liftingMin: activityLog.liftingMin,
-          cardioMin: activityLog.cardioMin,
-          wearableKcal: activityLog.wearableKcal,
-        }
-      : null
-  );
+  const snapshot = buildDailySnapshot(profile, activityLog);
 
-  // A past day keeps the BMR/active stored with it; the fresh snapshot is only
-  // the fallback for rows written before those columns existed. Today is the
-  // one day still being lived, so it — and only it — reads through the burn
-  // projection, which is what the dashboard's ring counts down from.
-  const outlook = dayOutlook({
-    bmrKcal: activityLog?.bmrKcal ?? snapshot.columns.bmrKcal,
-    defaultActiveKcal:
-      activityLog?.defaultActiveKcal ?? snapshot.columns.defaultActiveKcal,
-    overrideActiveKcal:
-      activityLog?.overrideActiveKcal ?? snapshot.columns.overrideActiveKcal,
-    elapsed: elapsedForDayKey(tz, dayKey, now),
-  });
+  // A stored day keeps the burn written with it; the fresh snapshot is only the
+  // fallback for rows written before those columns existed.
+  const bmrKcal = activityLog?.bmrKcal ?? snapshot.columns.bmrKcal;
+  const storedTdee = activityLog?.tdeeKcal ?? snapshot.columns.tdeeKcal;
+  // Subtracting two stored doubles leaves dust (345.99999999999994), and every
+  // burn term in this app is a whole number by contract — see ActiveResult.
+  const storedActiveKcal = Math.round(storedTdee - bmrKcal);
 
   const targets = computeDayTargets({
-    bmrKcal: outlook.bmrKcal,
-    baseTdeeKcal: outlook.tdeeKcal,
+    bmrKcal,
+    baseTdeeKcal: storedTdee,
     profile,
   });
 
@@ -150,19 +128,16 @@ export async function loadDayDetail(
     macroGoals: targets.macroGoals,
     bmrKcal: targets.bmrKcal,
     tdeeKcal: targets.tdeeKcal,
-    activeKcal: outlook.activeKcal,
+    activeKcal: storedActiveKcal,
     weight: dayWeight ? { id: dayWeight.id, weightKg: dayWeight.weightKg } : null,
-    hasActivity:
-      activityLog != null &&
-      ((activityLog.steps ?? 0) > 0 ||
-        (activityLog.liftingMin ?? 0) > 0 ||
-        (activityLog.cardioMin ?? 0) > 0 ||
-        (activityLog.wearableKcal ?? 0) > 0),
+    hasActivity: dayHasOwnActivity(activityLog),
     // Stored kcal for the day, with the formula/LBM of the compute that would
     // produce it — the same BmrResult shape the dashboard renders.
     bmr: { ...snapshot.bmr, kcal: targets.bmrKcal },
+    // Left whole rather than having its total swapped for the stored one: the
+    // parts are a fresh recompute, so pasting a stored total over them makes an
+    // ActiveResult whose NEAT and EAT don't add up to its own kcal.
     active: snapshot.active,
-    outlook,
     goalType: targets.goalType,
     goalPace: targets.goalPace,
     kcalOffset: targets.kcalOffset,

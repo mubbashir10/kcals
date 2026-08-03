@@ -9,6 +9,7 @@ import {
   foodDayKey,
   foodsOfMealsInRange,
 } from "@/lib/food-day";
+import { dayHasOwnActivity } from "@/lib/daily-snapshot";
 
 export type DayMarker = {
   dayKey: string;
@@ -43,7 +44,7 @@ export async function loadDayMarkers(
         steps: true,
         liftingMin: true,
         cardioMin: true,
-        wearableKcal: true,
+        activeKcal: true,
       },
     }),
     db.weightLog.findMany({
@@ -77,12 +78,7 @@ export async function loadDayMarkers(
   }
 
   for (const a of activityLogs) {
-    const has =
-      (a.steps ?? 0) > 0 ||
-      (a.liftingMin ?? 0) > 0 ||
-      (a.cardioMin ?? 0) > 0 ||
-      (a.wearableKcal ?? 0) > 0;
-    if (!has) continue;
+    if (!dayHasOwnActivity(a)) continue;
     const m = get(a.dayKey);
     m.hasActivity = true;
   }

@@ -4,7 +4,6 @@ import { AppLink } from "@/components/app-link";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/session";
 import type { Sex, Units } from "@/lib/bmr";
-import type { ActivityMode } from "@/lib/tdee";
 import { SetupForm, type InitialProfile } from "./setup-form";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +20,6 @@ export default async function SetupPage() {
         bodyFatPct: existing.bodyFatPct,
         units: existing.units as Units,
         timezone: existing.timezone,
-        activityMode: existing.activityMode as ActivityMode,
         stepsPerDay: existing.stepsPerDay,
         liftingSessionsPerWeek: existing.liftingSessionsPerWeek,
         liftingMinutesPerSession: existing.liftingMinutesPerSession,

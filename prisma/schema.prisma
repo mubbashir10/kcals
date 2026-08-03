@@ -177,14 +177,16 @@ model Profile {
   fatGoalMode     String @default("auto")
   fatGoalG        Int?
 
-  // Activity — for TDEE / maintenance-calorie calculation
-  activityMode             String @default("estimate") // "estimate" | "override"
-  stepsPerDay              Int? // avg daily steps (estimate mode)
-  liftingSessionsPerWeek   Int? // strength training freq (estimate mode)
+  // Activity — the typical day every calendar day starts on. See
+  // typicalDayActiveKcal in src/lib/tdee.ts.
+  stepsPerDay              Int? // avg daily steps
+  liftingSessionsPerWeek   Int? // strength training freq
   liftingMinutesPerSession Int? // avg duration; defaults to 60 if null
-  cardioSessionsPerWeek    Int? // cardio freq (estimate mode)
+  cardioSessionsPerWeek    Int? // cardio freq
   cardioMinutesPerSession  Int? // avg duration; defaults to 30 if null
-  activeKcalOverride       Int? // wearable-tracker number (override mode)
+  // A standing active-calorie figure, for someone who already knows theirs.
+  // Set, it wins over the movement fields above; null, they're used.
+  activeKcalOverride       Int?
 
   // Per-widget state on the home dashboard. JSON map of
   //   { [widgetId]: "shown" | "hidden" }
@@ -260,15 +262,16 @@ model HealthConnectImport {
   @@unique([userId, hcId])
 }
 
-// One row per day in the user's timezone. Snapshots the TDEE math at
-// the time the row is touched so historical days remain stable even
-// after the user changes their profile defaults later.
+// One row per day in the user's timezone. Snapshots the burn at the time the
+// row is touched so historical days stay stable after the user changes their
+// profile later.
 //
 // Read order for the day's active kcal:
-//   overrideActiveKcal (when user logged today's actual)  →  fall back to
-//   defaultActiveKcal (snapshot of "typical day" estimate)
+//   activeKcal (a supplied total)  →  steps/liftingMin/cardioMin  →  the
+//   profile's typical day
 //
-// TDEE is precomputed and stored in `tdeeKcal`.
+// See buildDailySnapshot in src/lib/daily-snapshot.ts, which is the only place
+// that resolves it.
 model ActivityLog {
   id     Int    @id @default(autoincrement())
   userId String
@@ -277,14 +280,14 @@ model ActivityLog {
   // YYYY-MM-DD in the user's timezone at the moment the row was created.
   dayKey String
 
-  // Override inputs — present only when the user logged today's actual
-  // activity. `mode` distinguishes estimate-style (steps/lift/cardio
-  // duration) from a wearable-pasted total.
-  mode         String // "estimate" | "override"
-  steps        Int? // estimate mode
-  liftingMin   Int? // estimate mode — minutes that day
-  cardioMin    Int? // estimate mode — minutes that day
-  wearableKcal Int? // override mode — total active kcal from wearable
+  // This day's own activity — synced from Health Connect, or entered by hand.
+  // All four are null on a day still running on the profile's typical day.
+  steps      Int?
+  liftingMin Int? // minutes that day
+  cardioMin  Int? // minutes that day
+  // A supplied active-calorie total: the band's figure, or one typed in. Set,
+  // it wins over the three fields above. See activeKcal in src/lib/tdee.ts.
+  activeKcal Int?
 
   // Set when a human typed this day in (ActivityCard). The Health Connect
   // backfill rewrites past days, so it needs to know which ones it may touch:
@@ -296,12 +299,11 @@ model ActivityLog {
   // package name; null on manual entries and on rows predating the column.
   source String?
 
-  // Daily TDEE snapshots — written by the actions whenever the row is
-  // upserted, so reads never recompute on the fly.
-  bmrKcal            Float? // snapshot of BMR for that day
-  defaultActiveKcal  Float? // snapshot of the user's typical-day estimate
-  overrideActiveKcal Float? // active kcal computed from override inputs (null when no override)
-  tdeeKcal           Float? // bmrKcal + (overrideActiveKcal ?? defaultActiveKcal)
+  // The day's burn, snapshotted whenever the row is upserted so reads never
+  // recompute on the fly. Active energy is the gap between the two, so a stored
+  // day can't disagree with itself.
+  bmrKcal  Float?
+  tdeeKcal Float? // bmrKcal + the day's active kcal
 
   loggedAt  DateTime @default(now())
   createdAt DateTime @default(now())

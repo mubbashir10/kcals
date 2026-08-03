@@ -108,14 +108,14 @@ export async function syncHealthDays(
 
   await db.$transaction(
     [...byDay].map(([dayKey, day]) => {
-      // Prefer the band's own active-calorie figure (override mode = the TDEE
-      // input); fall back to estimating from steps when it reports only those.
-      const fields = activityLogFields(
-        profile,
-        (day.activeKcal ?? 0) > 0
-          ? { mode: "override", wearableKcal: day.activeKcal, steps: day.steps }
-          : { mode: "estimate", steps: day.steps }
-      );
+      // A band reporting no active energy at all isn't saying the day was
+      // motionless — it's saying it has nothing to offer. Leave the field empty
+      // so the steps it *did* report drive the estimate instead of a zero
+      // total overriding them.
+      const fields = activityLogFields(profile, {
+        steps: day.steps,
+        activeKcal: (day.activeKcal ?? 0) > 0 ? day.activeKcal : null,
+      });
       const source = day.source?.trim().slice(0, MAX_SOURCE_LEN) || null;
       return db.activityLog.upsert({
         where: { userId_dayKey: { userId, dayKey } },

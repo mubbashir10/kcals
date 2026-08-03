@@ -14,7 +14,6 @@ import {
   Percent,
   Ruler,
   Venus,
-  Watch,
   Weight,
 } from "lucide-react";
 
@@ -36,7 +35,6 @@ import {
   type Sex,
   type Units,
 } from "@/lib/bmr";
-import type { ActivityMode } from "@/lib/tdee";
 import {
   lactationKcal,
   type LactationStatus,
@@ -54,7 +52,6 @@ export type InitialProfile = {
   bodyFatPct: number | null;
   units: Units;
   timezone: string;
-  activityMode: ActivityMode;
   stepsPerDay: number | null;
   liftingSessionsPerWeek: number | null;
   liftingMinutesPerSession: number | null;
@@ -115,9 +112,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
     initial?.bodyFatPct != null ? String(initial.bodyFatPct) : ""
   );
 
-  const [activityMode, setActivityMode] = useState<ActivityMode>(
-    initial?.activityMode ?? "estimate"
-  );
   const [stepsPerDay, setStepsPerDay] = useState<string>(
     initial?.stepsPerDay != null ? String(initial.stepsPerDay) : ""
   );
@@ -226,14 +220,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       bf = bfNum;
     }
 
-    // Activity fields
-    let steps: number | null = null;
-    let lifting: number | null = null;
-    let liftingMinNum: number | null = null;
-    let cardio: number | null = null;
-    let cardioMinNum: number | null = null;
-    let activeOverride: number | null = null;
-
     function parseIntField(
       value: string,
       min: number,
@@ -249,31 +235,39 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       return n;
     }
 
-    if (activityMode === "estimate") {
-      const s = parseIntField(stepsPerDay, 0, 100000, "step count");
-      if (s === "INVALID") return;
-      steps = s;
+    // The typical day. Every field is optional, and every one is read.
+    const steps = parseIntField(stepsPerDay, 0, 100000, "step count");
+    if (steps === "INVALID") return;
 
-      const l = parseIntField(liftingPerWeek, 0, 21, "session count");
-      if (l === "INVALID") return;
-      lifting = l;
+    const lifting = parseIntField(liftingPerWeek, 0, 21, "session count");
+    if (lifting === "INVALID") return;
 
-      const lm = parseIntField(liftingMin, 1, 300, "lifting duration in minutes");
-      if (lm === "INVALID") return;
-      liftingMinNum = lm;
+    const liftingMinNum = parseIntField(
+      liftingMin,
+      1,
+      300,
+      "lifting duration in minutes"
+    );
+    if (liftingMinNum === "INVALID") return;
 
-      const c = parseIntField(cardioPerWeek, 0, 21, "cardio session count");
-      if (c === "INVALID") return;
-      cardio = c;
+    const cardio = parseIntField(cardioPerWeek, 0, 21, "cardio session count");
+    if (cardio === "INVALID") return;
 
-      const cm = parseIntField(cardioMin, 1, 300, "cardio duration in minutes");
-      if (cm === "INVALID") return;
-      cardioMinNum = cm;
-    } else {
-      const a = parseIntField(activeKcal, 0, 4000, "active-calorie value");
-      if (a === "INVALID") return;
-      activeOverride = a;
-    }
+    const cardioMinNum = parseIntField(
+      cardioMin,
+      1,
+      300,
+      "cardio duration in minutes"
+    );
+    if (cardioMinNum === "INVALID") return;
+
+    const activeOverride = parseIntField(
+      activeKcal,
+      0,
+      4000,
+      "active-calorie value"
+    );
+    if (activeOverride === "INVALID") return;
 
     startTransition(async () => {
       try {
@@ -285,7 +279,6 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           bodyFatPct: bf,
           units,
           timezone,
-          activityMode,
           stepsPerDay: steps,
           liftingSessionsPerWeek: lifting,
           liftingMinutesPerSession: liftingMinNum,
@@ -529,73 +522,59 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
         </div>
       )}
 
-      {/* Activity — used for maintenance-calorie (TDEE) calculation */}
+      {/* Activity — the typical day every day starts on */}
       <div className="space-y-5 pt-2">
         <SectionHeader icon={Activity}>Activity</SectionHeader>
+        <p className="-mt-2 text-[11px] text-muted-foreground/70">
+          Your ordinary week. Every day starts here, and a day only moves off it
+          when your watch or your own entry says otherwise.
+        </p>
 
-        <div className="space-y-2">
-          <FieldLabel>Source</FieldLabel>
-          <SegmentedToggle<ActivityMode>
-            value={activityMode}
-            onChange={setActivityMode}
-            fullWidth
-            options={[
-              { value: "estimate", label: "Estimate", icon: Footprints },
-              { value: "override", label: "From wearable", icon: Watch },
-            ]}
+        <Field
+          label="Daily steps"
+          icon={Footprints}
+          htmlFor="steps"
+          suffix="steps"
+          optional
+        >
+          <Input
+            id="steps"
+            inputMode="numeric"
+            placeholder="8,000"
+            value={stepsPerDay}
+            onChange={(e) => setStepsPerDay(e.target.value)}
           />
-          <p className="text-[11px] text-muted-foreground/70">
-            {activityMode === "estimate"
-              ? "We'll estimate from your steps and workouts."
-              : "Use the active-calorie number from your Apple Watch / Whoop / etc."}
-          </p>
-        </div>
+        </Field>
 
-        {activityMode === "estimate" ? (
-          <>
-            <Field
-              label="Daily steps"
-              icon={Footprints}
-              htmlFor="steps"
-              suffix="steps"
-              optional
-            >
-              <Input
-                id="steps"
-                inputMode="numeric"
-                placeholder="8,000"
-                value={stepsPerDay}
-                onChange={(e) => setStepsPerDay(e.target.value)}
-              />
-            </Field>
+        <SessionGroup
+          label="Weight training"
+          icon={Dumbbell}
+          freqId="lifting-freq"
+          freqValue={liftingPerWeek}
+          onFreqChange={setLiftingPerWeek}
+          freqPlaceholder="3"
+          durId="lifting-min"
+          durValue={liftingMin}
+          onDurChange={setLiftingMin}
+          durPlaceholder="60"
+        />
 
-            <SessionGroup
-              label="Weight training"
-              icon={Dumbbell}
-              freqId="lifting-freq"
-              freqValue={liftingPerWeek}
-              onFreqChange={setLiftingPerWeek}
-              freqPlaceholder="3"
-              durId="lifting-min"
-              durValue={liftingMin}
-              onDurChange={setLiftingMin}
-              durPlaceholder="60"
-            />
+        <SessionGroup
+          label="Cardio"
+          icon={HeartPulse}
+          freqId="cardio-freq"
+          freqValue={cardioPerWeek}
+          onFreqChange={setCardioPerWeek}
+          freqPlaceholder="2"
+          durId="cardio-min"
+          durValue={cardioMin}
+          onDurChange={setCardioMin}
+          durPlaceholder="30"
+        />
 
-            <SessionGroup
-              label="Cardio"
-              icon={HeartPulse}
-              freqId="cardio-freq"
-              freqValue={cardioPerWeek}
-              onFreqChange={setCardioPerWeek}
-              freqPlaceholder="2"
-              durId="cardio-min"
-              durValue={cardioMin}
-              onDurChange={setCardioMin}
-              durPlaceholder="30"
-            />
-          </>
-        ) : (
+        {/* Same rule as a single day: a number here replaces the estimate
+            above rather than adding to it. */}
+        <div className="space-y-2 border-t border-border/60 pt-5">
           <Field
             label="Active calories"
             icon={Flame}
@@ -611,7 +590,11 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
               onChange={(e) => setActiveKcal(e.target.value)}
             />
           </Field>
-        )}
+          <p className="text-[11px] text-muted-foreground/70">
+            If your watch already tells you a daily average, put it here — it
+            replaces everything above. Leave it blank otherwise.
+          </p>
+        </div>
       </div>
 
       {error && (

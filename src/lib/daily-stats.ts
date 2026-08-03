@@ -2,10 +2,9 @@
 // Used by the home dashboard (own data) and friend view pages (read-only).
 
 import { db } from "@/lib/db";
-import type { ActivityMode } from "@/lib/tdee";
-import { dayElapsedFraction, dayKeyInTz, startOfDayInTz } from "@/lib/clock";
-import { buildDailySnapshot, dayOutlook } from "@/lib/daily-snapshot";
-import { computeDayTargets } from "@/lib/day-energy";
+import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
+import { buildDailySnapshot } from "@/lib/daily-snapshot";
+import { dayTargetsFor } from "@/lib/day-energy";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
 import { weekAgoFrom, weightDelta7dKg } from "@/lib/weight";
@@ -39,25 +38,12 @@ export async function loadDailyStats(
   // edits to steps or weight moved the numbers around it. Rebuild from the row's
   // override, then refresh the row whenever it drifts (which also back-fills
   // rows predating the snapshot columns). Everything below reads this snapshot.
-  const snapshot = buildDailySnapshot(
-    profile,
-    todayActivity
-      ? {
-          mode: todayActivity.mode as ActivityMode,
-          steps: todayActivity.steps,
-          liftingMin: todayActivity.liftingMin,
-          cardioMin: todayActivity.cardioMin,
-          wearableKcal: todayActivity.wearableKcal,
-        }
-      : null
-  );
+  const snapshot = buildDailySnapshot(profile, todayActivity);
   const snapshotFields = snapshot.columns;
 
   const snapshotStale =
     !todayActivity ||
     todayActivity.bmrKcal !== snapshotFields.bmrKcal ||
-    todayActivity.defaultActiveKcal !== snapshotFields.defaultActiveKcal ||
-    todayActivity.overrideActiveKcal !== snapshotFields.overrideActiveKcal ||
     todayActivity.tdeeKcal !== snapshotFields.tdeeKcal;
 
   if (snapshotStale) {
@@ -71,41 +57,28 @@ export async function loadDailyStats(
     } else {
       todayActivity = await db.activityLog.upsert({
         where: { userId_dayKey: { userId, dayKey: todayKey } },
-        create: { userId, dayKey: todayKey, mode: "estimate", ...snapshotFields },
+        create: { userId, dayKey: todayKey, ...snapshotFields },
         update: snapshotFields,
       });
     }
   }
 
-  // The snapshot already decided override-vs-typical-day, so reading its
+  // The snapshot already decided this-day-vs-typical-day, so reading its
   // breakdown back keeps the displayed terms and the stored TDEE in agreement.
   const { bmr, active } = snapshot;
 
-  // This function only ever runs for today, so the day is always partly
-  // unlived and its burn always reads through the projection.
-  const outlook = dayOutlook({
-    ...snapshotFields,
-    elapsed: dayElapsedFraction(tz, now),
-  });
+  // Bound once: the goal and the lactation bump depend only on the profile, and
+  // both targets below share them.
+  const targetsForDay = dayTargetsFor(profile);
+  const targets = targetsForDay(snapshotFields.bmrKcal, snapshotFields.tdeeKcal);
 
-  // The target follows the outlook, not the stored column: the row records
-  // what the day has actually burned, while the ring has to count down from
-  // what it's expected to cost.
-  const targets = computeDayTargets({
-    bmrKcal: outlook.bmrKcal,
-    baseTdeeKcal: outlook.tdeeKcal,
-    profile,
-  });
-
-  // The same chain on the typical day instead of this one. Choosing a goal is
-  // a forward-looking decision, so the screen that previews it wants a number
-  // that holds still — not one that walks down the afternoon as the projection
-  // narrows onto today's actual burn.
-  const typicalTargets = computeDayTargets({
-    bmrKcal: snapshotFields.bmrKcal,
-    baseTdeeKcal: snapshotFields.bmrKcal + snapshotFields.defaultActiveKcal,
-    profile,
-  });
+  // The same chain on the typical day instead of this one. Choosing a goal is a
+  // standing decision, so the screen that previews it wants the number that
+  // holds still rather than one a hard day already moved.
+  const typicalTargets = targetsForDay(
+    snapshotFields.bmrKcal,
+    snapshotFields.bmrKcal + snapshot.typicalKcal
+  );
 
   const weekAgo = weekAgoFrom(now);
   const [meals, latestWeight, baselineWeightRaw] = await Promise.all([
@@ -136,7 +109,6 @@ export async function loadDailyStats(
     tz,
     bmr,
     active,
-    outlook,
     tdee: targets.tdeeKcal,
     /** Maintenance + target for a typical day — see `typicalTargets` above. */
     typical: {

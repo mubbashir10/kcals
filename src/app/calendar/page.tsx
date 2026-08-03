@@ -12,8 +12,6 @@ import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { EqDayBalance } from "@/components/energy-equation";
-import { projectionSentence } from "@/components/projected-value";
-import { burnProjectionOf } from "@/lib/daily-snapshot";
 import { MarkerCalendar, type DayMarkerInput } from "@/components/marker-calendar";
 import { displayWeight, type Units } from "@/lib/bmr";
 import { dayKeyInTz, formatLongDateInTz, isDayKey, startOfDayForDayKey } from "@/lib/clock";
@@ -94,7 +92,6 @@ export default async function CalendarPage({
   const bmr = Math.round(detail.bmrKcal);
   const burned = Math.round(detail.tdeeKcal) - bmr;
   const goal = Math.round(detail.calorieGoal);
-  const burnProjection = burnProjectionOf(detail.outlook);
   const steps = detail.activityLog?.steps ?? null;
   const weightDisplay =
     detail.weight != null ? displayWeight(detail.weight.weightKg, units) : null;
@@ -197,22 +194,7 @@ export default async function CalendarPage({
           </AppLink>
 
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-border/60 px-5 py-4 text-[13px] sm:px-6">
-            <EqDayBalance
-              bmr={bmr}
-              burned={burned}
-              eaten={eaten}
-              goal={goal}
-              burnProjection={burnProjection}
-              lactationKcal={detail.lactationKcal}
-            />
-            {/* Spelled out, not just hovered: this preview has no activity or
-                maintenance card to carry the explanation, and a touch user
-                can never reach the equation's tooltip. */}
-            {burnProjection && (
-              <p className="w-full text-xs text-muted-foreground">
-                {projectionSentence(burnProjection, detail.lactationKcal)}.
-              </p>
-            )}
+            <EqDayBalance bmr={bmr} burned={burned} eaten={eaten} goal={goal} />
           </div>
 
           <div className="space-y-3.5 border-t border-border/60 px-5 py-4 sm:px-6">

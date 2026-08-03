@@ -1,17 +1,20 @@
-// Pure helpers for turning one day's activity override into the exact column
-// set an ActivityLog row stores. Shared by the manual editor
-// (app/actions/activity.ts) and the Health Connect backfill (lib/health-sync.ts)
-// so a hand-logged day and a synced day are shaped identically in the DB.
+// Pure helpers for turning one day's activity inputs into the exact column set
+// an ActivityLog row stores. Shared by the manual editor
+// (app/actions/activity.ts) and the Health Connect sync (lib/health-sync.ts) so
+// a hand-logged day and a synced day are shaped identically in the DB.
 
-import { buildDailySnapshot, type SnapshotProfile } from "@/lib/daily-snapshot";
-import type { ActivityMode } from "@/lib/tdee";
+import {
+  buildDailySnapshot,
+  type DayActivityInput,
+  type SnapshotProfile,
+} from "@/lib/daily-snapshot";
 
 export type ActivityLogInput = {
-  mode: ActivityMode;
   steps?: number | null;
   liftingMin?: number | null;
   cardioMin?: number | null;
-  wearableKcal?: number | null;
+  /** A supplied active-calorie total — wins over the three fields above. */
+  activeKcal?: number | null;
 };
 
 function sanitizeInt(
@@ -29,33 +32,15 @@ export function activityLogFields(
   profile: SnapshotProfile,
   input: ActivityLogInput
 ) {
-  const mode: ActivityMode = input.mode === "override" ? "override" : "estimate";
-
-  const override =
-    mode === "override"
-      ? {
-          mode,
-          // Steps are kept for DISPLAY only (TDEE uses wearableKcal in override
-          // mode and ignores steps — see lib/tdee.ts). The Health Connect sync
-          // passes both so the app can show "N steps · M kcal"; manual override
-          // entry passes no steps, so this stays null there.
-          steps: sanitizeInt(input.steps, 0, 200000),
-          liftingMin: null,
-          cardioMin: null,
-          wearableKcal: sanitizeInt(input.wearableKcal, 0, 10000),
-        }
-      : {
-          mode,
-          steps: sanitizeInt(input.steps, 0, 200000),
-          liftingMin: sanitizeInt(input.liftingMin, 0, 600),
-          cardioMin: sanitizeInt(input.cardioMin, 0, 600),
-          wearableKcal: null,
-        };
-
-  const snapshot = buildDailySnapshot(profile, override);
-
-  return {
-    ...override,
-    ...snapshot.columns,
+  // Steps are worth keeping even alongside a supplied total: the sync sends
+  // both so the app can say "N steps · M kcal". They simply don't drive the
+  // burn while the total is there — see activeKcal in lib/tdee.ts.
+  const day: DayActivityInput = {
+    steps: sanitizeInt(input.steps, 0, 200000),
+    liftingMin: sanitizeInt(input.liftingMin, 0, 600),
+    cardioMin: sanitizeInt(input.cardioMin, 0, 600),
+    activeKcal: sanitizeInt(input.activeKcal, 0, 10000),
   };
+
+  return { ...day, ...buildDailySnapshot(profile, day).columns };
 }
