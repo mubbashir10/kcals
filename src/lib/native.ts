@@ -45,6 +45,21 @@ export function kcalsNative(): KcalsNative | undefined {
   return (window as { KcalsNative?: KcalsNative }).KcalsNative;
 }
 
+// A short buzz under the finger, for the moment a gesture commits (a pull
+// passing the refresh threshold, a press-and-hold latching on). Fire-and-forget
+// and safe to call from any handler: the plugin is only imported inside the
+// native shell, so web/PWA users pay nothing and feel nothing.
+export function hapticTap(style: "light" | "medium" = "light") {
+  if (!isNative()) return;
+  import("@capacitor/haptics")
+    .then(({ Haptics, ImpactStyle }) =>
+      Haptics.impact({
+        style: style === "medium" ? ImpactStyle.Medium : ImpactStyle.Light,
+      })
+    )
+    .catch(() => {});
+}
+
 // Push a just-logged weigh-in / profile change to Health Connect immediately
 // instead of waiting for the next app open. Fire-and-forget and safe to call
 // from any mutation handler: no-ops on web/PWA and on APKs older than v1.9.

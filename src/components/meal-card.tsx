@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLongPress } from "@/lib/use-long-press";
 import { cn, round1 } from "@/lib/utils";
 import {
   parseMacroInput,
@@ -477,12 +478,18 @@ function FoodRow({
   // In selecting mode the row is a checkbox toggle; otherwise it opens edit.
   const onActivate = selecting ? onToggleSelect : onEdit;
 
+  // Press and hold to start selecting with this row ticked — the same thing the
+  // row menu's "Select" does. Off once selecting: a hold would then reset the
+  // selection to this one row, which is never what the finger meant.
+  const longPress = useLongPress(onSelect, { enabled: !selecting });
+
   return (
     <li>
       <div
         role="button"
         tabIndex={0}
         aria-pressed={selecting ? selected : undefined}
+        {...longPress}
         onClick={onActivate}
         onKeyDown={(e) => {
           // Only act on the row's own key events — not ones bubbling up from
@@ -494,7 +501,10 @@ function FoodRow({
           }
         }}
         className={cn(
-          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors hover:bg-accent/40",
+          // select-none / touch-callout: on the web a press-and-hold would
+          // otherwise raise the browser's text-selection UI over the row.
+          // (The native shell already disables both — see globals.css.)
+          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors select-none [-webkit-touch-callout:none] hover:bg-accent/40",
           selecting && selected && "bg-accent/40",
           (deletePending || explodePending) && "opacity-50"
         )}

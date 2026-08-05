@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
-import { isNative } from "@/lib/native";
+import { hapticTap } from "@/lib/native";
 
 // Native-feeling pull-to-refresh for the whole app. Mounted once in the root
 // layout, next to NavProgress.
@@ -75,15 +75,6 @@ export function PullToRefresh() {
   }, [refreshing]);
 
   useEffect(() => {
-    const buzz = () => {
-      if (!isNative()) return;
-      import("@capacitor/haptics")
-        .then(({ Haptics, ImpactStyle }) =>
-          Haptics.impact({ style: ImpactStyle.Light })
-        )
-        .catch(() => {});
-    };
-
     const reset = () => {
       tracking.current = false;
       engaged.current = false;
@@ -130,7 +121,7 @@ export function PullToRefresh() {
 
       if (next >= THRESHOLD_PX && !armed.current) {
         armed.current = true;
-        buzz();
+        hapticTap();
       } else if (next < THRESHOLD_PX) {
         armed.current = false;
       }
