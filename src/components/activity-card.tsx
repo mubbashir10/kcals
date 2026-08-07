@@ -331,6 +331,17 @@ function LogActivityDialog({
   );
 }
 
+// A day's burn is either worked out from movement or handed to us as a total —
+// never both. The form asks which first, because as one long list the calorie
+// field sat under the movement fields and silently overrode them: four filled-in
+// inputs, three of which quietly did nothing.
+type BurnSource = "activity" | "total";
+
+const SOURCES: { value: BurnSource; label: string }[] = [
+  { value: "activity", label: "From activity" },
+  { value: "total", label: "Enter a total" },
+];
+
 function LogActivityForm({
   today,
   defaults,
@@ -342,6 +353,9 @@ function LogActivityForm({
   dayKey: string | null;
   onSaved: () => void;
 }) {
+  const [source, setSource] = useState<BurnSource>(() =>
+    today?.activeKcal != null ? "total" : "activity"
+  );
   const [steps, setSteps] = useState<string>(() =>
     today?.steps != null
       ? String(today.steps)
@@ -361,29 +375,49 @@ function LogActivityForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function onSave() {
-    setError(null);
-    const s = parseOptionalInt(steps, 200000);
-    const lm = parseOptionalInt(liftingMin, 600);
-    const cm = parseOptionalInt(cardioMin, 600);
-    const k = parseOptionalInt(activeKcal, 10000);
-    if (s === "invalid" || lm === "invalid" || cm === "invalid" || k === "invalid") {
-      setError("One of the values is out of range.");
-      return;
-    }
+  function save(input: Parameters<typeof upsertActivity>[1]) {
     startTransition(async () => {
       try {
-        await upsertActivity(dayKey, {
-          steps: s,
-          liftingMin: lm,
-          cardioMin: cm,
-          activeKcal: k,
-        });
+        await upsertActivity(dayKey, input);
         onSaved();
       } catch {
         setError("Couldn't save. Try again.");
       }
     });
+  }
+
+  function onSave() {
+    setError(null);
+    if (source === "total") {
+      const k = parseOptionalInt(activeKcal, 10000);
+      if (k === "invalid") {
+        setError("Active calories must be between 0 and 10,000.");
+        return;
+      }
+      if (k == null) {
+        setError("Enter a total, or switch to From activity.");
+        return;
+      }
+      // The steps come along untouched: a synced day carries both, and
+      // correcting the total shouldn't wipe the count shown beside it. The
+      // workout minutes don't — nothing reads or shows them once a total is
+      // the day's burn.
+      save({
+        steps: today?.steps ?? null,
+        liftingMin: null,
+        cardioMin: null,
+        activeKcal: k,
+      });
+      return;
+    }
+    const s = parseOptionalInt(steps, 200000);
+    const lm = parseOptionalInt(liftingMin, 600);
+    const cm = parseOptionalInt(cardioMin, 600);
+    if (s === "invalid" || lm === "invalid" || cm === "invalid") {
+      setError("One of the values is out of range.");
+      return;
+    }
+    save({ steps: s, liftingMin: lm, cardioMin: cm, activeKcal: null });
   }
 
   return (
@@ -396,49 +430,83 @@ function LogActivityForm({
       </DialogDescription>
 
       <div className="mt-4 space-y-4">
-        <NumberField
-          id="activity-steps"
-          label="Steps"
-          suffix="steps"
-          placeholder="8,000"
-          value={steps}
-          onChange={setSteps}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            id="activity-lift"
-            label="Lifting"
-            suffix="min"
-            placeholder="0"
-            value={liftingMin}
-            onChange={setLiftingMin}
-          />
-          <NumberField
-            id="activity-cardio"
-            label="Cardio"
-            suffix="min"
-            placeholder="0"
-            value={cardioMin}
-            onChange={setCardioMin}
-          />
+        <div className="space-y-2">
+          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Active burn
+          </Label>
+          <div className="inline-flex w-full rounded-full bg-muted p-1">
+            {SOURCES.map((opt) => {
+              const active = source === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setSource(opt.value);
+                  }}
+                  className={
+                    "flex-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all " +
+                    (active
+                      ? "bg-background text-foreground shadow-card"
+                      : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* One field, one rule: fill it in and it's the answer. Leave it empty
-            and the movement above is worked out for you. */}
-        <div className="space-y-2 border-t border-border/60 pt-4">
-          <NumberField
-            id="activity-kcal"
-            label="Active calories"
-            suffix="kcal"
-            placeholder="450"
-            value={activeKcal}
-            onChange={setActiveKcal}
-          />
-          <p className="text-[11px] text-muted-foreground/70">
-            If your watch gives you a number, put it here — it replaces
-            everything above.
-          </p>
-        </div>
+        {source === "activity" ? (
+          <>
+            <NumberField
+              id="activity-steps"
+              label="Steps"
+              suffix="steps"
+              placeholder="8,000"
+              value={steps}
+              onChange={setSteps}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                id="activity-lift"
+                label="Lifting"
+                suffix="min"
+                placeholder="0"
+                value={liftingMin}
+                onChange={setLiftingMin}
+              />
+              <NumberField
+                id="activity-cardio"
+                label="Cardio"
+                suffix="min"
+                placeholder="0"
+                value={cardioMin}
+                onChange={setCardioMin}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground/70">
+              Steps and workouts are worked out into the day&apos;s burn.
+            </p>
+          </>
+        ) : (
+          <>
+            <NumberField
+              id="activity-kcal"
+              label="Active calories"
+              suffix="kcal"
+              placeholder="450"
+              value={activeKcal}
+              onChange={setActiveKcal}
+            />
+            <p className="text-[11px] text-muted-foreground/70">
+              The number your watch gives you, used as-is — nothing is estimated
+              on top of it.
+            </p>
+          </>
+        )}
 
         {error && (
           <p className="text-xs text-destructive" role="alert">
