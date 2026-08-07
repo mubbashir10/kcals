@@ -390,12 +390,12 @@ function LogActivityForm({
   const [source, setSource] = useState<BurnSource>(() =>
     today?.activeKcal != null ? "total" : "activity"
   );
+  // Only this day's own steps, never the profile's typical count. That used to
+  // prefill, and a filled field is a claim: open the dialog on a day that only
+  // lifted, save, and 10,000 steps nobody entered land on it and treble its
+  // burn. The typical count is a placeholder now — visible, not submitted.
   const [steps, setSteps] = useState<string>(() =>
-    today?.steps != null
-      ? String(today.steps)
-      : defaults.stepsPerDay != null
-      ? String(defaults.stepsPerDay)
-      : ""
+    today?.steps != null ? String(today.steps) : ""
   );
   const [liftingMin, setLiftingMin] = useState<string>(() =>
     today?.liftingMin != null ? String(today.liftingMin) : ""
@@ -507,7 +507,7 @@ function LogActivityForm({
               id="activity-steps"
               label="Steps"
               suffix="steps"
-              placeholder="8,000"
+              placeholder={(defaults.stepsPerDay ?? 8000).toLocaleString()}
               value={steps}
               onChange={setSteps}
             />
