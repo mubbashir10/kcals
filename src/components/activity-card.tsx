@@ -213,7 +213,9 @@ function ActivitySummary({
   activeBurnKcal: number;
 }) {
   // A supplied total is the day's headline; the steps beside it are context,
-  // not another term. Without one, the movement chips carry the day.
+  // not another term — and that pair is a sync's shape, since a band measures
+  // both. A total typed by hand arrives on its own and shows on its own.
+  // Without any total, the movement chips carry the day.
   if (today.activeKcal != null) {
     const kcal = today.activeKcal;
     const steps = today.steps ?? 0;
@@ -432,16 +434,13 @@ function LogActivityForm({
         setError("Enter a total, or switch to From activity.");
         return;
       }
-      // The steps come along untouched: a synced day carries both, and
-      // correcting the total shouldn't wipe the count shown beside it. The
-      // workout minutes don't — nothing reads or shows them once a total is
-      // the day's burn.
-      save({
-        steps: today?.steps ?? null,
-        liftingMin: null,
-        cardioMin: null,
-        activeKcal: k,
-      });
+      // The total and nothing else. A number typed by hand is the whole of
+      // what this day says, so a step count left behind — by a sync, or by the
+      // other side of this toggle — has no business sitting beside it under
+      // "Logged by hand": it isn't part of the burn and nobody entered it as
+      // part of this answer. The sync still writes steps alongside its own
+      // total, because it actually measured them.
+      save({ steps: null, liftingMin: null, cardioMin: null, activeKcal: k });
       return;
     }
     const s = parseOptionalInt(steps, 200000);
