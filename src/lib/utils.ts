@@ -83,6 +83,21 @@ export function parseOptionalInt(
   return n;
 }
 
+/**
+ * Lenient read of a numeric field — anything unusable reads as blank.
+ *
+ * For the places a number is *used* rather than validated: a live estimate has
+ * to survive half-typed input without throwing an error at someone mid-
+ * keystroke, and a field the current form mode doesn't show can't be validated
+ * with a message, because there's nothing on screen to fix. Submit validates
+ * what's visible; this handles the rest.
+ */
+export function looseInt(value: string, min: number, max: number): number | null {
+  const n = parseInt(value.trim(), 10);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
+
 /** The value if it's a finite number, else null — for JSON-shape guards. */
 export function finiteNumberOrNull(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;

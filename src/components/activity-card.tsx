@@ -33,7 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseOptionalInt } from "@/lib/utils";
+import { looseInt, parseOptionalInt } from "@/lib/utils";
+import { activeKcal } from "@/lib/tdee";
 import { clearActivity, upsertActivity } from "@/app/actions/activity";
 import { setWidgetState } from "@/app/actions/widgets";
 
@@ -53,8 +54,8 @@ export type ActivityCardProps = {
     /** App the sync credited, e.g. "Mi Fitness". Null on manual entries. */
     source: string | null;
   } | null;
-  /** Profile fallbacks used to prefill the form. */
-  defaults: { stepsPerDay: number | null };
+  /** Profile numbers the form prefills and estimates with. */
+  defaults: { stepsPerDay: number | null; weightKg: number };
   /** Day being edited. `null`/omitted means today. */
   dayKey?: string | null;
 };
@@ -369,7 +370,9 @@ function LogActivityForm({
   const [cardioMin, setCardioMin] = useState<string>(() =>
     today?.cardioMin != null ? String(today.cardioMin) : ""
   );
-  const [activeKcal, setActiveKcal] = useState<string>(() =>
+  // Named for its side of the toggle, not the column it lands in — `activeKcal`
+  // is the estimator this form also calls.
+  const [totalKcal, setTotalKcal] = useState<string>(() =>
     today?.activeKcal != null ? String(today.activeKcal) : ""
   );
   const [error, setError] = useState<string | null>(null);
@@ -389,7 +392,7 @@ function LogActivityForm({
   function onSave() {
     setError(null);
     if (source === "total") {
-      const k = parseOptionalInt(activeKcal, 10000);
+      const k = parseOptionalInt(totalKcal, 10000);
       if (k === "invalid") {
         setError("Active calories must be between 0 and 10,000.");
         return;
@@ -419,6 +422,15 @@ function LogActivityForm({
     }
     save({ steps: s, liftingMin: lm, cardioMin: cm, activeKcal: null });
   }
+
+  // What the movement on screen is worth, live — the same function the day's
+  // burn is derived with, so the number promised here is the number saved.
+  const estimate = activeKcal({
+    weightKg: defaults.weightKg,
+    steps: looseInt(steps, 0, 200000),
+    liftingMin: looseInt(liftingMin, 0, 600),
+    cardioMin: looseInt(cardioMin, 0, 600),
+  });
 
   return (
     <>
@@ -487,8 +499,21 @@ function LogActivityForm({
                 onChange={setCardioMin}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground/70">
-              Steps and workouts are worked out into the day&apos;s burn.
+            <p className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
+              <Flame className="h-4 w-4 shrink-0 text-primary" />
+              <span>
+                {estimate.kcal === 0 ? (
+                  "Add steps or workout minutes and we'll work out the burn."
+                ) : (
+                  <>
+                    That&apos;s about{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {estimate.kcal.toLocaleString()} kcal
+                    </span>{" "}
+                    on top of your resting burn.
+                  </>
+                )}
+              </span>
             </p>
           </>
         ) : (
@@ -498,8 +523,8 @@ function LogActivityForm({
               label="Active calories"
               suffix="kcal"
               placeholder="450"
-              value={activeKcal}
-              onChange={setActiveKcal}
+              value={totalKcal}
+              onChange={setTotalKcal}
             />
             <p className="text-[11px] text-muted-foreground/70">
               The number your watch gives you, used as-is — nothing is estimated

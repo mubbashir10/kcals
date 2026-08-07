@@ -39,6 +39,8 @@ import type { MacroGoals } from "@/lib/macros";
 type DashboardProfile = {
   units: string;
   weekStartDay: number | null;
+  /** The weight every burn is scaled by — the activity card estimates with it. */
+  weightKg: number;
   stepsPerDay: number | null;
   calorieDisplay: string | null;
   mealSortDir: string | null;
@@ -174,7 +176,10 @@ export function DayDashboard({
               <ActivityCard
                 today={dayActivity(stats.activity)}
                 dayKey={isToday ? null : dayKey}
-                defaults={{ stepsPerDay: profile.stepsPerDay }}
+                defaults={{
+                  stepsPerDay: profile.stepsPerDay,
+                  weightKg: profile.weightKg,
+                }}
               />
             ) : null;
             return {

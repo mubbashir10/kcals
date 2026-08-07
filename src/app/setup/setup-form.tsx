@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn, isNextRedirectError, round1 } from "@/lib/utils";
+import { cn, isNextRedirectError, looseInt, round1 } from "@/lib/utils";
 import {
   BODY_FAT_MAX_PCT,
   BODY_FAT_MIN_PCT,
@@ -49,21 +49,6 @@ import { saveProfile } from "./actions";
 // not layers: a total replaces the movement estimate rather than adding to it,
 // so the form asks which before it asks for numbers.
 type ActiveSource = "activity" | "total";
-
-/**
- * Lenient read of a numeric field — anything unusable reads as blank.
- *
- * Two jobs: it feeds the live estimate, which has to survive half-typed input
- * without throwing an error at someone mid-keystroke, and it carries through
- * the fields the chosen source doesn't show. Those can't be validated with a
- * message, because the user can't see the field to fix it. Submit validates
- * what's on screen; this handles the rest.
- */
-function looseInt(value: string, min: number, max: number): number | null {
-  const n = parseInt(value.trim(), 10);
-  if (!Number.isFinite(n) || n < min || n > max) return null;
-  return n;
-}
 
 export type InitialProfile = {
   sex: Sex;
