@@ -148,8 +148,9 @@ export function DayDashboard({
               />
             ),
           },
-          // Weight + activity share one row. They move together; if one is
-          // hidden the other takes the full width.
+          // Weight + activity are one widget: they stack, full width, at every
+          // size, and move together. Side by side they'd each be half a card
+          // wide, which is where the activity tile's captions start wrapping.
           ((): SortableWidgetItem | false => {
             const showWeight = weightState !== "hidden";
             const showActivity = activityState !== "hidden";
@@ -180,7 +181,7 @@ export function DayDashboard({
               id: "weight",
               node:
                 showWeight && showActivity ? (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3">
                     {weightNode}
                     {activityNode}
                   </div>
