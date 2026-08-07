@@ -42,7 +42,28 @@ import {
   type LactationBasis,
 } from "@/lib/lactation";
 import { nudgeMeasurementSync } from "@/lib/native";
+import { typicalDayActiveKcal } from "@/lib/tdee";
 import { saveProfile } from "./actions";
+
+// Where the typical day's active burn comes from. The two are alternatives,
+// not layers: a total replaces the movement estimate rather than adding to it,
+// so the form asks which before it asks for numbers.
+type ActiveSource = "activity" | "total";
+
+/**
+ * Lenient read of a numeric field — anything unusable reads as blank.
+ *
+ * Two jobs: it feeds the live estimate, which has to survive half-typed input
+ * without throwing an error at someone mid-keystroke, and it carries through
+ * the fields the chosen source doesn't show. Those can't be validated with a
+ * message, because the user can't see the field to fix it. Submit validates
+ * what's on screen; this handles the rest.
+ */
+function looseInt(value: string, min: number, max: number): number | null {
+  const n = parseInt(value.trim(), 10);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
 
 export type InitialProfile = {
   sex: Sex;
@@ -140,6 +161,9 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       ? String(initial.activeKcalOverride)
       : ""
   );
+  const [activeSource, setActiveSource] = useState<ActiveSource>(
+    initial?.activeKcalOverride != null ? "total" : "activity"
+  );
 
   const [lactationStatus, setLactationStatus] = useState<LactationStatus>(
     (initial?.lactationStatus as LactationStatus) ?? "none"
@@ -235,39 +259,74 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       return n;
     }
 
-    // The typical day. Every field is optional, and every one is read.
-    const steps = parseIntField(stepsPerDay, 0, 100000, "step count");
-    if (steps === "INVALID") return;
+    // The typical day, read from whichever source is on screen. Returns null
+    // once a message is set, so the caller just bails.
+    function readTypicalDay() {
+      if (activeSource === "total") {
+        const total = parseIntField(activeKcal, 0, 4000, "active-calorie value");
+        if (total === "INVALID") return null;
+        // Blank used to mean "fall back to the estimate", which made the
+        // choice above a lie. On this side of the toggle the number is the
+        // whole answer, so it has to be there.
+        if (total == null) {
+          setError(
+            "Enter your daily active calories, or switch to From activity."
+          );
+          return null;
+        }
+        // The movement fields ride along as they are rather than being
+        // validated: they're off screen on this side, and an error pointing at
+        // a field the user can't see is a dead end. They're kept, not cleared,
+        // so a week you've already described survives a spell on your watch's
+        // number.
+        return {
+          activeKcalOverride: total,
+          stepsPerDay: looseInt(stepsPerDay, 0, 100000),
+          liftingSessionsPerWeek: looseInt(liftingPerWeek, 0, 21),
+          liftingMinutesPerSession: looseInt(liftingMin, 1, 300),
+          cardioSessionsPerWeek: looseInt(cardioPerWeek, 0, 21),
+          cardioMinutesPerSession: looseInt(cardioMin, 1, 300),
+        };
+      }
 
-    const lifting = parseIntField(liftingPerWeek, 0, 21, "session count");
-    if (lifting === "INVALID") return;
+      // Every field here is optional, and every one is read.
+      const steps = parseIntField(stepsPerDay, 0, 100000, "step count");
+      if (steps === "INVALID") return null;
 
-    const liftingMinNum = parseIntField(
-      liftingMin,
-      1,
-      300,
-      "lifting duration in minutes"
-    );
-    if (liftingMinNum === "INVALID") return;
+      const lifting = parseIntField(liftingPerWeek, 0, 21, "session count");
+      if (lifting === "INVALID") return null;
 
-    const cardio = parseIntField(cardioPerWeek, 0, 21, "cardio session count");
-    if (cardio === "INVALID") return;
+      const liftingMinNum = parseIntField(
+        liftingMin,
+        1,
+        300,
+        "lifting duration in minutes"
+      );
+      if (liftingMinNum === "INVALID") return null;
 
-    const cardioMinNum = parseIntField(
-      cardioMin,
-      1,
-      300,
-      "cardio duration in minutes"
-    );
-    if (cardioMinNum === "INVALID") return;
+      const cardio = parseIntField(cardioPerWeek, 0, 21, "cardio session count");
+      if (cardio === "INVALID") return null;
 
-    const activeOverride = parseIntField(
-      activeKcal,
-      0,
-      4000,
-      "active-calorie value"
-    );
-    if (activeOverride === "INVALID") return;
+      const cardioMinNum = parseIntField(
+        cardioMin,
+        1,
+        300,
+        "cardio duration in minutes"
+      );
+      if (cardioMinNum === "INVALID") return null;
+
+      return {
+        activeKcalOverride: null,
+        stepsPerDay: steps,
+        liftingSessionsPerWeek: lifting,
+        liftingMinutesPerSession: liftingMinNum,
+        cardioSessionsPerWeek: cardio,
+        cardioMinutesPerSession: cardioMinNum,
+      };
+    }
+
+    const typicalDay = readTypicalDay();
+    if (!typicalDay) return;
 
     startTransition(async () => {
       try {
@@ -279,12 +338,7 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           bodyFatPct: bf,
           units,
           timezone,
-          stepsPerDay: steps,
-          liftingSessionsPerWeek: lifting,
-          liftingMinutesPerSession: liftingMinNum,
-          cardioSessionsPerWeek: cardio,
-          cardioMinutesPerSession: cardioMinNum,
-          activeKcalOverride: activeOverride,
+          ...typicalDay,
           // Lactation only applies to female profiles; otherwise force "none".
           lactationStatus: sex === "female" ? lactationStatus : "none",
           lactationStage:
@@ -311,6 +365,26 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
       }
     });
   }
+
+  // What the week on screen works out to, live. Derived with the very function
+  // the server uses, so the preview can't promise one number and save another.
+  const weightKgLive = (() => {
+    const n = parseFloat(weight);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return units === "metric" ? n : lbToKg(n);
+  })();
+  const typicalActive =
+    weightKgLive == null
+      ? null
+      : typicalDayActiveKcal({
+          weightKg: weightKgLive,
+          activeKcalOverride: null,
+          stepsPerDay: looseInt(stepsPerDay, 0, 100000),
+          liftingSessionsPerWeek: looseInt(liftingPerWeek, 0, 21),
+          liftingMinutesPerSession: looseInt(liftingMin, 1, 300),
+          cardioSessionsPerWeek: looseInt(cardioPerWeek, 0, 21),
+          cardioMinutesPerSession: looseInt(cardioMin, 1, 300),
+        });
 
   return (
     <form onSubmit={onSubmit} className="space-y-8">
@@ -530,71 +604,106 @@ export function SetupForm({ initial }: { initial: InitialProfile }) {
           when your watch or your own entry says otherwise.
         </p>
 
-        <Field
-          label="Daily steps"
-          icon={Footprints}
-          htmlFor="steps"
-          suffix="steps"
-          optional
-        >
-          <Input
-            id="steps"
-            inputMode="numeric"
-            placeholder="8,000"
-            value={stepsPerDay}
-            onChange={(e) => setStepsPerDay(e.target.value)}
+        {/* Two ways to answer the same question, so it's a choice rather than
+            a field that silently outranks the ones above it. */}
+        <div className="space-y-2">
+          <FieldLabel>Active burn</FieldLabel>
+          <SegmentedToggle<ActiveSource>
+            value={activeSource}
+            onChange={setActiveSource}
+            fullWidth
+            options={[
+              { value: "activity", label: "From activity" },
+              { value: "total", label: "Enter a total" },
+            ]}
           />
-        </Field>
-
-        <SessionGroup
-          label="Weight training"
-          icon={Dumbbell}
-          freqId="lifting-freq"
-          freqValue={liftingPerWeek}
-          onFreqChange={setLiftingPerWeek}
-          freqPlaceholder="3"
-          durId="lifting-min"
-          durValue={liftingMin}
-          onDurChange={setLiftingMin}
-          durPlaceholder="60"
-        />
-
-        <SessionGroup
-          label="Cardio"
-          icon={HeartPulse}
-          freqId="cardio-freq"
-          freqValue={cardioPerWeek}
-          onFreqChange={setCardioPerWeek}
-          freqPlaceholder="2"
-          durId="cardio-min"
-          durValue={cardioMin}
-          onDurChange={setCardioMin}
-          durPlaceholder="30"
-        />
-
-        {/* Same rule as a single day: a number here replaces the estimate
-            above rather than adding to it. */}
-        <div className="space-y-2 border-t border-border/60 pt-5">
-          <Field
-            label="Active calories"
-            icon={Flame}
-            htmlFor="active-kcal"
-            suffix="kcal/day"
-            optional
-          >
-            <Input
-              id="active-kcal"
-              inputMode="numeric"
-              placeholder="450"
-              value={activeKcal}
-              onChange={(e) => setActiveKcal(e.target.value)}
-            />
-          </Field>
-          <p className="text-[11px] text-muted-foreground/70">
-            If your watch already tells you a daily average, put it here — it
-            replaces everything above. Leave it blank otherwise.
-          </p>
         </div>
+
+        {activeSource === "activity" ? (
+          <>
+            <Field
+              label="Daily steps"
+              icon={Footprints}
+              htmlFor="steps"
+              suffix="steps"
+              optional
+            >
+              <Input
+                id="steps"
+                inputMode="numeric"
+                placeholder="8,000"
+                value={stepsPerDay}
+                onChange={(e) => setStepsPerDay(e.target.value)}
+              />
+            </Field>
+
+            <SessionGroup
+              label="Weight training"
+              icon={Dumbbell}
+              freqId="lifting-freq"
+              freqValue={liftingPerWeek}
+              onFreqChange={setLiftingPerWeek}
+              freqPlaceholder="3"
+              durId="lifting-min"
+              durValue={liftingMin}
+              onDurChange={setLiftingMin}
+              durPlaceholder="60"
+            />
+
+            <SessionGroup
+              label="Cardio"
+              icon={HeartPulse}
+              freqId="cardio-freq"
+              freqValue={cardioPerWeek}
+              onFreqChange={setCardioPerWeek}
+              freqPlaceholder="2"
+              durId="cardio-min"
+              durValue={cardioMin}
+              onDurChange={setCardioMin}
+              durPlaceholder="30"
+            />
+
+            <p className="flex items-center gap-2.5 rounded-2xl bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
+              <Flame className="h-4 w-4 shrink-0 text-primary" />
+              <span>
+                {typicalActive == null ? (
+                  "Fill in your weight above and we'll work out what this burns."
+                ) : typicalActive.kcal === 0 ? (
+                  "Nothing to burn yet — add your steps or weekly sessions."
+                ) : (
+                  <>
+                    That&rsquo;s about{" "}
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {typicalActive.kcal.toLocaleString()} kcal/day
+                    </span>{" "}
+                    on top of your resting burn.
+                  </>
+                )}
+              </span>
+            </p>
+          </>
+        ) : (
+          <>
+            <Field
+              label="Active calories"
+              icon={Flame}
+              htmlFor="active-kcal"
+              suffix="kcal/day"
+            >
+              <Input
+                id="active-kcal"
+                inputMode="numeric"
+                placeholder="450"
+                value={activeKcal}
+                onChange={(e) => setActiveKcal(e.target.value)}
+              />
+            </Field>
+            <p className="text-[11px] text-muted-foreground/70">
+              The daily average your watch gives you, used as-is — nothing is
+              estimated on top of it.
+            </p>
+          </>
+        )}
       </div>
 
       {error && (
