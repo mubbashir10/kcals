@@ -212,48 +212,14 @@ function ActivitySummary({
   today: NonNullable<ActivityCardProps["today"]>;
   activeBurnKcal: number;
 }) {
-  // A supplied total is the day's headline; the steps beside it are context,
-  // not another term — and that pair is a sync's shape, since a band measures
-  // both. A total typed by hand arrives on its own and shows on its own.
-  // Without any total, the movement chips carry the day.
-  if (today.activeKcal != null) {
-    const kcal = today.activeKcal;
-    const steps = today.steps ?? 0;
-    // The energy tile always shows, even at zero. A supplied zero is what the
-    // day's burn is actually running on, and hiding it behind a step count that
-    // isn't driving anything is how you get "8,000 steps" over a BMR-only
-    // target with nothing on screen explaining the gap.
-    const tiles = [
-      {
-        icon: Flame,
-        color: metricColor.energy,
-        value: kcal,
-        unit: "kcal",
-        label: "Active energy",
-      },
-      ...(steps > 0
-        ? [
-            {
-              icon: Footprints,
-              color: metricColor.activity,
-              value: steps,
-              unit: "steps",
-              label: "Steps",
-            },
-          ]
-        : []),
-    ];
-    return (
-      <div>
-        <div className="flex gap-6">
-          {tiles.map((t) => (
-            <StatTile key={t.label} {...t} />
-          ))}
-        </div>
-        <Provenance today={today} />
-      </div>
-    );
-  }
+  // One shape however the day got here: what it cost as the headline, what
+  // that came from as chips beneath. Only the headline's provenance differs —
+  // a supplied total is the answer, a worked-out one wears a ~.
+  //
+  // Steps used to sit beside the total at the same size, which read as a
+  // second term of the same sum. They aren't one: on a supplied day the total
+  // wins outright and the count is only there to be checked against the band.
+  const supplied = today.activeKcal != null;
 
   const chips: { icon: typeof Footprints; color: string; text: string }[] = [];
   if (today.steps && today.steps > 0) {
@@ -278,14 +244,11 @@ function ActivitySummary({
     });
   }
 
-  // chips.length === 0 isn't reachable: `dayActivity` in day-dashboard.tsx only
-  // passes `today` for a day carrying activity of its own. A lazily-created
-  // empty row gets the "Running on your typical day" copy instead.
-  //
-  // The headline is what this movement cost, same as a supplied day gets — the
-  // chips below are what it was worked out from. Without it the card listed
-  // inputs and left their one consequence, the number the day's target moves
-  // on, to be found on another card.
+  // The headline always shows, even at zero. A supplied zero is what the day's
+  // burn is actually running on, and hiding it is how you get a BMR-only
+  // target with nothing on screen explaining the gap. A day with no chips at
+  // all isn't reachable: `dayActivity` in day-dashboard.tsx only passes `today`
+  // for a day carrying something, and a supplied total is itself the headline.
   return (
     <div>
       <StatTile
@@ -294,16 +257,21 @@ function ActivitySummary({
         value={activeBurnKcal}
         unit="kcal"
         label="Active energy"
-        approx
+        approx={!supplied}
       />
-      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-        {chips.map((c, i) => (
-          <span key={i} className="flex items-center gap-2 text-sm tabular-nums">
-            <c.icon className={ICON} style={{ color: c.color }} />
-            {c.text}
-          </span>
-        ))}
-      </div>
+      {chips.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+          {chips.map((c, i) => (
+            <span
+              key={i}
+              className="flex items-center gap-2 text-sm tabular-nums"
+            >
+              <c.icon className={ICON} style={{ color: c.color }} />
+              {c.text}
+            </span>
+          ))}
+        </div>
+      )}
       <Provenance today={today} />
     </div>
   );
