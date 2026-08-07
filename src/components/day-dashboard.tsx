@@ -175,6 +175,7 @@ export function DayDashboard({
             const activityNode = showActivity ? (
               <ActivityCard
                 today={dayActivity(stats.activity)}
+                activeBurnKcal={active.kcal}
                 dayKey={isToday ? null : dayKey}
                 defaults={{
                   stepsPerDay: profile.stepsPerDay,

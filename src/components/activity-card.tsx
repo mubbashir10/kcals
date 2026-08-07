@@ -54,6 +54,13 @@ export type ActivityCardProps = {
     /** App the sync credited, e.g. "Mi Fitness". Null on manual entries. */
     source: string | null;
   } | null;
+  /**
+   * The day's active energy, as already derived for the burn — passed in
+   * rather than worked out here so this card and the maintenance breakdown
+   * can't print two different numbers for one day. Only read when the movement
+   * above is what the day is running on.
+   */
+  activeBurnKcal: number;
   /** Profile numbers the form prefills and estimates with. */
   defaults: { stepsPerDay: number | null; weightKg: number };
   /** Day being edited. `null`/omitted means today. */
@@ -62,6 +69,7 @@ export type ActivityCardProps = {
 
 export function ActivityCard({
   today,
+  activeBurnKcal,
   defaults,
   dayKey = null,
 }: ActivityCardProps) {
@@ -131,7 +139,7 @@ export function ActivityCard({
 
         <div className="mt-3">
           {logged ? (
-            <ActivitySummary today={today!} />
+            <ActivitySummary today={today!} activeBurnKcal={activeBurnKcal} />
           ) : (
             <p className="text-sm text-foreground/80">
               Running on your typical day.
@@ -164,12 +172,15 @@ function StatTile({
   value,
   unit,
   label,
+  approx,
 }: {
   icon: typeof Flame;
   color: string;
   value: number;
   unit: string;
   label: string;
+  /** Worked out from movement rather than handed to us — say so with a ~. */
+  approx?: boolean;
 }) {
   return (
     <div className="flex-1">
@@ -181,6 +192,11 @@ function StatTile({
       </div>
       <div className="mt-1.5 flex items-baseline gap-1">
         <span className="text-2xl font-semibold tabular-nums">
+          {approx && (
+            <span className="mr-0.5 text-lg font-normal text-muted-foreground">
+              ~
+            </span>
+          )}
           {value.toLocaleString()}
         </span>
         <span className="text-xs text-muted-foreground">{unit}</span>
@@ -191,8 +207,10 @@ function StatTile({
 
 function ActivitySummary({
   today,
+  activeBurnKcal,
 }: {
   today: NonNullable<ActivityCardProps["today"]>;
+  activeBurnKcal: number;
 }) {
   // A supplied total is the day's headline; the steps beside it are context,
   // not another term. Without one, the movement chips carry the day.
@@ -261,9 +279,22 @@ function ActivitySummary({
   // chips.length === 0 isn't reachable: `dayActivity` in day-dashboard.tsx only
   // passes `today` for a day carrying activity of its own. A lazily-created
   // empty row gets the "Running on your typical day" copy instead.
+  //
+  // The headline is what this movement cost, same as a supplied day gets — the
+  // chips below are what it was worked out from. Without it the card listed
+  // inputs and left their one consequence, the number the day's target moves
+  // on, to be found on another card.
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      <StatTile
+        icon={Flame}
+        color={metricColor.energy}
+        value={activeBurnKcal}
+        unit="kcal"
+        label="Active energy"
+        approx
+      />
+      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
         {chips.map((c, i) => (
           <span key={i} className="flex items-center gap-2 text-sm tabular-nums">
             <c.icon className={ICON} style={{ color: c.color }} />
