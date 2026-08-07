@@ -89,4 +89,17 @@
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
     </queries>
+
+    <!-- Health Connect hands us the package that recorded a day, and we turn
+         that into the name and icon Android itself shows for it. Since Android
+         11 that lookup needs visibility of the package, and a band can be any
+         of dozens of apps — Mi Fitness, Zepp Life, Fitbit, Samsung Health —
+         so there's no list to enumerate in <queries> above. Without this the
+         lookup throws NameNotFound and every synced day reads "your band".
+
+         Play restricts this permission; kcals is sideloaded to family phones
+         and never listed, so no policy applies. The visibility is only ever
+         used for the label and icon of an app the user already granted us
+         Health Connect data from. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 </manifest>

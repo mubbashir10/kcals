@@ -61,6 +61,12 @@ export type ActivityCardProps = {
    * above is what the day is running on.
    */
   activeBurnKcal: number;
+  /**
+   * Launcher icon (a PNG data URI) of the app named in `today.source`, posted
+   * by the Android shell. Null on a hand-entered day, an app we've never been
+   * sent an icon for, or a day crediting two apps at once.
+   */
+  sourceIcon: string | null;
   /** Profile numbers the form prefills and estimates with. */
   defaults: { stepsPerDay: number | null; weightKg: number };
   /** Day being edited. `null`/omitted means today. */
@@ -70,6 +76,7 @@ export type ActivityCardProps = {
 export function ActivityCard({
   today,
   activeBurnKcal,
+  sourceIcon,
   defaults,
   dayKey = null,
 }: ActivityCardProps) {
@@ -139,7 +146,11 @@ export function ActivityCard({
 
         <div className="mt-3">
           {logged ? (
-            <ActivitySummary today={today!} activeBurnKcal={activeBurnKcal} />
+            <ActivitySummary
+              today={today!}
+              activeBurnKcal={activeBurnKcal}
+              sourceIcon={sourceIcon}
+            />
           ) : (
             <p className="text-sm text-foreground/80">
               Running on your typical day.
@@ -208,9 +219,11 @@ function StatTile({
 function ActivitySummary({
   today,
   activeBurnKcal,
+  sourceIcon,
 }: {
   today: NonNullable<ActivityCardProps["today"]>;
   activeBurnKcal: number;
+  sourceIcon: string | null;
 }) {
   // One shape however the day got here: what it cost as the headline, what
   // that came from as chips beneath. Only the headline's provenance differs —
@@ -272,7 +285,7 @@ function ActivitySummary({
           ))}
         </div>
       )}
-      <Provenance today={today} />
+      <Provenance today={today} sourceIcon={sourceIcon} />
     </div>
   );
 }
@@ -282,8 +295,10 @@ function ActivitySummary({
 // otherwise, and "why didn't my steps update?" is the obvious next question.
 function Provenance({
   today,
+  sourceIcon,
 }: {
   today: NonNullable<ActivityCardProps["today"]>;
+  sourceIcon: string | null;
 }) {
   return (
     <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
@@ -295,7 +310,21 @@ function Provenance({
         </>
       ) : (
         <>
-          <Watch className={ICON} />
+          {/* The app's own mark when the shell has sent us one, so the line
+              names the app the way the phone does. A stock watch stands in
+              until then — and for a day two apps contributed to, whose stored
+              label is their joined names and matches no single icon. */}
+          {sourceIcon && today.source ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- a data URI
+               has nothing for the image optimizer to fetch or resize. */
+            <img
+              src={sourceIcon}
+              alt=""
+              className="h-4 w-4 shrink-0 rounded-[4px]"
+            />
+          ) : (
+            <Watch className={ICON} />
+          )}
           Synced from {today.source ?? "your band"}
         </>
       )}

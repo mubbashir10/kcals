@@ -96,6 +96,7 @@ export default async function DayPage({
             goalType: detail.goalType,
             kcalOffset: detail.kcalOffset,
             activity: detail.activityLog,
+            sourceIcon: detail.sourceIcon,
             latestWeight: detail.latestWeight,
             delta7dKg: detail.delta7dKg,
           }}

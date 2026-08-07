@@ -44,6 +44,7 @@ export default async function Home() {
     goalType,
     kcalOffset,
     todayActivity,
+    sourceIcon,
     meals,
     latestWeight,
     delta7dKg,
@@ -138,6 +139,7 @@ export default async function Home() {
             goalType,
             kcalOffset,
             activity: todayActivity,
+            sourceIcon,
             latestWeight: latestWeight
               ? { weightKg: latestWeight.weightKg, loggedAt: latestWeight.loggedAt }
               : null,

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { dayKeyInTz, startOfDayInTz } from "@/lib/clock";
 import { buildDailySnapshot } from "@/lib/daily-snapshot";
 import { dayTargetsFor } from "@/lib/day-energy";
+import { healthSourceIcon } from "@/lib/health-sync";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { sumBy } from "@/lib/utils";
 import { weekAgoFrom, weightDelta7dKg } from "@/lib/weight";
@@ -81,7 +82,7 @@ export async function loadDailyStats(
   );
 
   const weekAgo = weekAgoFrom(now);
-  const [meals, latestWeight, baselineWeightRaw] = await Promise.all([
+  const [meals, latestWeight, baselineWeightRaw, sourceIcon] = await Promise.all([
     db.meal.findMany({
       where: { userId, loggedAt: { gte: startOfDayInTz(tz, now) } },
       orderBy: { loggedAt: normalizeMealSort(profile.mealSortDir) },
@@ -95,6 +96,9 @@ export async function loadDailyStats(
       where: { userId, loggedAt: { lte: weekAgo } },
       orderBy: { loggedAt: "desc" },
     }),
+    // The icon of whichever app synced the day, so the provenance line can say
+    // "Mi Fitness" with Mi Fitness's own mark rather than a stock watch.
+    healthSourceIcon(userId, todayActivity?.source),
   ]);
   const allFoods = meals.flatMap((m) => m.foods);
   const consumed = {
@@ -121,6 +125,7 @@ export async function loadDailyStats(
     goalPace: targets.goalPace,
     kcalOffset: targets.kcalOffset,
     todayActivity,
+    sourceIcon,
     meals,
     latestWeight,
     delta7dKg: weightDelta7dKg(latestWeight, baselineWeightRaw),

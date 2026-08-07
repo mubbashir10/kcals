@@ -10,6 +10,7 @@ import { startOfDayForDayKey } from "@/lib/clock";
 import { buildDailySnapshot, dayHasOwnActivity } from "@/lib/daily-snapshot";
 import { normalizeMealSort } from "@/lib/widget-order";
 import { computeDayTargets } from "@/lib/day-energy";
+import { healthSourceIcon } from "@/lib/health-sync";
 import type { GoalPace, GoalType } from "@/lib/goal";
 import type { MacroGoals } from "@/lib/macros";
 import type { ActiveResult } from "@/lib/tdee";
@@ -52,6 +53,8 @@ export type DayDetail = {
   /** Latest weigh-in overall + 7-day trend (a body-metric, day-independent). */
   latestWeight: { weightKg: number; loggedAt: Date } | null;
   delta7dKg: number | null;
+  /** Launcher icon of the app that synced this day, if we hold one. */
+  sourceIcon: string | null;
 };
 
 export async function loadDayDetail(
@@ -146,5 +149,6 @@ export async function loadDayDetail(
       ? { weightKg: latestWeightLog.weightKg, loggedAt: latestWeightLog.loggedAt }
       : null,
     delta7dKg: weightDelta7dKg(latestWeightLog, baselineWeightRaw),
+    sourceIcon: await healthSourceIcon(userId, activityLog?.source),
   };
 }

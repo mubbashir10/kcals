@@ -1,7 +1,10 @@
 package app.kcals
 
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -13,6 +16,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.StepsRecord
@@ -32,9 +36,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -73,14 +79,46 @@ class MainActivity : BridgeActivity() {
         // Health Connect caps how much one insert call may carry; chunk well
         // below it so even a years-long weight history exports fine.
         private const val INSERT_CHUNK = 500
+
+        // Launcher icons are square and get shown at 16dp; 96px is sharp on
+        // any density and keeps the PNG a few kilobytes, which matters because
+        // the server hands it to the dashboard on every render.
+        private const val ICON_PX = 96
+
+        // Health Connect has some eighty exercise types and the app's estimate
+        // has two buckets, so everything that isn't strength work counts as
+        // cardio. The two skipped types burn too little to call cardio and
+        // would read as a workout the user didn't do.
+        private val LIFTING_TYPES = setOf(
+            ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
+            ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING,
+            ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS,
+        )
+        private val IGNORED_TYPES = setOf(
+            ExerciseSessionRecord.EXERCISE_TYPE_GUIDED_BREATHING,
+            ExerciseSessionRecord.EXERCISE_TYPE_STRETCHING,
+        )
     }
 
     private data class DayTotals(
         val dayKey: String,
         val steps: Long,
         val activeKcal: Long,
+        /** Minutes of logged exercise on the day, split into our two buckets. */
+        val liftingMin: Long = 0,
+        val cardioMin: Long = 0,
         /** Health Connect's own attribution, e.g. "Mi Fitness". Null if unresolvable. */
         val source: String?,
+    )
+
+    /** Minutes of exercise on one day, before they're folded into its totals. */
+    private data class Workout(var liftingMin: Long = 0, var cardioMin: Long = 0)
+
+    /** What the server says about syncing, asked once per pass. */
+    private data class SyncState(
+        val enabled: Boolean,
+        /** Apps it already holds an icon for — we only send the others. */
+        val knownSources: Set<String>,
     )
 
     // What the server wants written to Health Connect, already resolved to
@@ -107,6 +145,14 @@ class MainActivity : BridgeActivity() {
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     )
+
+    // Workouts are asked for but not required. Anyone already using the app
+    // granted steps and calories before this permission existed, and gating
+    // the whole activity sync on it would silently stop their days syncing
+    // until they noticed a prompt. So it's checked on its own, and a refusal
+    // costs exactly the workout minutes.
+    private val exercisePerm =
+        HealthPermission.getReadPermission(ExerciseSessionRecord::class)
     private val measurementPerms = setOf(
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class),
@@ -115,7 +161,7 @@ class MainActivity : BridgeActivity() {
         HealthPermission.getReadPermission(BodyFatRecord::class),
         HealthPermission.getWritePermission(BodyFatRecord::class),
     )
-    private val hcPermissions = activityPerms + measurementPerms
+    private val hcPermissions = activityPerms + exercisePerm + measurementPerms
 
     private lateinit var permsLauncher: ActivityResultLauncher<Set<String>>
     private var promptedThisLaunch = false
@@ -186,13 +232,16 @@ class MainActivity : BridgeActivity() {
             try {
                 // Ask the server first: switching the toggle off must stop the
                 // permission prompt, not just the write.
-                if (!isSyncEnabled()) {
+                val state = syncState()
+                if (!state.enabled) {
                     Log.i(TAG, "Health Connect sync disabled for this account")
                     return@launch
                 }
                 val client = HealthConnectClient.getOrCreate(this@MainActivity)
                 val granted = client.permissionController.getGrantedPermissions()
-                if (granted.containsAll(activityPerms)) readAndSync(client)
+                if (granted.containsAll(activityPerms)) {
+                    readAndSync(client, state.knownSources)
+                }
                 if (granted.containsAll(measurementPerms)) syncMeasurements(client)
                 if (!granted.containsAll(hcPermissions) && !promptedThisLaunch) {
                     promptedThisLaunch = true
@@ -207,10 +256,24 @@ class MainActivity : BridgeActivity() {
 
     // Offline (or signed out) reads as "off": we couldn't POST the numbers
     // anyway, and guessing "on" would prompt a user who switched it off.
-    private suspend fun isSyncEnabled(): Boolean =
-        apiJson(SYNC_URL)?.optBoolean("enabled", false) ?: false
+    private suspend fun syncState(): SyncState {
+        val json = apiJson(SYNC_URL) ?: return SyncState(false, emptySet())
+        val arr = json.optJSONArray("sources")
+        val known = buildSet {
+            for (i in 0 until (arr?.length() ?: 0)) {
+                arr?.optString(i)?.takeIf { it.isNotEmpty() }?.let { add(it) }
+            }
+        }
+        return SyncState(json.optBoolean("enabled", false), known)
+    }
 
-    private fun readAndSync(existing: HealthConnectClient? = null) {
+    // `knownSources` empty means "send every icon you can resolve" — right for
+    // the just-granted-permission path, which is exactly when the server has
+    // never seen any of them.
+    private fun readAndSync(
+        existing: HealthConnectClient? = null,
+        knownSources: Set<String> = emptySet(),
+    ) {
         lifecycleScope.launch {
             try {
                 val client = existing ?: HealthConnectClient.getOrCreate(this@MainActivity)
@@ -232,9 +295,19 @@ class MainActivity : BridgeActivity() {
                         timeRangeSlicer = Period.ofDays(1),
                     )
                 )
+                // Workouts are a separate record type, and only readable with
+                // their own grant — without it the day still syncs, just
+                // without its minutes.
+                val workouts =
+                    if (client.permissionController.getGrantedPermissions()
+                            .contains(exercisePerm)
+                    ) readWorkouts(client, today) else emptyMap()
+
                 // Empty days are dropped, not posted as zeros: the server would
                 // skip them anyway, and a phone left at home must never wipe a
-                // day the band did record.
+                // day the band did record. A day with only a workout on it is
+                // empty by this rule, and the server would refuse its minutes
+                // anyway — see the double-count note in lib/health-sync.ts.
                 val days = buckets.mapNotNull { bucket ->
                     val steps = bucket.result[StepsRecord.COUNT_TOTAL] ?: 0L
                     val kcal = Math.round(
@@ -242,19 +315,98 @@ class MainActivity : BridgeActivity() {
                             ?.inKilocalories ?: 0.0
                     )
                     if (steps == 0L && kcal == 0L) null
-                    else DayTotals(
-                        dayKey = bucket.startTime.toLocalDate().toString(),
-                        steps = steps,
-                        activeKcal = kcal,
-                        source = sourceLabel(bucket.result.dataOrigins),
-                    )
+                    else {
+                        val dayKey = bucket.startTime.toLocalDate().toString()
+                        val workout = workouts[dayKey]
+                        DayTotals(
+                            dayKey = dayKey,
+                            steps = steps,
+                            activeKcal = kcal,
+                            liftingMin = workout?.liftingMin ?: 0,
+                            cardioMin = workout?.cardioMin ?: 0,
+                            source = sourceLabel(bucket.result.dataOrigins),
+                        )
+                    }
                 }
                 Log.i(TAG, "read HC ${days.size} day(s): $days")
-                postToServer(days, today.toString())
+                val packages = buckets.flatMapTo(mutableSetOf()) { bucket ->
+                    bucket.result.dataOrigins.map { it.packageName }
+                }
+                postToServer(days, today.toString(), newSourceIcons(packages, knownSources))
             } catch (e: Exception) {
                 Log.e(TAG, "readAndSync failed", e)
             }
         }
+    }
+
+    /**
+     * Exercise sessions in the window, as minutes per local day.
+     *
+     * Read as records rather than aggregated: the day's total exercise
+     * duration is one number, and we need it split by what kind of exercise it
+     * was. A session is credited to the day it started on — one that runs past
+     * midnight belongs to the evening you did it, not the morning after.
+     */
+    private suspend fun readWorkouts(
+        client: HealthConnectClient,
+        today: LocalDate,
+    ): Map<String, Workout> {
+        val zone = ZoneId.systemDefault()
+        val byDay = mutableMapOf<String, Workout>()
+        var pageToken: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(
+                        today.minusDays(SYNC_DAYS - 1).atStartOfDay(),
+                        LocalDateTime.now(),
+                    ),
+                    pageToken = pageToken,
+                )
+            )
+            for (record in response.records) {
+                if (record.exerciseType in IGNORED_TYPES) continue
+                val minutes = Duration.between(record.startTime, record.endTime).toMinutes()
+                if (minutes <= 0) continue
+                val dayKey = record.startTime.atZone(zone).toLocalDate().toString()
+                val day = byDay.getOrPut(dayKey) { Workout() }
+                if (record.exerciseType in LIFTING_TYPES) day.liftingMin += minutes
+                else day.cardioMin += minutes
+            }
+            pageToken = response.pageToken
+        } while (pageToken != null)
+        return byDay
+    }
+
+    // The label and launcher icon for apps the server hasn't got yet. An icon
+    // runs to a few kilobytes and a sync fires on every window focus, so the
+    // usual pass sends none of them.
+    private fun newSourceIcons(
+        packages: Set<String>,
+        knownSources: Set<String>,
+    ): List<Pair<String, String>> = packages.mapNotNull { pkg ->
+        val label = appLabel(pkg) ?: return@mapNotNull null
+        if (label in knownSources) return@mapNotNull null
+        appIconDataUri(pkg)?.let { label to it }
+    }
+
+    // The launcher icon, drawn to a small PNG. Adaptive icons are a pair of
+    // layers with no bitmap of their own, so this draws the Drawable rather
+    // than reaching for one.
+    private fun appIconDataUri(pkg: String): String? = try {
+        val drawable = packageManager.getApplicationIcon(pkg)
+        val bitmap = Bitmap.createBitmap(ICON_PX, ICON_PX, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, ICON_PX, ICON_PX)
+        drawable.draw(Canvas(bitmap))
+        val png = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, png)
+        bitmap.recycle()
+        "data:image/png;base64," +
+            Base64.encodeToString(png.toByteArray(), Base64.NO_WRAP)
+    } catch (e: Exception) {
+        Log.i(TAG, "no icon for $pkg: ${e.message}")
+        null
     }
 
     // Who Health Connect says the day's numbers came from. The aggregate already
@@ -509,7 +661,11 @@ class MainActivity : BridgeActivity() {
         }
     }
 
-    private suspend fun postToServer(days: List<DayTotals>, todayKey: String) {
+    private suspend fun postToServer(
+        days: List<DayTotals>,
+        todayKey: String,
+        sources: List<Pair<String, String>>,
+    ) {
         if (days.isEmpty()) {
             Log.i(TAG, "no Health Connect data in window — skipping sync")
             return
@@ -521,12 +677,23 @@ class MainActivity : BridgeActivity() {
                     .put("dayKey", day.dayKey)
                     .put("steps", day.steps)
                     .put("activeKcal", day.activeKcal)
+                    .put("liftingMin", day.liftingMin)
+                    .put("cardioMin", day.cardioMin)
                     // JSONObject.put(String, null) omits the key, which
                     // the server reads as "no source" — exactly right.
                     .put("source", day.source)
             )
         }
-        if (apiJson(SYNC_URL, JSONObject().put("days", arr)) == null) return
+        val body = JSONObject().put("days", arr)
+        if (sources.isNotEmpty()) {
+            val icons = JSONArray()
+            for ((name, icon) in sources) {
+                icons.put(JSONObject().put("name", name).put("icon", icon))
+            }
+            body.put("sources", icons)
+            Log.i(TAG, "posting ${sources.size} new source icon(s)")
+        }
+        if (apiJson(SYNC_URL, body) == null) return
         Log.i(TAG, "sync POST ${days.size} day(s) ok")
         // Tell the web app the sync landed (with today's numbers) so it
         // re-fetches and can show a subtle "synced" note without the user

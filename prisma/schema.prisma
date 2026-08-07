@@ -45,6 +45,7 @@ model User {
   nativeAuthCodes NativeAuthCode[]
   pushTokens      PushToken[]
   hcImports       HealthConnectImport[]
+  healthSources   HealthSource[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -260,6 +261,31 @@ model HealthConnectImport {
   createdAt DateTime @default(now())
 
   @@unique([userId, hcId])
+}
+
+// An app that has contributed numbers through Health Connect, so a day can
+// show where it came from with the app's own name and icon rather than a
+// generic "your band". Posted by the Android shell, which is the only place
+// that can resolve a package to its launcher label and icon.
+//
+// Keyed by the label, because that is exactly what ActivityLog.source stores —
+// a day's provenance line looks itself up by the string it already has. A day
+// crediting two apps stores their joined labels and matches neither, which is
+// why the name is what shows and the icon is the decoration.
+model HealthSource {
+  id     Int    @id @default(autoincrement())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The launcher label, e.g. "Mi Fitness".
+  name String
+  // The launcher icon as a PNG data URI, downscaled by the shell before it
+  // ever leaves the phone.
+  icon String
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
 }
 
 // One row per day in the user's timezone. Snapshots the burn at the time the

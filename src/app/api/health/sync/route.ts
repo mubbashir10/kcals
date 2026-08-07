@@ -2,9 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { auth } from "@/auth";
 import {
+  healthSourceNames,
   healthSyncEnabled,
+  saveHealthSources,
   syncHealthDays,
   type HealthDay,
+  type HealthSourceIcon,
 } from "@/lib/health-sync";
 import { finiteNumberOrNull as num } from "@/lib/utils";
 
@@ -27,7 +30,13 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json({ enabled: await healthSyncEnabled(userId) });
+  const enabled = await healthSyncEnabled(userId);
+  // The shell posts an icon only for an app missing from this list, so the
+  // usual sync carries days alone.
+  return NextResponse.json({
+    enabled,
+    sources: enabled ? await healthSourceNames(userId) : [],
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -45,15 +54,23 @@ export async function POST(req: NextRequest) {
   } catch {
     body = null;
   }
-  const days =
+  const payload =
     typeof body === "object" && body !== null && !Array.isArray(body)
-      ? parseDays(body)
+      ? body
       : null;
-  if (days == null) {
+  const days = payload ? parseDays(payload) : null;
+  if (payload == null || days == null) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, ...(await syncHealthDays(userId, days)) });
+  // Icons are stored even when every day is refused — a hand-entered week
+  // still wants its app's name and icon on the days it does sync later.
+  const sources = await saveHealthSources(userId, parseSources(payload));
+  return NextResponse.json({
+    ok: true,
+    sources,
+    ...(await syncHealthDays(userId, days)),
+  });
 }
 
 // `null` means the body was malformed. Entries with an unusable dayKey are
@@ -69,15 +86,31 @@ function parseDays(raw: object): HealthDay[] | null {
   if (!Array.isArray(body.days)) return null;
   return body.days.flatMap((entry): HealthDay[] => {
     if (typeof entry !== "object" || entry === null) return [];
-    const { dayKey, steps, activeKcal, source } = entry as Record<string, unknown>;
+    const { dayKey, steps, activeKcal, liftingMin, cardioMin, source } =
+      entry as Record<string, unknown>;
     if (typeof dayKey !== "string") return [];
     return [
       {
         dayKey,
         steps: num(steps),
         activeKcal: num(activeKcal),
+        liftingMin: num(liftingMin),
+        cardioMin: num(cardioMin),
         source: typeof source === "string" ? source : null,
       },
     ];
+  });
+}
+
+// The apps behind those days, with their launcher icons. Absent on older
+// shells and on any sync where the server already had every icon.
+function parseSources(raw: object): HealthSourceIcon[] {
+  const { sources } = raw as { sources?: unknown };
+  if (!Array.isArray(sources)) return [];
+  return sources.flatMap((entry): HealthSourceIcon[] => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const { name, icon } = entry as Record<string, unknown>;
+    if (typeof name !== "string" || typeof icon !== "string") return [];
+    return [{ name, icon }];
   });
 }

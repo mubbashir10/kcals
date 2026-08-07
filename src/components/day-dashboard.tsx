@@ -64,6 +64,8 @@ export type DayDashboardStats = {
   kcalOffset: number;
   /** The day's activity row (null when nothing snapshotted/logged). */
   activity: ActivityRow;
+  /** Launcher icon of the app that synced the day, when we hold one. */
+  sourceIcon: string | null;
   latestWeight: { weightKg: number; loggedAt: Date } | null;
   delta7dKg: number | null;
 };
@@ -176,6 +178,7 @@ export function DayDashboard({
               <ActivityCard
                 today={dayActivity(stats.activity)}
                 activeBurnKcal={active.kcal}
+                sourceIcon={stats.sourceIcon}
                 dayKey={isToday ? null : dayKey}
                 defaults={{
                   stepsPerDay: profile.stepsPerDay,
