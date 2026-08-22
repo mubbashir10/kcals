@@ -80,12 +80,47 @@ function gramsFromServing(
   return null;
 }
 
+// USDA's api.data.gov edge intermittently misroutes API calls to the
+// FoodData Central *website* and answers with a 404 HTML page — measured
+// at roughly two in five requests (Aug 2026), on every endpoint and both
+// methods. Nothing is wrong with the request: replaying the identical
+// call usually succeeds, so a few retries turn a coin flip into a near
+// certainty. Without this a 3-token query (4 parallel calls, all of which
+// must land) failed 100% of the time.
+const USDA_ATTEMPTS = 4;
+
+async function usdaFetch(
+  url: string | URL,
+  init?: RequestInit
+): Promise<Response> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= USDA_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.ok) return res;
+      // A 403 (bad/over-quota key) or other 4xx won't fix itself — fail
+      // fast rather than burning three more calls against the rate limit.
+      // 404 is the phantom above; 5xx is worth another go.
+      if (res.status !== 404 && res.status < 500) return res;
+      last = new Error(`USDA ${res.status}`);
+    } catch (err) {
+      last = err;
+    }
+    // Brief, widening pause — the misroute is per-request, so this is
+    // politeness rather than backoff pressure.
+    if (attempt < USDA_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 100 * attempt));
+    }
+  }
+  throw last instanceof Error ? last : new Error("USDA request failed");
+}
+
 async function fdcSearchOne(
   query: string,
   pageSize: number,
   apiKey: string
 ): Promise<FdcSearchResponse> {
-  const res = await fetch(`${BASE}/foods/search?api_key=${apiKey}`, {
+  const res = await usdaFetch(`${BASE}/foods/search?api_key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -136,9 +171,21 @@ async function fdcSearchMulti(
     }
   }
 
-  const responses = await Promise.all(
+  // allSettled, not all: the join variants are an enrichment pass, so one
+  // of them failing should cost us those extra rows, not the whole search.
+  // Only a clean sweep of failures is a real error worth propagating.
+  const settled = await Promise.allSettled(
     queries.map((q) => fdcSearchOne(q, pageSize, apiKey))
   );
+  const responses = settled
+    .filter(
+      (r): r is PromiseFulfilledResult<FdcSearchResponse> =>
+        r.status === "fulfilled"
+    )
+    .map((r) => r.value);
+  if (responses.length === 0) {
+    throw (settled[0] as PromiseRejectedResult).reason;
+  }
 
   const seen = new Set<number>();
   const merged: FdcSearchFood[] = [];
@@ -162,7 +209,7 @@ async function fdcAbridged(
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("fdcIds", fdcIds.join(","));
   url.searchParams.set("format", "abridged");
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await usdaFetch(url, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`USDA bulk error ${res.status}: ${await res.text()}`);
   }

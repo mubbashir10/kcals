@@ -96,7 +96,17 @@ export async function GET(req: Request) {
             loggedAt: true,
           },
         }),
-        searchFoods(q, { pageSize: 20 }),
+        // USDA is best-effort, exactly like OFF below. It's an external
+        // dependency with its own uptime (it was misrouting ~40% of calls
+        // in Aug 2026), and letting it reject would take down the whole
+        // response — including the rows we own outright: the user's diary
+        // history, their saved foods, their recipes, and the curated local
+        // table. Losing branded USDA rows degrades search; losing the
+        // user's own food does not.
+        searchFoods(q, { pageSize: 20 }).catch((err) => {
+          console.error("USDA search failed (degrading)", err);
+          return [];
+        }),
         db.customFood.findMany({
           where: { AND: nameTokensAnd },
           orderBy: { createdAt: "desc" },
@@ -240,6 +250,8 @@ export async function GET(req: Request) {
       ],
     });
   } catch (err) {
+    // Only our own database can reach here now — both external sources
+    // degrade to [] on their own. A throw here is a real outage.
     console.error("Food search failed", err);
     return NextResponse.json(
       { error: "Search failed", foods: [] },
