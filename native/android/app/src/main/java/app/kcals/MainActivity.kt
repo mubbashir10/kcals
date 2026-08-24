@@ -3,13 +3,27 @@ package app.kcals
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.util.Base64
 import android.util.Log
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -30,7 +44,9 @@ import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
 import androidx.lifecycle.lifecycleScope
+import com.getcapacitor.Bridge
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.BridgeWebViewClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,7 +81,17 @@ class MainActivity : BridgeActivity() {
 
     companion object {
         private const val TAG = "KcalsHealth"
+        // Shell/WebView events aren't Health Connect — log them separately so
+        // `adb logcat -s KcalsShell` shows just the app-loading story.
+        private const val SHELL_TAG = "KcalsShell"
         private const val ORIGIN = "https://kcals.app"
+
+        // Recovery-overlay palette, matched to the web app's dark theme in
+        // globals.css so it doesn't read as a stock Android error page.
+        private const val OVERLAY_BG = "#0A0A0A"
+        private const val OVERLAY_TEXT = "#F8FAFC"
+        private const val OVERLAY_MUTED = "#94A3B8"
+        private const val OVERLAY_PRIMARY = "#AFF33E"
         private const val SYNC_URL = "$ORIGIN/api/health/sync"
         private const val MEASUREMENTS_URL = "$ORIGIN/api/health/measurements"
 
@@ -194,6 +220,17 @@ class MainActivity : BridgeActivity() {
             wv.addJavascriptInterface(NativeInterface(), "KcalsNative")
         }
 
+        // Catch a dead page load and offer a way out (see showLoadError).
+        bridge?.let { b -> b.setWebViewClient(KcalsWebViewClient(b)) }
+
+        // Retry automatically when a usable network reappears.
+        try {
+            getSystemService(ConnectivityManager::class.java)
+                ?.registerDefaultNetworkCallback(networkCallback)
+        } catch (e: Exception) {
+            Log.i(SHELL_TAG, "could not watch connectivity: $e")
+        }
+
         // Register the Health Connect permission launcher in onCreate (before the
         // activity is started) so it can't throw — this is the exact lifecycle
         // trap that broke the capacitor-health plugin.
@@ -216,7 +253,11 @@ class MainActivity : BridgeActivity() {
     // genuinely foregrounded, so a foreground read is always allowed.
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) trySyncHealth()
+        if (!hasFocus) return
+        // Coming back to a stranded app is the most common way this is noticed
+        // — the network that failed is usually long gone by now, so just retry.
+        retryLoad()
+        trySyncHealth()
     }
 
     // On each launch/resume: if the user has the integration switched on, Health
@@ -739,6 +780,157 @@ class MainActivity : BridgeActivity() {
                 trySyncHealth()
             }
         }
+    }
+
+    // ---- Site-unreachable recovery ----------------------------------------
+    //
+    // The WebView loads the live site fresh on every launch (LOAD_NO_CACHE
+    // above, plus the service-worker wipe in onCreate), so there is nothing to
+    // fall back on: one network blip — Wi-Fi associated but not routing, a
+    // mobile-data handover while the app sat backgrounded — and Chromium
+    // paints its own "Webpage not available" page.
+    //
+    // That page is a dead end. None of our JS ran, so the offline banner in
+    // native-bridge.tsx can't render and there is no reload control; the only
+    // way out is force-quitting the app. So the retry lives HERE, in native
+    // Kotlin — the only layer still running when the page load fails.
+    private var errorOverlay: View? = null
+    private var sawMainFrameError = false
+    // The URL that actually failed, so a retry resumes where the user was
+    // heading rather than dumping them back on the home screen.
+    private var failedUrl: String? = null
+
+    private inner class KcalsWebViewClient(b: Bridge) : BridgeWebViewClient(b) {
+        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+            super.onPageStarted(view, url, favicon)
+            sawMainFrameError = false
+        }
+
+        override fun onReceivedError(
+            view: WebView,
+            request: WebResourceRequest,
+            error: WebResourceError,
+        ) {
+            super.onReceivedError(view, request, error)
+            // A failed subresource (an image, a prefetch) is none of our
+            // business — only a dead main frame strands the user.
+            if (!request.isForMainFrame) return
+            sawMainFrameError = true
+            val url = request.url?.toString()
+            failedUrl = if (url != null && url.startsWith(ORIGIN)) url else null
+            Log.i(SHELL_TAG, "main-frame load failed: ${error.errorCode} ${error.description}")
+            runOnUiThread { showLoadError() }
+        }
+
+        override fun onPageFinished(view: WebView, url: String) {
+            super.onPageFinished(view, url)
+            // onReceivedError fires before onPageFinished, so a clean finish
+            // here means the site really did load.
+            if (!sawMainFrameError) runOnUiThread { hideLoadError() }
+        }
+    }
+
+    // A dropped load usually fixes itself the moment a usable network is back
+    // (walking into Wi-Fi range, mobile data waking up) — take that signal
+    // instead of making the user notice and tap.
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            runOnUiThread { retryLoad() }
+        }
+    }
+
+    // Whether the user is currently stranded on the recovery screen. Derived
+    // from the overlay itself so there's no second flag to keep in sync.
+    private val stranded: Boolean
+        get() = errorOverlay?.visibility == View.VISIBLE
+
+    private fun showLoadError() {
+        if (errorOverlay == null) {
+            errorOverlay = buildErrorOverlay()
+            // Added to the content view now, i.e. after the splash view, so it
+            // covers a splash that never got hidden — hiding the splash is the
+            // web bridge's job, and by definition the web bridge didn't run.
+            addContentView(
+                errorOverlay,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+        errorOverlay?.visibility = View.VISIBLE
+    }
+
+    private fun hideLoadError() {
+        failedUrl = null
+        errorOverlay?.visibility = View.GONE
+    }
+
+    private fun retryLoad() {
+        if (!stranded) return
+        val url = failedUrl ?: ORIGIN
+        hideLoadError()
+        bridge?.webView?.loadUrl(url)
+    }
+
+    private fun dp(value: Int): Int =
+        TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            value.toFloat(),
+            resources.displayMetrics,
+        ).toInt()
+
+    private fun buildErrorOverlay(): View {
+        val title = TextView(this).apply {
+            text = "Can't reach kcals"
+            setTextColor(Color.parseColor(OVERLAY_TEXT))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            gravity = Gravity.CENTER
+        }
+        val body = TextView(this).apply {
+            text = "You're offline, or the connection dropped while the app " +
+                "was in the background. Nothing has been lost."
+            setTextColor(Color.parseColor(OVERLAY_MUTED))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10), 0, dp(24))
+        }
+        val retry = Button(this).apply {
+            text = "Try again"
+            isAllCaps = false
+            setTextColor(Color.BLACK)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            background = GradientDrawable().apply {
+                cornerRadius = dp(999).toFloat()
+                setColor(Color.parseColor(OVERLAY_PRIMARY))
+            }
+            stateListAnimator = null
+            setPadding(dp(32), 0, dp(32), 0)
+            setOnClickListener { retryLoad() }
+        }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.parseColor(OVERLAY_BG))
+            setPadding(dp(32), dp(32), dp(32), dp(32))
+            // Swallow taps so nothing reaches the dead error page underneath.
+            isClickable = true
+            addView(title)
+            addView(body)
+            addView(
+                retry,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)),
+            )
+        }
+    }
+
+    override fun onDestroy() {
+        try {
+            getSystemService(ConnectivityManager::class.java)
+                ?.unregisterNetworkCallback(networkCallback)
+        } catch (ignored: Exception) {
+        }
+        super.onDestroy()
     }
 
     private fun deleteRecursively(f: File?) {
