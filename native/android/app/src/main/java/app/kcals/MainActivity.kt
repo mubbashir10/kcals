@@ -1,13 +1,17 @@
 package app.kcals
 
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import android.util.TypedValue
@@ -23,6 +27,7 @@ import android.webkit.WebView
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
@@ -84,6 +89,12 @@ class MainActivity : BridgeActivity() {
         // Shell/WebView events aren't Health Connect — log them separately so
         // `adb logcat -s KcalsShell` shows just the app-loading story.
         private const val SHELL_TAG = "KcalsShell"
+
+        // How long to wait before each quiet retry of a failed page load. Two
+        // attempts spread over ~3s covers the common blip (a handover, a Wi-Fi
+        // network that hasn't finished coming up) without leaving the user
+        // staring at a spinner when the site is genuinely unreachable.
+        private val RETRY_DELAYS_MS = longArrayOf(800L, 2_500L)
         private const val ORIGIN = "https://kcals.app"
 
         // Recovery-overlay palette, matched to the web app's dark theme in
@@ -220,7 +231,7 @@ class MainActivity : BridgeActivity() {
             wv.addJavascriptInterface(NativeInterface(), "KcalsNative")
         }
 
-        // Catch a dead page load and offer a way out (see showLoadError).
+        // Catch a dead page load and recover from it (see onLoadFailed).
         bridge?.let { b -> b.setWebViewClient(KcalsWebViewClient(b)) }
 
         // Retry automatically when a usable network reappears.
@@ -256,7 +267,7 @@ class MainActivity : BridgeActivity() {
         if (!hasFocus) return
         // Coming back to a stranded app is the most common way this is noticed
         // — the network that failed is usually long gone by now, so just retry.
-        retryLoad()
+        retryNow()
         trySyncHealth()
     }
 
@@ -792,10 +803,19 @@ class MainActivity : BridgeActivity() {
     //
     // That page is a dead end. None of our JS ran, so the offline banner in
     // native-bridge.tsx can't render and there is no reload control; the only
-    // way out is force-quitting the app. So the retry lives HERE, in native
+    // way out is force-quitting the app. So recovery lives HERE, in native
     // Kotlin — the only layer still running when the page load fails.
-    private var errorOverlay: View? = null
+    //
+    // Most of these blips clear themselves within a second or two, so a failure
+    // is NOT shown to the user straight away: we retry quietly behind a spinner
+    // first, and only admit something is wrong once those retries are spent. A
+    // hiccup that fixes itself should look like a slightly slow load, not an
+    // error screen.
+    private var overlay: RecoveryOverlay? = null
     private var sawMainFrameError = false
+    private var retryAttempt = 0
+    private val retryHandler = Handler(Looper.getMainLooper())
+
     // The URL that actually failed, so a retry resumes where the user was
     // heading rather than dumping them back on the home screen.
     private var failedUrl: String? = null
@@ -819,14 +839,14 @@ class MainActivity : BridgeActivity() {
             val url = request.url?.toString()
             failedUrl = if (url != null && url.startsWith(ORIGIN)) url else null
             Log.i(SHELL_TAG, "main-frame load failed: ${error.errorCode} ${error.description}")
-            runOnUiThread { showLoadError() }
+            runOnUiThread { onLoadFailed() }
         }
 
         override fun onPageFinished(view: WebView, url: String) {
             super.onPageFinished(view, url)
             // onReceivedError fires before onPageFinished, so a clean finish
             // here means the site really did load.
-            if (!sawMainFrameError) runOnUiThread { hideLoadError() }
+            if (!sawMainFrameError) runOnUiThread { onLoadSucceeded() }
         }
     }
 
@@ -835,42 +855,77 @@ class MainActivity : BridgeActivity() {
     // instead of making the user notice and tap.
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            runOnUiThread { retryLoad() }
+            runOnUiThread { retryNow() }
         }
     }
 
-    // Whether the user is currently stranded on the recovery screen. Derived
-    // from the overlay itself so there's no second flag to keep in sync.
-    private val stranded: Boolean
-        get() = errorOverlay?.visibility == View.VISIBLE
-
-    private fun showLoadError() {
-        if (errorOverlay == null) {
-            errorOverlay = buildErrorOverlay()
-            // Added to the content view now, i.e. after the splash view, so it
-            // covers a splash that never got hidden — hiding the splash is the
-            // web bridge's job, and by definition the web bridge didn't run.
-            addContentView(
-                errorOverlay,
-                FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
+    private fun onLoadFailed() {
+        val ui = showOverlay()
+        if (retryAttempt < RETRY_DELAYS_MS.size) {
+            // Still within the quiet budget — keep the spinner up and try
+            // again without ever telling the user something went wrong.
+            val delay = RETRY_DELAYS_MS[retryAttempt]
+            retryAttempt++
+            ui.connecting()
+            retryHandler.removeCallbacksAndMessages(null)
+            retryHandler.postDelayed({ loadRetry() }, delay)
+        } else {
+            // Out of quiet retries: say so plainly, and say the right thing —
+            // "you're offline" and "the site isn't answering" want different
+            // reactions from the user.
+            ui.failed(offline = !hasUsableNetwork())
         }
-        errorOverlay?.visibility = View.VISIBLE
     }
 
-    private fun hideLoadError() {
+    private fun onLoadSucceeded() {
+        retryHandler.removeCallbacksAndMessages(null)
+        retryAttempt = 0
         failedUrl = null
-        errorOverlay?.visibility = View.GONE
+        overlay?.hide()
     }
 
-    private fun retryLoad() {
-        if (!stranded) return
-        val url = failedUrl ?: ORIGIN
-        hideLoadError()
-        bridge?.webView?.loadUrl(url)
+    // Triggered by the things that mean "conditions just changed": a tap on Try
+    // again, a usable network arriving, the app being reopened. Each earns a
+    // fresh quiet-retry budget.
+    private fun retryNow() {
+        if (overlay?.isShowing != true) return
+        retryAttempt = 0
+        loadRetry()
+    }
+
+    private fun loadRetry() {
+        retryHandler.removeCallbacksAndMessages(null)
+        overlay?.connecting()
+        bridge?.webView?.loadUrl(failedUrl ?: ORIGIN)
+    }
+
+    private fun showOverlay(): RecoveryOverlay {
+        overlay?.let { return it }
+        val ui = RecoveryOverlay()
+        overlay = ui
+        // Added to the content view now, i.e. after the splash view, so it
+        // covers a splash that never got hidden — hiding the splash is the web
+        // bridge's job, and by definition the web bridge didn't run.
+        addContentView(
+            ui.root,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        return ui
+    }
+
+    // Whether Android currently has a network it has actually validated as
+    // reaching the internet — "Wi-Fi connected, no internet" reads as false,
+    // which is exactly the case worth naming for the user. Unknown counts as
+    // usable: better to look like we're still trying than to wrongly accuse
+    // the user of being offline.
+    private fun hasUsableNetwork(): Boolean {
+        val cm = getSystemService(ConnectivityManager::class.java) ?: return true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     private fun dp(value: Int): Int =
@@ -880,22 +935,31 @@ class MainActivity : BridgeActivity() {
             resources.displayMetrics,
         ).toInt()
 
-    private fun buildErrorOverlay(): View {
-        val title = TextView(this).apply {
-            text = "Can't reach kcals"
+    // Full-bleed cover for the dead page, in the app's own dark palette so a
+    // stumble still looks like kcals rather than a stock Android error. Two
+    // states: a bare spinner while we retry quietly, and the explanation plus
+    // a Try again button once we've stopped pretending.
+    private inner class RecoveryOverlay {
+        private val spinner = ProgressBar(this@MainActivity).apply {
+            isIndeterminate = true
+            indeterminateTintList =
+                ColorStateList.valueOf(Color.parseColor(OVERLAY_PRIMARY))
+        }
+
+        private val title = TextView(this@MainActivity).apply {
             setTextColor(Color.parseColor(OVERLAY_TEXT))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             gravity = Gravity.CENTER
         }
-        val body = TextView(this).apply {
-            text = "You're offline, or the connection dropped while the app " +
-                "was in the background. Nothing has been lost."
+
+        private val body = TextView(this@MainActivity).apply {
             setTextColor(Color.parseColor(OVERLAY_MUTED))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             gravity = Gravity.CENTER
             setPadding(0, dp(10), 0, dp(24))
         }
-        val retry = Button(this).apply {
+
+        private val button = Button(this@MainActivity).apply {
             text = "Try again"
             isAllCaps = false
             setTextColor(Color.BLACK)
@@ -906,25 +970,58 @@ class MainActivity : BridgeActivity() {
             }
             stateListAnimator = null
             setPadding(dp(32), 0, dp(32), 0)
-            setOnClickListener { retryLoad() }
+            setOnClickListener { retryNow() }
         }
-        return LinearLayout(this).apply {
+
+        val root: View = LinearLayout(this@MainActivity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setBackgroundColor(Color.parseColor(OVERLAY_BG))
             setPadding(dp(32), dp(32), dp(32), dp(32))
-            // Swallow taps so nothing reaches the dead error page underneath.
+            // Swallow taps so nothing reaches the dead page underneath.
             isClickable = true
+            addView(spinner, LinearLayout.LayoutParams(dp(36), dp(36)))
             addView(title)
             addView(body)
             addView(
-                retry,
+                button,
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)),
             )
+        }
+
+        val isShowing: Boolean
+            get() = root.visibility == View.VISIBLE
+
+        fun connecting() = setState(spinnerVisible = true)
+
+        fun failed(offline: Boolean) {
+            title.text = if (offline) "You're offline" else "Can't reach kcals"
+            body.text = if (offline) {
+                "Reconnect to Wi-Fi or mobile data and kcals will pick up " +
+                    "where you left off."
+            } else {
+                "kcals didn't answer. Nothing has been lost — your data is " +
+                    "safe on the server."
+            }
+            setState(spinnerVisible = false)
+        }
+
+        fun hide() {
+            root.visibility = View.GONE
+        }
+
+        private fun setState(spinnerVisible: Boolean) {
+            spinner.visibility = if (spinnerVisible) View.VISIBLE else View.GONE
+            val message = if (spinnerVisible) View.GONE else View.VISIBLE
+            title.visibility = message
+            body.visibility = message
+            button.visibility = message
+            root.visibility = View.VISIBLE
         }
     }
 
     override fun onDestroy() {
+        retryHandler.removeCallbacksAndMessages(null)
         try {
             getSystemService(ConnectivityManager::class.java)
                 ?.unregisterNetworkCallback(networkCallback)
