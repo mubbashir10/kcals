@@ -6,4 +6,4 @@
 // native/android/app/build.gradle to the same number, rebuild, and publish a
 // GitHub release with the kcals.apk asset. `code` must be a monotonically
 // increasing integer (matches Android's versionCode).
-export const LATEST_ANDROID = { code: 11, name: "2.0" } as const;
+export const LATEST_ANDROID = { code: 12, name: "2.1" } as const;
