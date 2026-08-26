@@ -16,7 +16,7 @@ import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
 import { DayMealList } from "@/components/day-meal-list";
-import { DescribeMealLink } from "@/components/describe-meal-link";
+import { DescribeMealFab } from "@/components/describe-meal-link";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { WeightCard } from "@/components/weight-card";
@@ -240,19 +240,15 @@ export function DayDashboard({
                       <Plus className="h-3.5 w-3.5" />
                       Add food
                     </AppLink>
-                    <div className="mt-3">
-                      <DescribeMealLink dayKey={dayKey} />
-                    </div>
                   </Card>
                 ) : (
                   <>
                     <DayMealList items={mealItems} timezone={tz} />
-                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <div className="mt-4 flex justify-center">
                       <NewMealButton
                         suggestedName={suggestedMealName}
                         dayKey={dayKey}
                       />
-                      <DescribeMealLink dayKey={dayKey} />
                     </div>
                   </>
                 )}
@@ -267,6 +263,11 @@ export function DayDashboard({
           (x): x is SortableWidgetItem => x !== false
         )}
       />
+
+      {/* Clearance for the floating button, so the last widget can still be
+          scrolled clear of it. */}
+      <div aria-hidden className="h-20" />
+      <DescribeMealFab dayKey={dayKey} />
     </>
   );
 }

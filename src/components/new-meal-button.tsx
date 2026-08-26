@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles } from "lucide-react";
+import { UtensilsCrossed } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +48,7 @@ export function NewMealButton({
         onClick={() => setOpen(true)}
         className={dashedPill()}
       >
-        <Sparkles className="h-3.5 w-3.5" />
+        <UtensilsCrossed className="h-3.5 w-3.5" />
         New meal
       </button>
 
