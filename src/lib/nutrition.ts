@@ -120,6 +120,10 @@ export function roundNutrients(n: Nutrients): Nutrients {
 export const MAX_MACRO_G = 1000;
 export const MAX_MACRO_PER_100G = 100;
 
+// The heaviest single portion we'll accept. Anything more is a typo or bad
+// client state — nobody logs five kilos of one food in one row.
+export const MAX_PORTION_GRAMS = 5000;
+
 /**
  * Clamp a nutrient into [0, max] at storage precision. Nonsense (NaN, negative)
  * reads as 0 rather than throwing — these come from free-form entry and an

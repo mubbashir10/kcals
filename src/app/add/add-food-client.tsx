@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { dashedPill } from "@/lib/pill";
 import { cn, round1 } from "@/lib/utils";
 import {
   parseMacroInput,
@@ -38,6 +39,7 @@ import {
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
+import { DescribeMealLink } from "@/components/describe-meal-link";
 import { SearchInput } from "@/components/search-input";
 import { approveAiFood, logFood } from "./actions";
 
@@ -216,7 +218,7 @@ export function AddFoodClient({
           <button
             type="button"
             onClick={() => setQuickOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-4 text-xs font-medium text-muted-foreground transition-all hover:border-foreground/40 hover:bg-accent/40 hover:text-foreground"
+            className={dashedPill("sm")}
           >
             <Zap className="h-3 w-3" />
             Just add calories
@@ -224,11 +226,16 @@ export function AddFoodClient({
           <button
             type="button"
             onClick={() => setCustomOpen(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-4 text-xs font-medium text-muted-foreground transition-all hover:border-foreground/40 hover:bg-accent/40 hover:text-foreground"
+            className={dashedPill("sm")}
           >
             <BookmarkPlus className="h-3 w-3" />
             Save a custom food
           </button>
+          <DescribeMealLink
+            dayKey={dayKey}
+            size="sm"
+            label="Describe a whole meal"
+          />
         </div>
 
         <div className="mt-6">

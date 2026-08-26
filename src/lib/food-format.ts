@@ -9,6 +9,15 @@ export function titleCase(s: string): string {
     .join(" ");
 }
 
+/**
+ * How a food row's name is shown. Recipes keep the user's own capitalization
+ * — titleCase mangles the brand-y or stylized names people type — while
+ * everything else is normalized so mixed-case database rows line up.
+ */
+export function displayFoodName(f: { name: string; dataType: string }): string {
+  return f.dataType === "Recipe" ? f.name : titleCase(f.name);
+}
+
 export function dataTypeLabel(t: string): string {
   if (t === "Branded") return "Branded";
   if (t === "OpenFoodFacts") return "Branded";

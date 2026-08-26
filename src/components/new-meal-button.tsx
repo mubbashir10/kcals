@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMeal } from "@/app/actions/meals";
+import { dashedPill } from "@/lib/pill";
 
 export function NewMealButton({
   suggestedName,
@@ -45,7 +46,7 @@ export function NewMealButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full border border-dashed border-border bg-transparent px-5 text-sm font-medium text-foreground/80 transition-all hover:border-foreground/40 hover:bg-accent/40 hover:text-foreground"
+        className={dashedPill()}
       >
         <Sparkles className="h-3.5 w-3.5" />
         New meal

@@ -11,6 +11,7 @@ import {
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { placeholderMealsForDay } from "@/lib/default-meals";
+import { resolveMealOnDay } from "@/lib/meal-target";
 import { requireUserId } from "@/lib/session";
 import { revalidateDiary } from "@/lib/revalidate";
 
@@ -138,28 +139,15 @@ export async function ensureMealOnDay(
   const tz = await getProfileTimezone(userId);
   if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
 
-  const dayStart = startOfDayForDayKey(tz, dayKey);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  const existing = await db.meal.findFirst({
-    where: {
-      userId,
-      loggedAt: { gte: dayStart, lt: dayEnd },
-      name: { equals: name.trim(), mode: "insensitive" },
-    },
-    select: { id: true },
+  const { id, created } = await resolveMealOnDay(db, {
+    userId,
+    tz,
+    dayKey,
+    name,
+    timeHhmm,
   });
-  if (existing) return existing.id;
-
-  const meal = await db.meal.create({
-    data: {
-      userId,
-      name: name.trim(),
-      loggedAt: instantOnDayInTz(tz, dayKey, timeHhmm),
-    },
-    select: { id: true },
-  });
-  revalidateMeals();
-  return meal.id;
+  if (created) revalidateMeals();
+  return id;
 }
 
 export async function renameMeal(id: number, name: string) {

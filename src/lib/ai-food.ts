@@ -15,7 +15,10 @@
 // Server-side only — never import from a client component. Requires
 // GOOGLE_GENERATIVE_AI_API_KEY (get one at https://aistudio.google.com).
 
-import type { Nutrients } from "@/lib/nutrition";
+import { clampMacroG, MAX_MACRO_PER_100G, type Nutrients } from "@/lib/nutrition";
+import { db } from "@/lib/db";
+import { titleCase } from "@/lib/food-format";
+import { round1 } from "@/lib/utils";
 import { generateObject, generateText } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
@@ -169,4 +172,70 @@ export async function generateAiFood(
     console.error("[ai-food] generation failed", err);
     return null;
   }
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Persistence
+// ───────────────────────────────────────────────────────────────────────
+
+export type AiFoodDraft = {
+  name: string;
+  /** Per-100g, as generated. */
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  servingSizeG: number | null;
+  servingLabel: string | null;
+  aiModel: string;
+  aiSources: string[];
+};
+
+/**
+ * Persist an AI estimate into the shared food library as a CustomFood with
+ * source='AI'. Shared by the two places a user can approve one — tapping an
+ * AI search result, and confirming a described meal that fell through to
+ * research — so the same guards apply to both.
+ *
+ * Approval means "yes, this lives in our library now". Whether the food is
+ * then logged is a separate decision.
+ */
+export async function saveAiFood(
+  userId: string,
+  input: AiFoodDraft
+): Promise<number> {
+  // Title-case on the way in so AI foods live in the library looking like
+  // the manually-entered ones ("Qalmi Date", not "qalmi date") — the model
+  // is told to return a lowercase canonical name, so this is the gate that
+  // normalizes it for storage.
+  const name = titleCase(input.name.trim());
+  if (name.length === 0 || name.length > 120) {
+    throw new Error("Invalid name");
+  }
+  if (!Number.isFinite(input.kcal) || input.kcal <= 0 || input.kcal > 900) {
+    throw new Error("Implausible kcal");
+  }
+
+  const food = await db.customFood.create({
+    data: {
+      createdById: userId,
+      name,
+      brand: null,
+      kcal: round1(input.kcal),
+      proteinG: clampMacroG(input.proteinG, MAX_MACRO_PER_100G),
+      carbsG: clampMacroG(input.carbsG, MAX_MACRO_PER_100G),
+      fatG: clampMacroG(input.fatG, MAX_MACRO_PER_100G),
+      servingSizeG:
+        input.servingSizeG != null && input.servingSizeG > 0
+          ? round1(Math.min(input.servingSizeG, 5000))
+          : null,
+      servingLabel: input.servingLabel?.trim() || null,
+      source: "AI",
+      aiModel: input.aiModel,
+      // De-dup + cap so a chatty model can't bloat the row.
+      aiSources: Array.from(new Set(input.aiSources)).slice(0, 10),
+    },
+    select: { id: true },
+  });
+  return food.id;
 }

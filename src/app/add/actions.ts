@@ -12,10 +12,10 @@ import {
   isHhmm,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
-import { titleCase } from "@/lib/food-format";
+import { saveAiFood, type AiFoodDraft } from "@/lib/ai-food";
+import { ownedRecipeIds } from "@/lib/recipe-link";
 import { requireUserId } from "@/lib/session";
-import { persistableFdcId, round1 } from "@/lib/utils";
-import { clampMacroG, MAX_MACRO_PER_100G } from "@/lib/nutrition";
+import { persistableFdcId } from "@/lib/utils";
 import { revalidateDiary } from "@/lib/revalidate";
 
 const MEAL_JOIN_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -140,18 +140,9 @@ export async function logFood(
       mealId = meal.id;
     }
 
-    // A recipeId back-link is only valid for the user's own recipe. Friend
-    // recipes are logged as snapshots (recipeId null); drop any recipeId we
-    // don't own so a crafted request can't attach a diary row to someone
-    // else's Recipe.foods. Nutrients on the row stand alone either way.
-    let recipeId = input.recipeId ?? null;
-    if (recipeId != null) {
-      const owned = await tx.recipe.findFirst({
-        where: { id: recipeId, userId },
-        select: { id: true },
-      });
-      if (!owned) recipeId = null;
-    }
+    const owned = await ownedRecipeIds(tx, userId, [input.recipeId]);
+    const recipeId =
+      input.recipeId != null && owned.has(input.recipeId) ? input.recipeId : null;
 
     await tx.food.create({
       // Drop synthetic display-only fdcIds (local "Reference" rows sit below
@@ -171,69 +162,18 @@ export async function logFood(
   return result;
 }
 
-export type ApproveAiFoodInput = {
-  name: string;
-  kcal: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-  servingSizeG: number | null;
-  servingLabel: string | null;
-  aiModel: string;
-  aiSources: string[];
-};
+/** The payload saveAiFood takes — named for its caller, defined once. */
+export type ApproveAiFoodInput = AiFoodDraft;
 
 /**
  * Persists an AI-generated food estimate as a CustomFood with
  * source='AI'. Called when the user taps an AI search result — the tap
  * itself is the approval gate. Returns the new row's id so the client
  * can immediately drive the portion dialog against a real DB record.
- *
- * Whether the user actually logs the food after this is their call; the
- * approval is "yes, this lives in our shared library now."
  */
 export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> {
   const userId = await requireUserId();
-
-  // Title-case on the way in so AI foods live in the library looking like
-  // the manually-entered ones ("Qalmi Date", not "qalmi date") — the model
-  // is told to return a lowercase canonical name, so this is the gate that
-  // normalizes it for storage.
-  const name = titleCase(input.name.trim());
-  if (name.length === 0 || name.length > 120) {
-    throw new Error("Invalid name");
-  }
-  if (
-    !Number.isFinite(input.kcal) ||
-    input.kcal <= 0 ||
-    input.kcal > 900
-  ) {
-    throw new Error("Implausible kcal");
-  }
-
-  const food = await db.customFood.create({
-    data: {
-      createdById: userId,
-      name,
-      brand: null,
-      kcal: round1(input.kcal),
-      proteinG: clampMacroG(input.proteinG, MAX_MACRO_PER_100G),
-      carbsG: clampMacroG(input.carbsG, MAX_MACRO_PER_100G),
-      fatG: clampMacroG(input.fatG, MAX_MACRO_PER_100G),
-      servingSizeG:
-        input.servingSizeG != null && input.servingSizeG > 0
-          ? round1(Math.min(input.servingSizeG, 5000))
-          : null,
-      servingLabel: input.servingLabel?.trim() || null,
-      source: "AI",
-      aiModel: input.aiModel,
-      // De-dup + cap so a chatty model can't bloat the row.
-      aiSources: Array.from(new Set(input.aiSources)).slice(0, 10),
-    },
-  });
-
+  const id = await saveAiFood(userId, input);
   revalidatePath("/add");
-  return food.id;
+  return id;
 }
-
-
