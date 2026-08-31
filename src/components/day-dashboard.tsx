@@ -225,6 +225,13 @@ export function DayDashboard({
                     widgetId="meals"
                     label="Meals"
                     sort={normalizeMealSort(profile.mealSortDir)}
+                    // Nothing logged, nothing to reset — the item only shows
+                    // once the day has real meals to clear.
+                    reset={
+                      mealsCount > 0
+                        ? { dayKey, mealsCount, foodCount }
+                        : undefined
+                    }
                   />
                 </div>
 

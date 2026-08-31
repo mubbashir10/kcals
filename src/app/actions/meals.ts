@@ -6,6 +6,7 @@ import {
   dayKeyInTz,
   instantOnDayInTz,
   instantWithinDayInTz,
+  isDayKey,
   isFutureDayKey,
   startOfDayForDayKey,
 } from "@/lib/clock";
@@ -172,6 +173,25 @@ export async function updateMeal(
   }
   if (patch.loggedAt) data.loggedAt = patch.loggedAt;
   await db.meal.updateMany({ where: { id, userId }, data });
+  revalidateMeals();
+}
+
+// Wipe a day back to empty: delete every meal logged on `dayKey` (in the
+// user's timezone), taking their foods with them by cascade. A food belongs
+// to its meal's day, never its own timestamp (see lib/food-day.ts), so the
+// day's meals ARE the day's food — a food stamped after midnight goes with
+// the meal it sits in, and nothing logged against another day is touched.
+// Activity, weight and the day's defaults are left alone; the untouched
+// default meals reappear as placeholders, which is what makes it a reset.
+export async function resetDay(dayKey: string) {
+  const userId = await requireUserId();
+  if (!isDayKey(dayKey)) throw new Error("Invalid date");
+  const tz = await getProfileTimezone(userId);
+  const dayStart = startOfDayForDayKey(tz, dayKey);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  await db.meal.deleteMany({
+    where: { userId, loggedAt: { gte: dayStart, lt: dayEnd } },
+  });
   revalidateMeals();
 }
 
