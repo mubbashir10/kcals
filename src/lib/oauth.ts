@@ -193,8 +193,14 @@ async function fetchClientMetadataDocument(
     // The document must name itself, or anyone could point at someone
     // else's metadata and borrow its redirect URIs.
     if (doc.client_id !== clientId) return null;
-    const method = doc.token_endpoint_auth_method;
-    if (method !== undefined && method !== "none") return null;
+    // kcals takes a metadata-document client as public (PKCE, no secret), so
+    // the client has to support "none" — but needn't prefer it. ChatGPT's
+    // document prefers private_key_jwt and lists "none" too; it picks from
+    // the methods both sides support, which here is just "none".
+    const methods = Array.isArray(doc.token_endpoint_auth_methods_supported)
+      ? doc.token_endpoint_auth_methods_supported
+      : [doc.token_endpoint_auth_method ?? "none"];
+    if (!methods.includes("none")) return null;
     const redirectUris = Array.isArray(doc.redirect_uris)
       ? doc.redirect_uris.filter(
           (u): u is string => typeof u === "string" && isAllowedRedirectUri(u)
@@ -240,19 +246,14 @@ export async function registerClient(input: unknown): Promise<OAuthResult> {
     );
   }
 
-  // Public (PKCE-only) unless the client asks for a secret.
-  const method = meta.token_endpoint_auth_method ?? "none";
-  if (
-    method !== "none" &&
-    method !== "client_secret_post" &&
-    method !== "client_secret_basic"
-  ) {
-    return oauthError(
-      400,
-      OAuthErrorCode.InvalidClientMetadata,
-      `Unsupported token_endpoint_auth_method: ${String(method)}`
-    );
-  }
+  // Public (PKCE-only) unless the client asks for a secret. A method kcals
+  // doesn't do (private_key_jwt, say) gets "none" back rather than a refusal:
+  // RFC 7591 lets the server substitute, and the client uses what it's told.
+  const requested = meta.token_endpoint_auth_method;
+  const method =
+    requested === "client_secret_post" || requested === "client_secret_basic"
+      ? requested
+      : "none";
   if (
     Array.isArray(meta.grant_types) &&
     !meta.grant_types.includes("authorization_code")
