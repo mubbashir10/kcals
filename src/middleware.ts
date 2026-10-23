@@ -14,7 +14,10 @@ export default auth((req) => {
 
   if (!req.auth && !isPublic) {
     const signInUrl = new URL("/signin", req.nextUrl);
-    if (pathname !== "/") signInUrl.searchParams.set("from", pathname);
+    // Keep the query: the OAuth consent screen is nothing without its params.
+    if (pathname !== "/") {
+      signInUrl.searchParams.set("from", pathname + req.nextUrl.search);
+    }
     return NextResponse.redirect(signInUrl);
   }
 
@@ -39,7 +42,10 @@ export const config = {
   // `native/auth` covers the Capacitor OAuth handoff: /start and /finish run
   // in the system browser and /consume runs in the WebView before its session
   // cookie exists, so none of them can sit behind the auth redirect.
+  // `api/mcp` and `api/oauth` are for AI assistants, which carry a bearer
+  // token instead of a cookie and check it themselves (see src/lib/oauth.ts);
+  // only the human-facing /oauth/authorize consent page stays behind sign-in.
   matcher: [
-    "/((?!api/auth|api/app-version|native/auth/|install|download|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|api/app-version|api/mcp|api/oauth/|native/auth/|install|download|_next/static|_next/image|favicon.ico|icon|apple-icon|logo.svg|manifest.webmanifest|screenshot-|\\.well-known|sw.js|opengraph-image|twitter-image|robots.txt|sitemap.xml).*)",
   ],
 };

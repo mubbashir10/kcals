@@ -19,26 +19,26 @@ export type LoadDailyStatsOptions = {
   readOnly?: boolean;
 };
 
-export async function loadDailyStats(
-  userId: string,
-  now: Date = new Date(),
+type LoadedProfile = NonNullable<
+  Awaited<ReturnType<typeof db.profile.findUnique>>
+>;
+
+/**
+ * Today's snapshot must track the *current* profile — a stale stored TDEE
+ * would freeze the calorie goal while edits to steps or weight moved the
+ * numbers around it. Rebuild from the row's override, then refresh the row
+ * whenever it drifts (which also back-fills rows predating the snapshot
+ * columns). Everything that reads today's burn reads it after this.
+ */
+export async function syncTodaySnapshot(
+  profile: LoadedProfile,
+  todayKey: string,
   opts: LoadDailyStatsOptions = {}
 ) {
-  const profile = await db.profile.findUnique({ where: { userId } });
-  if (!profile) return null;
-
-  const tz = profile.timezone || "UTC";
-  const todayKey = dayKeyInTz(tz, now);
-
+  const { userId } = profile;
   let todayActivity = await db.activityLog.findUnique({
     where: { userId_dayKey: { userId, dayKey: todayKey } },
   });
-
-  // Today's snapshot must track the *current* profile — this function only ever
-  // runs for "today", so a stale stored TDEE would freeze the calorie goal while
-  // edits to steps or weight moved the numbers around it. Rebuild from the row's
-  // override, then refresh the row whenever it drifts (which also back-fills
-  // rows predating the snapshot columns). Everything below reads this snapshot.
   const snapshot = buildDailySnapshot(profile, todayActivity);
   const snapshotFields = snapshot.columns;
 
@@ -63,6 +63,26 @@ export async function loadDailyStats(
       });
     }
   }
+  return { todayActivity, snapshot };
+}
+
+export async function loadDailyStats(
+  userId: string,
+  now: Date = new Date(),
+  opts: LoadDailyStatsOptions = {}
+) {
+  const profile = await db.profile.findUnique({ where: { userId } });
+  if (!profile) return null;
+
+  const tz = profile.timezone || "UTC";
+  const todayKey = dayKeyInTz(tz, now);
+
+  const { todayActivity, snapshot } = await syncTodaySnapshot(
+    profile,
+    todayKey,
+    opts
+  );
+  const snapshotFields = snapshot.columns;
 
   // The snapshot already decided this-day-vs-typical-day, so reading its
   // breakdown back keeps the displayed terms and the stored TDEE in agreement.

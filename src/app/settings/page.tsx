@@ -1,9 +1,15 @@
+import { headers } from "next/headers";
 import { ArrowLeft } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
 import { requireProfile } from "@/lib/session";
 import type { Units } from "@/lib/bmr";
+import { formatRelativeDateInTz } from "@/lib/clock";
+import { db } from "@/lib/db";
+import { mcpResourceUrl } from "@/lib/oauth";
+import { getRequestOrigin } from "@/lib/site";
+import { AssistantSettings } from "@/components/assistant-settings";
 import { parseWidgetStates } from "@/lib/widget-order";
 import { ThemeSettings } from "@/components/theme-settings";
 import { UnitsSettings } from "@/components/units-settings";
@@ -17,8 +23,17 @@ import { listDefaultMeals } from "@/app/actions/default-meals";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { profile } = await requireProfile();
-  const defaultMeals = await listDefaultMeals();
+  const { userId, profile } = await requireProfile();
+  const [defaultMeals, grants, requestHeaders] = await Promise.all([
+    listDefaultMeals(),
+    db.oAuthGrant.findMany({
+      where: { userId, refreshExpiresAt: { gt: new Date() } },
+      orderBy: { lastUsedAt: "desc" },
+      select: { id: true, clientName: true, lastUsedAt: true },
+    }),
+    headers(),
+  ]);
+  const tz = profile.timezone || "UTC";
 
   return (
     <div className="relative flex flex-1 flex-col">
@@ -59,6 +74,14 @@ export default async function SettingsPage() {
           </Card>
           <DefaultMealsSettings initial={defaultMeals} />
           <HealthConnectSettings enabled={profile.healthSync} />
+          <AssistantSettings
+            mcpUrl={mcpResourceUrl(getRequestOrigin(requestHeaders))}
+            connections={grants.map((g) => ({
+              id: g.id,
+              name: g.clientName,
+              lastActive: formatRelativeDateInTz(g.lastUsedAt, tz),
+            }))}
+          />
         </section>
 
         <section className="space-y-3">

@@ -9,6 +9,7 @@ import {
   isDayKey,
   isFutureDayKey,
   startOfDayForDayKey,
+  timeInputValueInTz,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
 import { placeholderMealsForDay } from "@/lib/default-meals";
@@ -130,22 +131,31 @@ export async function listMealsOnDay(dayKey: string): Promise<MealOption[]> {
  * first use. Matches on name (case-insensitive), the same rule that decides
  * whether a placeholder is already "satisfied" — so this is idempotent and a
  * double-click can't produce two meals.
+ *
+ * Without a `timeHhmm`, a meal that has to be created goes at the user's usual
+ * time for it — their default meal of that name — or else now.
  */
 export async function ensureMealOnDay(
   dayKey: string,
   name: string,
-  timeHhmm: string
+  timeHhmm?: string
 ): Promise<number> {
   const userId = await requireUserId();
   const tz = await getProfileTimezone(userId);
   if (isFutureDayKey(tz, dayKey)) throw new Error("Cannot log a future date");
 
+  const usual = timeHhmm
+    ? null
+    : await db.defaultMeal.findFirst({
+        where: { userId, name: { equals: name.trim(), mode: "insensitive" } },
+        select: { timeHhmm: true },
+      });
   const { id, created } = await resolveMealOnDay(db, {
     userId,
     tz,
     dayKey,
     name,
-    timeHhmm,
+    timeHhmm: timeHhmm ?? usual?.timeHhmm ?? timeInputValueInTz(new Date(), tz),
   });
   if (created) revalidateMeals();
   return id;

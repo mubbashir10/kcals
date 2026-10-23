@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Check, Copy, Link2, Mail, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cancelFriendInvite } from "@/app/actions/friends";
+import { useCopy } from "@/lib/use-copy";
 
 export function PendingInviteRow({
   id,
@@ -18,22 +19,13 @@ export function PendingInviteRow({
   createdAt: string;
 }) {
   const [pending, startTransition] = useTransition();
-  const [copied, setCopied] = useState(false);
+  const [copied, copyText] = useCopy();
 
   const url =
     typeof window !== "undefined"
       ? `${window.location.origin}/friends/accept/${token}`
       : `/friends/accept/${token}`;
 
-  function copy() {
-    navigator.clipboard
-      ?.writeText(url)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1800);
-      })
-      .catch(() => {});
-  }
 
   function cancel() {
     startTransition(async () => {
@@ -58,7 +50,7 @@ export function PendingInviteRow({
         type="button"
         variant="outline"
         size="icon-sm"
-        onClick={copy}
+        onClick={() => copyText(url)}
         aria-label="Copy invite link"
       >
         {copied ? (

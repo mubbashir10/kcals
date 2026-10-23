@@ -220,6 +220,15 @@ export async function addRecipeIngredient(
   recipeId: number,
   input: RecipeIngredientInput
 ): Promise<number> {
+  const [id] = await addRecipeIngredients(recipeId, [input]);
+  return id;
+}
+
+/** Append several ingredients in order — a whole recipe in one insert. */
+export async function addRecipeIngredients(
+  recipeId: number,
+  inputs: RecipeIngredientInput[]
+): Promise<number[]> {
   const userId = await requireUserId();
   // Ownership check on the parent recipe before touching ingredients.
   const owned = await db.recipe.findFirst({
@@ -228,7 +237,7 @@ export async function addRecipeIngredient(
   });
   if (!owned) throw new Error("Recipe not found");
 
-  const data = validateIngredient(input);
+  const data = inputs.map(validateIngredient);
   // Append at the end. We use a simple max+1; the builder UI is single-user
   // and one-at-a-time so no race to design around.
   const last = await db.recipeIngredient.findFirst({
@@ -236,13 +245,14 @@ export async function addRecipeIngredient(
     orderBy: { position: "desc" },
     select: { position: true },
   });
-  const position = (last?.position ?? -1) + 1;
+  const first = (last?.position ?? -1) + 1;
 
-  const row = await db.recipeIngredient.create({
-    data: { recipeId, position, ...data },
+  const rows = await db.recipeIngredient.createManyAndReturn({
+    data: data.map((d, i) => ({ recipeId, position: first + i, ...d })),
+    select: { id: true },
   });
   revalidatePath(`/recipes/${recipeId}`);
-  return row.id;
+  return rows.map((r) => r.id);
 }
 
 export async function updateRecipeIngredientGrams(

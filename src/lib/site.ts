@@ -24,6 +24,23 @@ export function getSiteUrl(): string {
   return "http://localhost:3000";
 }
 
+/**
+ * The origin this request actually reached us on, from the proxy's forwarded
+ * headers. Use it instead of getSiteUrl() only where the URL must match the
+ * host the client is talking to — the OAuth documents for MCP, whose issuer
+ * and resource URLs clients check against each other — so production,
+ * previews and localhost each describe themselves.
+ */
+export function getRequestOrigin(headers: Headers): string {
+  const host =
+    headers.get("x-forwarded-host")?.split(",")[0].trim() || headers.get("host");
+  if (!host) return getSiteUrl();
+  const proto =
+    headers.get("x-forwarded-proto")?.split(",")[0].trim() ||
+    (/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 export function getSiteHost(): string {
   try {
     return new URL(getSiteUrl()).host;

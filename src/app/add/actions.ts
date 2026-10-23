@@ -61,6 +61,19 @@ export async function logFood(
   input: LogFoodInput,
   options: LogFoodOptions = {}
 ): Promise<{ mealId: number; createdMeal: boolean }> {
+  return logFoods([input], options);
+}
+
+/**
+ * `logFood` for several foods eaten together: one meal, one transaction —
+ * a half-written meal is worse than a failed one, since retrying it would
+ * log the first half twice. Used by the MCP log_foods tool.
+ */
+export async function logFoods(
+  inputs: LogFoodInput[],
+  options: LogFoodOptions = {}
+): Promise<{ mealId: number; createdMeal: boolean }> {
+  if (inputs.length === 0) throw new Error("Nothing to log");
   const userId = await requireUserId();
   const dayKey = options.dayKey ?? null;
 
@@ -137,14 +150,24 @@ export async function logFood(
       mealId = meal.id;
     }
 
-    const owned = await ownedRecipeIds(tx, userId, [input.recipeId]);
-    const recipeId =
-      input.recipeId != null && owned.has(input.recipeId) ? input.recipeId : null;
-
-    await tx.food.create({
-      // Drop synthetic display-only fdcIds (local "Reference" rows sit below
-      // int4's minimum and would throw on insert) — store null for those.
-      data: { ...input, recipeId, mealId, fdcId: persistableFdcId(input.fdcId) },
+    const owned = await ownedRecipeIds(
+      tx,
+      userId,
+      inputs.map((i) => i.recipeId)
+    );
+    const base = Date.now();
+    await tx.food.createMany({
+      data: inputs.map((input, i) => ({
+        ...input,
+        recipeId:
+          input.recipeId != null && owned.has(input.recipeId) ? input.recipeId : null,
+        mealId,
+        // Drop synthetic display-only fdcIds (local "Reference" rows sit below
+        // int4's minimum and would throw on insert) — store null for those.
+        fdcId: persistableFdcId(input.fdcId),
+        // A millisecond apart, so a batch keeps its order within the meal.
+        loggedAt: new Date(base + i),
+      })),
     });
 
     return { mealId, createdMeal };
