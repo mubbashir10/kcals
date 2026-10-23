@@ -1,7 +1,5 @@
 // The food search ladder — every source the app knows about, in the order
-// the UI groups them. Extracted from /api/foods/search so the AI meal
-// parser resolves its items against exactly the same rows the search box
-// would have shown, instead of a second, quietly-different lookup.
+// the UI groups them.
 //
 // Server-side only (touches the DB, USDA and Open Food Facts).
 
@@ -45,7 +43,7 @@ export type FoodSearchResult = UsdaFood & {
  * Every source, ranked "closest to the user first": foods they've logged
  * before → foods they saved → their recipes → friends' recipes → the
  * shared databases (curated local reference, then community customs, then
- * branded USDA/OFF) → AI-generated rows last.
+ * branded USDA/OFF) → AI-added rows last.
  *
  * The two external sources degrade to [] on their own, so a throw out of
  * here means our own database is down.
@@ -74,9 +72,7 @@ export async function searchFoodLadder(
   // USDA + Open Food Facts in parallel. Recent diary rows lead the
   // result ladder so re-logging a food you already eat is the first,
   // zero-friction hit. OFF fills the gap for regional packaged brands
-  // (e.g. Dawn, Olper's) that USDA doesn't carry. The AI fallback is not
-  // part of this ladder — callers reach for it only once this comes back
-  // empty (see /api/foods/search/ai and lib/ai-meal.ts).
+  // (e.g. Dawn, Olper's) that USDA doesn't carry.
   const [recentLogged, usdaFoods, customFoods, offFoods, recipes, friendRecipes] =
     await Promise.all([
       // Foods this user has logged before. Exclude recipe-logged rows

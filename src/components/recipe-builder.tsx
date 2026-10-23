@@ -37,7 +37,6 @@ import { scaleFrom100g } from "@/lib/nutrition";
 import { dataTypeLabel, titleCase } from "@/lib/food-format";
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { computeRecipeTotals } from "@/lib/recipe-totals";
-import { approveAiFood } from "@/app/add/actions";
 import {
   addRecipeIngredient,
   deleteRecipe,
@@ -49,9 +48,7 @@ import {
 
 // Shape of a search result from /api/foods/search. The recipe builder
 // re-uses the same endpoint as the /add page, so any food in the library
-// (USDA, OFF, community Custom, AI-approved) can become an ingredient.
-// AI preview rows from /api/foods/search/ai also carry aiModel/aiSources
-// so the parent can approve them before opening the portion dialog.
+// (USDA, OFF, community Custom, AI-added) can become an ingredient.
 
 export type RecipeBuilderIngredient = {
   id: number;
@@ -79,51 +76,12 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
   const [editMetaOpen, setEditMetaOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<SearchFood | null>(null);
-  // Which AI preview row is currently being approved — used to show a
-  // spinner on just that row while we persist it to CustomFood.
-  const [approvingAiId, setApprovingAiId] = useState<number | null>(null);
   const [editingIng, setEditingIng] = useState<RecipeBuilderIngredient | null>(
     null
   );
   const [, startTransition] = useTransition();
 
   const totals = computeRecipeTotals(recipe);
-
-  // Search-result tap → portion dialog. AI previews are approved first
-  // (persisted as a CustomFood with source='AI'), so the ingredient gets
-  // a stable fdcId pointer (-customFoodId) instead of the transient
-  // preview id. Mirrors /add's onResultSelect.
-  async function onSearchSelect(food: SearchFood) {
-    if (food.dataType !== "AI" || food.aiModel == null) {
-      setSelected(food);
-      return;
-    }
-    setApprovingAiId(food.fdcId);
-    try {
-      const newId = await approveAiFood({
-        name: food.name,
-        kcal: food.per100g.kcal,
-        proteinG: food.per100g.proteinG,
-        carbsG: food.per100g.carbsG,
-        fatG: food.per100g.fatG,
-        servingSizeG: food.servingSizeG,
-        servingLabel: food.servingLabel,
-        aiModel: food.aiModel,
-        aiSources: food.aiSources ?? [],
-      });
-      setSelected({
-        ...food,
-        fdcId: -newId,
-        // Keep the AI badge in the portion dialog so the user is still
-        // reminded these are estimates as they pick a serving.
-        dataType: "AI",
-      });
-    } catch (err) {
-      console.error("AI approval failed", err);
-    } finally {
-      setApprovingAiId(null);
-    }
-  }
 
   async function onAddIngredient(food: SearchFood, grams: number) {
     startTransition(async () => {
@@ -312,8 +270,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
           <div className="h-px flex-1 bg-border/60" />
         </div>
         <IngredientSearch
-          onSelect={onSearchSelect}
-          approvingAiId={approvingAiId}
+          onSelect={setSelected}
           currentRecipeId={recipe.id}
         />
       </section>
@@ -423,15 +380,14 @@ function InlineRecipeName({
 
 function IngredientSearch({
   onSelect,
-  approvingAiId,
   currentRecipeId,
 }: {
   onSelect: (food: SearchFood) => void;
-  approvingAiId: number | null;
   currentRecipeId: number;
 }) {
-  const { query, setQuery, results, loading, error, aiResult, aiLoading } =
-    useFoodSearch({ excludeRecipeId: currentRecipeId });
+  const { query, setQuery, results, loading, error } = useFoodSearch({
+    excludeRecipeId: currentRecipeId,
+  });
 
   return (
     <div>
@@ -471,54 +427,9 @@ function IngredientSearch({
         )}
 
         {!loading && !error && query.trim().length >= 2 && results.length === 0 && (
-          <div className="space-y-3 px-1 text-sm">
-            {aiLoading && (
-              // Combined "not in DB → trying web AI" indicator. One block
-              // so the user reads it as a single narrative — "not in our
-              // stuff, checking the web" — instead of two separate misses.
-              <div className="flex items-start gap-3 rounded-2xl border border-dashed border-foreground/30 bg-card/40 p-4">
-                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-foreground/60" />
-                <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-medium">
-                    Not in our databases — searching the web with AI…
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Asking Gemini to estimate nutrition for &ldquo;
-                    {query.trim()}&rdquo; from public sources.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {!aiLoading && aiResult && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 px-1">
-                  <Sparkles className="h-3 w-3 text-foreground/60" />
-                  <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                    AI estimate
-                  </span>
-                  <div className="h-px flex-1 bg-border/60" />
-                </div>
-                <AiIngredientRow
-                  food={aiResult}
-                  pending={approvingAiId === aiResult.fdcId}
-                  onSelect={onSelect}
-                />
-                <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/70">
-                  Generated from web search. Tap to save to the community
-                  library and add as an ingredient — double-check the numbers
-                  before relying on them.
-                </p>
-              </div>
-            )}
-
-            {!aiLoading && !aiResult && (
-              <p className="text-muted-foreground">
-                Couldn&rsquo;t find &ldquo;{query.trim()}&rdquo; in our
-                databases or via web search.
-              </p>
-            )}
-          </div>
+          <p className="px-1 text-sm text-muted-foreground">
+            Couldn&rsquo;t find &ldquo;{query.trim()}&rdquo; in our databases.
+          </p>
         )}
 
         {!loading && results.length > 0 && (
@@ -559,59 +470,6 @@ function IngredientSearch({
         )}
       </div>
     </div>
-  );
-}
-
-function AiIngredientRow({
-  food: f,
-  pending,
-  onSelect,
-}: {
-  food: SearchFood;
-  pending: boolean;
-  onSelect: (f: SearchFood) => void;
-}) {
-  const confidence = f.aiConfidence;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(f)}
-      disabled={pending}
-      className="group flex w-full items-center justify-between rounded-2xl border border-dashed border-foreground/30 bg-card p-4 text-left transition-all hover:border-foreground/60 hover:shadow-sm disabled:cursor-wait disabled:opacity-70"
-    >
-      <div className="min-w-0 flex-1 pr-4">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3 w-3 shrink-0 text-foreground/60" />
-          <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
-        </div>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          AI estimate
-          {confidence && confidence !== "high" && (
-            <> · {confidence} confidence</>
-          )}
-          {f.aiSources && f.aiSources.length > 0 && (
-            <> · {f.aiSources.length} source{f.aiSources.length === 1 ? "" : "s"}</>
-          )}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="text-right">
-          <div className="text-sm font-semibold tabular-nums">
-            {Math.round(f.per100g.kcal)}
-          </div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            kcal/100g
-          </div>
-        </div>
-        <div className="grid h-7 w-7 place-items-center rounded-full bg-muted transition-colors group-hover:bg-foreground group-hover:text-background">
-          {pending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Plus className="h-3.5 w-3.5" />
-          )}
-        </div>
-      </div>
-    </button>
   );
 }
 

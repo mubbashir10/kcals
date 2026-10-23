@@ -16,7 +16,6 @@ import { DayHero, type WeekSummary } from "@/components/day-hero";
 import { FriendsStrip } from "@/components/friends-strip";
 import { MaintenanceCard } from "@/components/maintenance-card";
 import { DayMealList } from "@/components/day-meal-list";
-import { DescribeMealFab } from "@/components/describe-meal-link";
 import { NewMealButton } from "@/components/new-meal-button";
 import { SectionWidgetMenu } from "@/components/section-widget-menu";
 import { WeightCard } from "@/components/weight-card";
@@ -270,11 +269,6 @@ export function DayDashboard({
           (x): x is SortableWidgetItem => x !== false
         )}
       />
-
-      {/* Clearance for the floating button, so the last widget can still be
-          scrolled clear of it. */}
-      <div aria-hidden className="h-20" />
-      <DescribeMealFab dayKey={dayKey} />
     </>
   );
 }

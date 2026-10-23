@@ -64,8 +64,8 @@ export default async function FoodsPage() {
             <Apple className="mx-auto h-6 w-6 text-muted-foreground/50" />
             <p className="mt-4 text-sm text-muted-foreground">No foods yet.</p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              Foods you save as custom — or accept from an AI estimate when
-              searching — show up here, ready to add to any meal.
+              Foods you save as custom show up here, ready to add to any
+              meal.
             </p>
             <AppLink
               href="/add"

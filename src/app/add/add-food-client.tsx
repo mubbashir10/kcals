@@ -39,9 +39,8 @@ import {
 import { useFoodSearch, type SearchFood } from "@/lib/use-food-search";
 import { formatTimeInTz } from "@/lib/clock";
 import { CustomFoodDialog } from "@/components/custom-food-dialog";
-import { DescribeMealLink } from "@/components/describe-meal-link";
 import { SearchInput } from "@/components/search-input";
-import { approveAiFood, logFood } from "./actions";
+import { logFood } from "./actions";
 
 type Food = SearchFood;
 
@@ -98,8 +97,6 @@ export function AddFoodClient({
     results,
     loading,
     error: searchError,
-    aiResult,
-    aiLoading,
   } = useFoodSearch();
   const [selected, setSelected] = useState<Food | null>(null);
 
@@ -126,10 +123,6 @@ export function AddFoodClient({
   const [quickOpen, setQuickOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
 
-  // Which AI preview is mid-approval — keeps a spinner on just that row
-  // while we persist it to CustomFood.
-  const [approvingAiId, setApprovingAiId] = useState<number | null>(null);
-
   // A food was logged. Close whatever dialog was open and stay put so the user
   // can keep adding. Point the target at the meal we just wrote to — for a
   // brand-new meal that means the *next* food appends here instead of opening
@@ -141,41 +134,6 @@ export function AddFoodClient({
     setQuickOpen(false);
     setTarget({ kind: "existing", mealId });
     if (createdMeal) router.refresh();
-  }
-
-  async function onResultSelect(food: Food) {
-    if (food.dataType !== "AI" || food.aiModel == null) {
-      setSelected(food);
-      return;
-    }
-    // Approve = persist to CustomFood (source='AI'), then drive the
-    // portion dialog against the real DB row. Logging or canceling
-    // afterwards is independent — the entry is saved either way.
-    setApprovingAiId(food.fdcId);
-    try {
-      const newId = await approveAiFood({
-        name: food.name,
-        kcal: food.per100g.kcal,
-        proteinG: food.per100g.proteinG,
-        carbsG: food.per100g.carbsG,
-        fatG: food.per100g.fatG,
-        servingSizeG: food.servingSizeG,
-        servingLabel: food.servingLabel,
-        aiModel: food.aiModel,
-        aiSources: food.aiSources ?? [],
-      });
-      setSelected({
-        ...food,
-        fdcId: -newId,
-        // Keep the AI badge in the portion dialog so the user is still
-        // reminded these are estimates as they pick a serving.
-        dataType: "AI",
-      });
-    } catch (err) {
-      console.error("AI approval failed", err);
-    } finally {
-      setApprovingAiId(null);
-    }
   }
 
   return (
@@ -231,11 +189,6 @@ export function AddFoodClient({
             <BookmarkPlus className="h-3 w-3" />
             Save a custom food
           </button>
-          <DescribeMealLink
-            dayKey={dayKey}
-            size="sm"
-            label="Describe a whole meal"
-          />
         </div>
 
         <div className="mt-6">
@@ -248,10 +201,6 @@ export function AddFoodClient({
           {!loading && !searchError && query.trim().length >= 2 && results.length === 0 && (
             <NoMatchesBlock
               query={query.trim()}
-              aiLoading={aiLoading}
-              aiResult={aiResult}
-              approvingAiId={approvingAiId}
-              onSelectAi={onResultSelect}
               onQuickAdd={() => setQuickOpen(true)}
             />
           )}
@@ -295,56 +244,56 @@ export function AddFoodClient({
                   <ResultGroup
                     label={showLabels ? "Recently logged" : null}
                     foods={recent}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {myFoods.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "My foods" : null}
                     foods={myFoods}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {recipes.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "My recipes" : null}
                     foods={recipes}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {friendRecipes.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Friends' recipes" : null}
                     foods={friendRecipes}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {whole.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Reference" : null}
                     foods={whole}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {custom.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Community" : null}
                     foods={custom}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {branded.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "Branded" : null}
                     foods={branded}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
                 {aiCommunity.length > 0 && (
                   <ResultGroup
                     label={showLabels ? "AI-added" : null}
                     foods={aiCommunity}
-                    onSelect={onResultSelect}
+                    onSelect={setSelected}
                   />
                 )}
               </div>
@@ -561,133 +510,27 @@ function ResultRow({
 
 function NoMatchesBlock({
   query,
-  aiLoading,
-  aiResult,
-  approvingAiId,
-  onSelectAi,
   onQuickAdd,
 }: {
   query: string;
-  aiLoading: boolean;
-  aiResult: Food | null;
-  approvingAiId: number | null;
-  onSelectAi: (f: Food) => void;
   onQuickAdd: () => void;
 }) {
-  // Three branches: AI still working, AI returned a result, or AI gave
-  // up too. The "Just log calories" escape hatch is always available
-  // once we've exhausted the search options.
+  // Every source came back empty — the "Just log calories" escape hatch
+  // keeps the user moving.
   return (
-    <div className="space-y-3 px-1 text-sm">
-      {aiLoading && (
-        // Combined "not in DB → trying web AI" indicator. One block so
-        // the user reads it as a single narrative — "not in our stuff,
-        // checking the web" — rather than two separate failures.
-        <div className="flex items-start gap-3 rounded-2xl border border-dashed border-foreground/30 bg-card/40 p-4">
-          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-foreground/60" />
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium">
-              Not in our databases — searching the web with AI…
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Asking Gemini to estimate nutrition for &ldquo;{query}&rdquo;
-              from public sources.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {!aiLoading && aiResult && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles className="h-3 w-3 text-foreground/60" />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              AI estimate
-            </span>
-            <div className="h-px flex-1 bg-border/60" />
-          </div>
-          <AiResultRow
-            food={aiResult}
-            pending={approvingAiId === aiResult.fdcId}
-            onSelect={onSelectAi}
-          />
-          <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/70">
-            Generated from web search. Tap to save to the community library and
-            log a portion — double-check the numbers before relying on them.
-          </p>
-        </div>
-      )}
-
-      {!aiLoading && !aiResult && (
-        <div className="space-y-2">
-          <p className="text-muted-foreground">
-            Couldn&rsquo;t find &ldquo;{query}&rdquo; in our databases or via
-            web search.
-          </p>
-          <button
-            type="button"
-            onClick={onQuickAdd}
-            className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            <Zap className="h-3 w-3" />
-            Just log the calories
-          </button>
-        </div>
-      )}
+    <div className="space-y-2 px-1 text-sm">
+      <p className="text-muted-foreground">
+        Couldn&rsquo;t find &ldquo;{query}&rdquo; in our databases.
+      </p>
+      <button
+        type="button"
+        onClick={onQuickAdd}
+        className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-4 hover:underline"
+      >
+        <Zap className="h-3 w-3" />
+        Just log the calories
+      </button>
     </div>
-  );
-}
-
-function AiResultRow({
-  food: f,
-  pending,
-  onSelect,
-}: {
-  food: Food;
-  pending: boolean;
-  onSelect: (f: Food) => void;
-}) {
-  const confidence = f.aiConfidence;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(f)}
-      disabled={pending}
-      className="group flex w-full items-center justify-between rounded-2xl border border-dashed border-foreground/30 bg-card p-4 text-left transition-all hover:border-foreground/60 hover:shadow-sm disabled:cursor-wait disabled:opacity-70"
-    >
-      <div className="min-w-0 flex-1 pr-4">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3 w-3 shrink-0 text-foreground/60" />
-          <p className="truncate text-sm font-medium">{titleCase(f.name)}</p>
-        </div>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-          AI estimate
-          {confidence && confidence !== "high" && (
-            <> · {confidence} confidence</>
-          )}
-          {f.aiSources && f.aiSources.length > 0 && (
-            <> · {f.aiSources.length} source{f.aiSources.length === 1 ? "" : "s"}</>
-          )}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <div className="text-right">
-          <div className="text-sm font-semibold tabular-nums">
-            {Math.round(f.per100g.kcal)}
-          </div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            kcal/100g
-          </div>
-        </div>
-        <div className="grid h-7 w-7 place-items-center rounded-full bg-muted transition-colors group-hover:bg-foreground group-hover:text-background">
-          {pending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Plus className="h-3.5 w-3.5" />
-          )}
-        </div>
-      </div>
-    </button>
   );
 }
 
@@ -695,9 +538,7 @@ function AiResultRow({
  * Visible source ladder shown while the local search is in flight.
  * Surfaces the order we check, closest-to-the-user first: recently logged
  * → saved foods → recipes → reference → community → USDA → Open Food
- * Facts. The AI fallback gets its own block (NoMatchesBlock) because it
- * only runs after these return empty, and it's the only tier with
- * non-local latency worth a distinct UX.
+ * Facts.
  */
 function SourceLadder() {
   const sources = [

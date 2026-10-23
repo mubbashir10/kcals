@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { db } from "@/lib/db";
 import {
   autoMealNameInTz,
@@ -12,7 +10,6 @@ import {
   isHhmm,
 } from "@/lib/clock";
 import { getProfileTimezone } from "@/lib/clock.server";
-import { saveAiFood, type AiFoodDraft } from "@/lib/ai-food";
 import { ownedRecipeIds } from "@/lib/recipe-link";
 import { requireUserId } from "@/lib/session";
 import { persistableFdcId } from "@/lib/utils";
@@ -160,20 +157,4 @@ export async function logFood(
   // a duplicate one — and whether a meal was created, so the client only
   // refetches the meal picker when there's actually a new chip to show.
   return result;
-}
-
-/** The payload saveAiFood takes — named for its caller, defined once. */
-export type ApproveAiFoodInput = AiFoodDraft;
-
-/**
- * Persists an AI-generated food estimate as a CustomFood with
- * source='AI'. Called when the user taps an AI search result — the tap
- * itself is the approval gate. Returns the new row's id so the client
- * can immediately drive the portion dialog against a real DB record.
- */
-export async function approveAiFood(input: ApproveAiFoodInput): Promise<number> {
-  const userId = await requireUserId();
-  const id = await saveAiFood(userId, input);
-  revalidatePath("/add");
-  return id;
 }

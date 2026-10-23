@@ -12,7 +12,6 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.79",
     "@auth/prisma-adapter": "^2.11.2",
     "@base-ui/react": "^1.5.0",
     "@capacitor/app": "8.1.0",
@@ -31,7 +30,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.8.0",
-    "ai": "^6.0.191",
     "capacitor-health": "8.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

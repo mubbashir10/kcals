@@ -11,8 +11,8 @@ export function round1(n: number): number {
 }
 
 // PostgreSQL `Int` (int4) bounds. Search results carry synthetic negative
-// fdcIds as display-only React keys (recipes, Open Food Facts, AI previews,
-// and curated local "Reference" rows). Local rows sit near -3e9, which is
+// fdcIds as display-only React keys (recipes, Open Food Facts, and curated
+// local "Reference" rows). Local rows sit near -3e9, which is
 // BELOW int4's minimum — writing one to Food.fdcId / RecipeIngredient.fdcId
 // throws "value out of range for type integer". These synthetic ids are
 // never resolved back to a real source, so anything outside int4 is dropped
