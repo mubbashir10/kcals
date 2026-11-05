@@ -256,23 +256,23 @@ export function MealCard({
           </DropdownMenu>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
-          <span>
-            <span className="font-semibold text-foreground">
-              {Math.round(mealKcal)}
-            </span>{" "}
-            kcal
-          </span>
-          <span aria-hidden className="text-muted-foreground/40">·</span>
-          <span>
-            P <span className="font-medium text-foreground/80">{Math.round(mealProtein)}</span>
-          </span>
-          <span>
-            C <span className="font-medium text-foreground/80">{Math.round(mealCarbs)}</span>
-          </span>
-          <span>
-            F <span className="font-medium text-foreground/80">{Math.round(mealFat)}</span>
-          </span>
+        {/* Laid out like a FoodRow so the total sits directly above the rows'
+            kcal column. The spacer stands in for the row's action buttons
+            (two 24px + 2px gap), which selecting hides. */}
+        <div className="mt-2 flex items-baseline gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
+            <span>
+              P <span className="font-medium text-foreground/80">{Math.round(mealProtein)}</span>
+            </span>
+            <span>
+              C <span className="font-medium text-foreground/80">{Math.round(mealCarbs)}</span>
+            </span>
+            <span>
+              F <span className="font-medium text-foreground/80">{Math.round(mealFat)}</span>
+            </span>
+          </div>
+          <KcalColumn kcal={mealKcal} />
+          <div aria-hidden className={cn("w-[50px] shrink-0", selecting && "hidden")} />
         </div>
       </header>
 
@@ -440,6 +440,16 @@ function foodCountLabel(n: number): string {
   return `${n} ${n === 1 ? "food" : "foods"}`;
 }
 
+// The kcal figure in a food row and in the meal header's total above them.
+function KcalColumn({ kcal }: { kcal: number }) {
+  return (
+    <div className="shrink-0 text-right tabular-nums">
+      <span className="text-[13px] font-semibold">{Math.round(kcal)}</span>
+      <span className="ml-1 text-[10px] text-muted-foreground">kcal</span>
+    </div>
+  );
+}
+
 function FoodRow({
   food: f,
   selecting,
@@ -530,12 +540,7 @@ function FoodRow({
           )}
         </div>
 
-        <div className="shrink-0 text-right tabular-nums">
-          <span className="text-[13px] font-semibold">
-            {Math.round(f.kcal)}
-          </span>
-          <span className="ml-1 text-[10px] text-muted-foreground">kcal</span>
-        </div>
+        <KcalColumn kcal={f.kcal} />
 
         <div className={cn("flex items-center gap-0.5", selecting && "hidden")}>
           <DropdownMenu>
