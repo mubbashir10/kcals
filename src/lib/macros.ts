@@ -93,3 +93,40 @@ export function computeMacroGoals(
     ),
   };
 }
+
+export type MacroShares = Record<Macro | "unknown", number>;
+
+/**
+ * What a food's or a meal's calories were made of, as fractions summing to 1.
+ * Null when there are no calories to divide.
+ *
+ * `unknown` is whatever the macros don't account for — a food logged without
+ * them, or a label that doesn't add up — and is shown as its own neutral slice
+ * rather than quietly stretching the macros to fill the total. Small gaps are
+ * just label rounding, so under 5% the macros share everything between them.
+ */
+export function macroShares({
+  kcal,
+  proteinG,
+  carbsG,
+  fatG,
+}: {
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}): MacroShares | null {
+  if (kcal <= 0) return null;
+  const protein = proteinG * KCAL_PER_G.protein;
+  const carbs = carbsG * KCAL_PER_G.carbs;
+  const fat = fatG * KCAL_PER_G.fat;
+  const known = protein + carbs + fat;
+  const unknown = known >= kcal * 0.95 ? 0 : kcal - known;
+  const total = known + unknown;
+  return {
+    protein: protein / total,
+    carbs: carbs / total,
+    fat: fat / total,
+    unknown: unknown / total,
+  };
+}

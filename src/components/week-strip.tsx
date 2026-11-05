@@ -52,10 +52,10 @@ export function WeekStrip({
               aria-hidden
               className={cn(base, "text-muted-foreground/30")}
             >
-              <span className="text-[10px] font-medium uppercase tracking-wider">
+              <span className="text-[11px] font-medium">
                 {label}
               </span>
-              <span className="text-base font-semibold leading-none tabular-nums">
+              <span className="font-heading text-lg font-semibold leading-none tabular-nums">
                 {dayNum}
               </span>
             </div>
@@ -83,13 +83,13 @@ export function WeekStrip({
           >
             <span
               className={cn(
-                "text-[10px] font-medium uppercase tracking-wider",
+                "text-[11px] font-medium",
                 isActive ? "text-primary-foreground/80" : "text-muted-foreground"
               )}
             >
               {label}
             </span>
-            <span className="text-base font-semibold leading-none tabular-nums">
+            <span className="font-heading text-lg font-semibold leading-none tabular-nums">
               {dayNum}
             </span>
           </AppLink>

@@ -31,6 +31,7 @@ import {
   type Macro,
   type MacroMode,
 } from "@/lib/macros";
+import { metricColor } from "@/lib/metric-colors";
 import { cn } from "@/lib/utils";
 import { kgToLb } from "@/lib/bmr";
 
@@ -505,7 +506,8 @@ function MacroRow({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span
-            className={cn("h-2 w-2 rounded-full", MACRO_DOT_CLASS[macro])}
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: metricColor[macro] }}
             aria-hidden
           />
           <span className="text-sm font-medium capitalize">{macro}</span>
@@ -558,12 +560,6 @@ function MacroRow({
     </div>
   );
 }
-
-const MACRO_DOT_CLASS: Record<Macro, string> = {
-  protein: "bg-sky-400",
-  carbs: "bg-emerald-400",
-  fat: "bg-amber-400",
-};
 
 function Reconciliation({
   kcalTarget,

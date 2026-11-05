@@ -119,7 +119,7 @@ export function NativeBridge() {
           () => {}
         );
         StatusBar.setBackgroundColor({
-          color: dark ? "#0a0a0a" : "#ffffff",
+          color: dark ? "#051710" : "#f5f8f2",
         }).catch(() => {});
       };
       syncStatusBar();

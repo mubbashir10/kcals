@@ -13,6 +13,9 @@ export type Nutrients = {
   fatG: number;
 };
 
+/** Just the three macros, for what doesn't also carry the energy. */
+export type MacroGrams = Omit<Nutrients, "kcal">;
+
 /** Scale a per-100g basis to `grams`. Non-positive/invalid grams → all zeros. */
 export function scaleFrom100g(per100g: Nutrients, grams: number): Nutrients {
   const factor = Number.isFinite(grams) && grams > 0 ? grams / 100 : 0;

@@ -5,14 +5,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { dayKeyToNoonUtc, formatRelativeDateInTz } from "@/lib/clock";
 import type { MacroGoal, MacroGoals } from "@/lib/macros";
-
-// Match the dots used in MacrosWidget so the same macro reads the same color
-// everywhere.
-const ACCENTS = {
-  protein: "oklch(0.68 0.2 20)",
-  carbs: "oklch(0.78 0.16 75)",
-  fat: "oklch(0.6 0.18 280)",
-} as const;
+import { metricColor } from "@/lib/metric-colors";
 
 export type CaloriesHistoryEntry = {
   dayKey: string;
@@ -79,19 +72,19 @@ function CaloriesHistoryRow({
           <div className="mt-1 flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
             <Macro
               label="P"
-              accent={ACCENTS.protein}
+              accent={metricColor.protein}
               value={Math.round(entry.consumed.protein)}
               goal={entry.macroGoals.protein}
             />
             <Macro
               label="C"
-              accent={ACCENTS.carbs}
+              accent={metricColor.carbs}
               value={Math.round(entry.consumed.carbs)}
               goal={entry.macroGoals.carbs}
             />
             <Macro
               label="F"
-              accent={ACCENTS.fat}
+              accent={metricColor.fat}
               value={Math.round(entry.consumed.fat)}
               goal={entry.macroGoals.fat}
             />

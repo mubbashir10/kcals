@@ -56,7 +56,7 @@ export default async function SetupPage() {
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">
             {existing ? "Profile" : "Tell us about you"}
           </h1>
           {!existing && (

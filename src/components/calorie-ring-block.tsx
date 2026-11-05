@@ -13,9 +13,11 @@ import type { LucideIcon } from "lucide-react";
 import { AppLink } from "@/components/app-link";
 import { CalorieRing, type CalorieDisplayMode } from "@/components/calorie-ring";
 import { EqDayBalance } from "@/components/energy-equation";
+import { MacroGapNote } from "@/components/macro-figures";
 import { setCalorieDisplay } from "@/app/actions/widgets";
 import { cn } from "@/lib/utils";
 import type { GoalType } from "@/lib/goal";
+import type { MacroGrams } from "@/lib/nutrition";
 
 const GOAL_CHIP: Record<
   GoalType,
@@ -48,8 +50,8 @@ const GOAL_CHIP: Record<
 };
 
 // The calorie ring block: a remaining/consumed toggle + goal chip, then the
-// open-arc ring flanked by Eaten / Burned. Card-less — it lives inside the
-// day hero (see day-hero.tsx), directly under the week strip.
+// open-arc ring and the day's equation beneath it. Card-less — it lives inside
+// the day hero (see day-hero.tsx), directly under the week strip.
 export function CalorieRingBlock({
   consumed,
   goal,
@@ -58,6 +60,7 @@ export function CalorieRingBlock({
   bmrKcal,
   goalType,
   kcalOffset,
+  macros,
 }: {
   consumed: number;
   goal: number;
@@ -70,6 +73,7 @@ export function CalorieRingBlock({
   goalType: GoalType;
   /** Signed kcal offset applied to TDEE for the effective target (negative = deficit). */
   kcalOffset: number;
+  macros: MacroGrams;
 }) {
   const [mode, setMode] = useState<CalorieDisplayMode>(initialMode);
   const [, startTransition] = useTransition();
@@ -85,7 +89,7 @@ export function CalorieRingBlock({
   }
 
   return (
-    <div className="group">
+    <div>
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -108,14 +112,19 @@ export function CalorieRingBlock({
       <AppLink
         href="/calories"
         aria-label="View calorie history"
-        className="mt-6 flex items-center justify-center rounded-2xl outline-none transition-colors hover:bg-accent/10 focus-visible:ring-2 focus-visible:ring-ring/40 sm:mt-8"
+        className="mt-4 flex items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
-        <CalorieRing consumed={consumed} goal={goal} mode={mode} size={220} />
+        <CalorieRing
+          consumed={consumed}
+          goal={goal}
+          mode={mode}
+          macros={macros}
+        />
       </AppLink>
 
       {/* The ring's number, spelled out as the day's equation. */}
       {typeof bmrKcal === "number" && typeof tdeeKcal === "number" && (
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground sm:mt-9">
+        <div className="-mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-[13px] text-muted-foreground">
           <EqDayBalance
             bmr={Math.round(bmrKcal)}
             burned={Math.round(tdeeKcal) - Math.round(bmrKcal)}
@@ -125,6 +134,8 @@ export function CalorieRingBlock({
           />
         </div>
       )}
+
+      <MacroGapNote kcal={consumed} {...macros} className="mt-2" />
     </div>
   );
 }

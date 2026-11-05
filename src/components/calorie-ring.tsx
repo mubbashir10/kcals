@@ -1,14 +1,20 @@
-import { Flame, Utensils } from "lucide-react";
+import { macroShares } from "@/lib/macros";
+import { macroParts } from "@/lib/metric-colors";
+import type { MacroGrams } from "@/lib/nutrition";
+import { cn, percentOfGoal } from "@/lib/utils";
 
 export type CalorieDisplayMode = "remaining" | "consumed";
 
 type Props = {
   consumed: number;
   goal: number;
-  mode?: CalorieDisplayMode;
-  size?: number;
-  strokeWidth?: number;
+  mode: CalorieDisplayMode;
+  /** What the day's calories were made of. */
+  macros: MacroGrams;
 };
+
+const SIZE = 240;
+const STROKE = 16;
 
 // 270° open gauge: the arc spans three-quarters of the circle with the gap
 // centered at the bottom. Rotating the stroke by 135° puts the dash start at
@@ -16,196 +22,123 @@ type Props = {
 // down to the bottom-right (4:30).
 const ARC_FRACTION = 0.75;
 const START_DEG = 135;
-const SWEEP_DEG = 270;
 
-export function CalorieRing({
-  consumed,
-  goal,
-  mode = "remaining",
-  size = 240,
-  strokeWidth = 14,
-}: Props) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = (size - strokeWidth) / 2;
+// Daylight between two neighbouring segments, on top of their round caps.
+const SEGMENT_GAP = 3;
+
+// However small the overage, it has to be visible as more than a hairline.
+const MIN_OVER_SHARE = 0.03;
+
+export function CalorieRing({ consumed, goal, mode, macros }: Props) {
+  const center = SIZE / 2;
+  const radius = (SIZE - STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
-  const trackDash = ARC_FRACTION * circumference;
+  const track = ARC_FRACTION * circumference;
 
-  const remainingRaw = goal - consumed;
-  const overGoal = remainingRaw < 0;
-  const remaining = Math.max(remainingRaw, 0);
+  const over = consumed > goal;
 
-  // Consumed mode: arc fills as you eat (empty → full).
-  // Remaining mode: arc drains as you eat (full → empty) so you can see at
-  // a glance how much room you've got left.
-  // When over goal: in either mode show the arc fully lit in the over-goal
-  // color, so it reads as "stop eating" regardless of which label is active.
-  const consumedPct = Math.min(consumed / goal, 1);
-  const remainingPct = Math.max(remaining / goal, 0);
-  const pct = overGoal ? 1 : mode === "remaining" ? remainingPct : consumedPct;
+  // The arc is the day's food, in the macro colours, filling up towards the
+  // goal. It doesn't change with the display mode; that only picks which number
+  // sits in the middle.
+  const filled = (percentOfGoal(consumed, goal) / 100) * track;
+  const overShare = over
+    ? Math.max((consumed - goal) / consumed, MIN_OVER_SHARE)
+    : 0;
+  const shares = macroShares({ kcal: consumed, ...macros });
+  const eatenShare = 1 - overShare;
+  const parts = [
+    ...macroParts.map(({ key, color }) => ({
+      color,
+      share: (shares?.[key] ?? 0) * eatenShare,
+    })),
+    { color: "var(--destructive)", share: overShare },
+  ].filter((p) => p.share > 0);
 
-  // Knob position: the tip of the progress arc, in the SVG's screen-space
-  // (clockwise from +x, y-down) — the same convention the 135° rotation uses.
-  const knobDeg = START_DEG + SWEEP_DEG * pct;
-  const knobRad = (knobDeg * Math.PI) / 180;
-  const knobX = cx + radius * Math.cos(knobRad);
-  const knobY = cy + radius * Math.sin(knobRad);
-
-  // The big number and its label.
-  const primary =
-    mode === "remaining"
-      ? overGoal
-        ? consumed - goal
-        : remaining
-      : consumed;
-
-  const topLabel = overGoal
-    ? "Over goal"
-    : mode === "remaining"
-      ? "Remaining"
-      : "Consumed";
-
-  // Consumed shows what you ate (fork/knife); remaining/over reads as energy.
-  const CenterIcon = mode === "consumed" && !overGoal ? Utensils : Flame;
-
-  // Ring color is theme-driven — each mode gets its own hue from the theme
-  // palette, no hardcoded colors: primary (brand green) for "room left today",
-  // the cool chart-2 tone for "energy consumed", and the destructive token
-  // when past goal so it reads as "stop eating" whichever label is active.
-  const ringColor = overGoal
-    ? "var(--destructive)"
-    : mode === "remaining"
-      ? "var(--primary)"
-      : "var(--chart-2)";
-
-  const gradientId = overGoal
-    ? "calorieRing-over"
-    : mode === "remaining"
-      ? "calorieRing-remaining"
-      : "calorieRing-consumed";
-
-  const glowColor = `color-mix(in oklch, ${ringColor} ${overGoal ? "26%" : "22%"}, transparent)`;
+  // In remaining mode a goal you've passed reads as the overage; in consumed
+  // mode the number is still simply what you ate.
+  const showOverage = over && mode === "remaining";
+  const primary = mode === "consumed" ? consumed : Math.abs(goal - consumed);
+  const label =
+    mode === "consumed"
+      ? "kcal consumed"
+      : showOverage
+        ? "kcal over goal"
+        : "kcal remaining";
 
   return (
     <div
       className="relative shrink-0"
-      style={{ width: size, height: size }}
+      style={{ width: SIZE, height: SIZE }}
       aria-label={`${consumed} of ${goal} calories consumed`}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ filter: `drop-shadow(0 8px 24px ${glowColor})` }}
-      >
-        <defs>
-          {/* Each ring hue is a theme CSS var (so it tracks the active theme +
-              light/dark). `var()` must be applied via `style`, not the SVG
-              attribute, to resolve. The second stop is a slightly deepened
-              shade of the same token for a subtle sheen. */}
-          <linearGradient
-            id="calorieRing-remaining"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" style={{ stopColor: "var(--primary)" }} />
-            <stop
-              offset="100%"
-              style={{ stopColor: "color-mix(in oklch, var(--primary), black 22%)" }}
-            />
-          </linearGradient>
-
-          <linearGradient
-            id="calorieRing-consumed"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" style={{ stopColor: "var(--chart-2)" }} />
-            <stop
-              offset="100%"
-              style={{ stopColor: "color-mix(in oklch, var(--chart-2), black 18%)" }}
-            />
-          </linearGradient>
-
-          <linearGradient
-            id="calorieRing-over"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" style={{ stopColor: "var(--destructive)" }} />
-            <stop
-              offset="100%"
-              style={{ stopColor: "color-mix(in oklch, var(--destructive), black 18%)" }}
-            />
-          </linearGradient>
-        </defs>
-
-        <g transform={`rotate(${START_DEG} ${cx} ${cy})`}>
+      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+        <g transform={`rotate(${START_DEG} ${center} ${center})`}>
           <circle
-            cx={cx}
-            cy={cy}
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
             stroke="var(--muted)"
-            strokeWidth={strokeWidth}
+            strokeWidth={STROKE}
             strokeLinecap="round"
-            strokeDasharray={`${trackDash} ${circumference}`}
+            strokeDasharray={`${track} ${circumference}`}
           />
-          <circle
-            cx={cx}
-            cy={cy}
-            r={radius}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={`${pct * trackDash} ${circumference}`}
-            style={{
-              transition:
-                "stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1), stroke 400ms ease-out",
-            }}
-          />
+          {segments(parts, filled).map((s, i) => (
+            <circle
+              key={s.color}
+              className="ring-segment"
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${s.length} ${circumference}`}
+              strokeDashoffset={-s.start}
+              // color-mix() and var() only resolve through style, not the SVG
+              // presentation attribute.
+              style={
+                {
+                  stroke: s.color,
+                  animationDelay: `${i * 90}ms`,
+                  "--ring-circumference": circumference,
+                } as React.CSSProperties
+              }
+            />
+          ))}
         </g>
-
-        {pct > 0 && (
-          <circle
-            cx={knobX}
-            cy={knobY}
-            r={strokeWidth * 0.72}
-            stroke="var(--background)"
-            strokeWidth={3}
-            style={{
-              fill: ringColor,
-              transition:
-                "cx 900ms cubic-bezier(0.22, 1, 0.36, 1), cy 900ms cubic-bezier(0.22, 1, 0.36, 1), fill 400ms ease-out",
-            }}
-          />
-        )}
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-        <CenterIcon
-          className="mb-1.5 h-5 w-5"
-          style={{ color: ringColor }}
-          strokeWidth={2}
-          aria-hidden
-        />
-        <div className="text-xs text-muted-foreground">
-          {topLabel}
-        </div>
-        <div className="mt-1 text-5xl font-semibold leading-none tracking-tight tabular-nums">
+        <div
+          className={cn(
+            "font-heading text-[3.5rem] font-semibold leading-none tracking-tight tabular-nums",
+            showOverage && "text-destructive"
+          )}
+        >
           {primary.toLocaleString()}
         </div>
-        <div className="mt-1.5 text-[11px] font-medium text-muted-foreground">
-          kcal
-        </div>
+        <div className="mt-2 text-[13px] text-muted-foreground">{label}</div>
       </div>
     </div>
   );
+}
+
+// Lay the parts end to end along the filled length. Each one's round caps reach
+// STROKE/2 past its ends, so an inner edge is pulled back by that plus half the
+// gap; the outer two stay put so the fill's ends sit where the track's do.
+function segments(
+  parts: { color: string; share: number }[],
+  filled: number
+): { color: string; start: number; length: number }[] {
+  const inset = STROKE / 2 + SEGMENT_GAP / 2;
+  let cursor = 0;
+  return parts.map((part, i) => {
+    const span = part.share * filled;
+    const start = cursor + (i > 0 ? inset : 0);
+    const end = cursor + span - (i < parts.length - 1 ? inset : 0);
+    cursor += span;
+    // A slice narrower than its caps collapses to a dot rather than vanishing.
+    return { color: part.color, start, length: Math.max(end - start, 0.01) };
+  });
 }

@@ -132,7 +132,7 @@ export default async function CalendarPage({
           >
             <ChevronLeft className="h-4 w-4" />
           </AppLink>
-          <h1 className="text-base font-semibold tracking-tight tabular-nums">
+          <h1 className="font-heading text-base font-semibold tracking-tight tabular-nums">
             {monthLabel}
           </h1>
           {canGoNext ? (

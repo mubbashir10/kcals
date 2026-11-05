@@ -7,12 +7,17 @@ export const metricColor = {
   activity: "var(--chart-2)", // movement
   weight: "var(--chart-4)", // body weight
   calendar: "var(--chart-5)", // streak / calendar
-  protein: "var(--chart-2)",
-  carbs: "var(--chart-5)",
-  fat: "var(--chart-4)",
+  protein: "var(--protein)",
+  carbs: "var(--carbs)",
+  fat: "var(--fat)",
+  // Calories we have no macros for, e.g. a food logged without them.
+  unknownMacro: "color-mix(in oklch, var(--muted-foreground) 45%, transparent)",
 } as const;
 
-// A translucent tint of a metric color, for icon-chip / pill backgrounds.
-export function metricTint(color: string, pct = 16): string {
-  return `color-mix(in oklch, ${color} ${pct}%, transparent)`;
-}
+// The slices calories divide into, in the order the ring and stripes draw them.
+export const macroParts = [
+  { key: "protein", color: metricColor.protein },
+  { key: "carbs", color: metricColor.carbs },
+  { key: "fat", color: metricColor.fat },
+  { key: "unknown", color: metricColor.unknownMacro },
+] as const;

@@ -24,16 +24,16 @@ const config: CapacitorConfig = {
     allowNavigation: ["kcals.app"],
   },
   android: {
-    // The app paints its own near-black background; match it so there's no
+    // The app paints its own dark pine background; match it so there's no
     // white flash between the splash and first paint.
-    backgroundColor: "#0a0a0a",
+    backgroundColor: "#051710",
   },
   plugins: {
     SplashScreen: {
       // Hidden manually from the bridge once the WebView has painted, so the
       // splash never vanishes to a blank screen mid-load.
       launchAutoHide: false,
-      backgroundColor: "#0a0a0a",
+      backgroundColor: "#051710",
       showSpinner: false,
     },
     PushNotifications: {

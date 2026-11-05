@@ -16,8 +16,8 @@ import {
 
 import { AppLink } from "@/components/app-link";
 import { Button } from "@/components/ui/button";
+import { StatFigure } from "@/components/stat-figure";
 import { Card } from "@/components/ui/card";
-import { MetricBadge } from "@/components/metric-badge";
 import {
   Dialog,
   DialogClose,
@@ -69,7 +69,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
     delta7dKg != null
       ? (() => {
           const d = formatWeightDelta(delta7dKg, units);
-          return { direction: d.direction, label: `${d.signed} · 7d` };
+          return { direction: d.direction, label: `${d.signed} in 7 days` };
         })()
       : null;
 
@@ -81,7 +81,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
 
   return (
     <>
-      <Card className="group relative rounded-3xl border-border/60 p-6 shadow-card-lg transition-colors hover:bg-accent/20">
+      <Card className="group relative gap-0 rounded-3xl border-border/60 p-5 shadow-card-lg transition-colors hover:bg-accent/20">
         <AppLink
           href="/weight"
           aria-label="View weight history"
@@ -91,8 +91,8 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
             clicks. Make the wrappers transparent to pointer events and
             re-enable only the menu, so clicking anywhere else opens /weight. */}
         <div className="pointer-events-none relative flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <MetricBadge icon={Weight} color={metricColor.weight} />
+          <div className="flex items-center gap-2">
+            <Weight className="h-4 w-4 shrink-0" style={{ color: metricColor.weight }} />
             <span className="text-xs font-medium text-muted-foreground">
               Weight
             </span>
@@ -172,12 +172,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
         {display ? (
           <>
             <div className="pointer-events-none relative mt-3 flex items-baseline gap-3">
-              <div className="text-3xl font-semibold leading-none tabular-nums tracking-tight">
-                {display.value}
-                <span className="ml-1 text-base font-normal text-muted-foreground">
-                  {display.unit}
-                </span>
-              </div>
+              <StatFigure size="3xl" value={display.value} unit={display.unit} />
               {deltaDisplay && (
                 <span
                   className={
@@ -202,9 +197,9 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
                 </span>
               )}
             </div>
-            <p className="pointer-events-none relative mt-3 text-xs text-muted-foreground">
+            <p className="pointer-events-none relative mt-2 text-xs text-muted-foreground">
               {formatTimeAgo(latest!.loggedAt, timezone)}
-              {delta7dKg == null && " · log again next week for trend"}
+              {delta7dKg == null && ". Log again next week for a trend."}
             </p>
           </>
         ) : (

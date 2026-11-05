@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Returning to kcals…</title>
     <style>
-      html,body{height:100%;margin:0;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif}
+      html,body{height:100%;margin:0;background:#051710;color:#e5e5e5;font-family:system-ui,-apple-system,sans-serif}
       .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.25rem;text-align:center;padding:2rem}
       .brand{font-size:2rem;font-weight:600;letter-spacing:-.02em;background:linear-gradient(to bottom,#a3e635,#10b981);-webkit-background-clip:text;background-clip:text;color:transparent}
       p{opacity:.6;font-size:.9rem;max-width:20rem;line-height:1.5}

@@ -55,7 +55,7 @@ export default async function FriendsPage() {
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight">Friends</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Friends</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Share your daily calories and goals with people you trust.
           </p>

@@ -57,7 +57,7 @@ export default async function SettingsPage() {
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Settings</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Customize your home dashboard.
           </p>

@@ -1,21 +1,26 @@
 // Stripped-down meal card used on the friend-view page — no edit/delete
 // buttons, no dropdowns. Server component since it has no interactivity.
 
+import { MacroFigures, MacroStripe } from "@/components/macro-figures";
+import {
+  FoodSummary,
+  KcalColumn,
+  MealTitle,
+} from "@/components/meal-card-parts";
 import { Card } from "@/components/ui/card";
 import { formatTimeInTz } from "@/lib/clock";
-import { round1 } from "@/lib/utils";
+import { sumNutrients, type Nutrients } from "@/lib/nutrition";
 
 export type ReadOnlyMeal = {
   id: number;
   name: string | null;
   loggedAt: Date | string;
-  foods: {
+  foods: (Nutrients & {
     id: number;
     name: string;
     brand: string | null;
     grams: number;
-    kcal: number;
-  }[];
+  })[];
 };
 
 export function ReadOnlyMealCard({
@@ -25,26 +30,26 @@ export function ReadOnlyMealCard({
   meal: ReadOnlyMeal;
   timezone: string;
 }) {
-  const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
-  const time = formatTimeInTz(meal.loggedAt, timezone);
+  const totals = sumNutrients(meal.foods);
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
-      <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-5 py-3">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <h3 className="truncate text-sm font-semibold tracking-tight">
-            {meal.name ?? "Meal"}
-          </h3>
-          <time className="text-xs text-muted-foreground tabular-nums">
-            {time}
-          </time>
+    <Card className="gap-0 overflow-hidden rounded-3xl border-border/60 p-0 shadow-none">
+      <header className="px-5 pb-1.5 pt-4">
+        <div className="flex items-baseline gap-2">
+          <MealTitle
+            name={meal.name ?? "Meal"}
+            time={formatTimeInTz(meal.loggedAt, timezone)}
+          />
         </div>
-        <div className="text-xs tabular-nums text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            {Math.round(mealKcal)}
-          </span>{" "}
-          kcal
+        <div className="mt-1 flex items-baseline gap-3">
+          <MacroFigures
+            strong
+            {...totals}
+            className="min-w-0 flex-1 flex-wrap gap-y-0.5 text-xs text-muted-foreground"
+          />
+          <KcalColumn kcal={totals.kcal} strong />
         </div>
+        <MacroStripe {...totals} className="mt-3" />
       </header>
 
       {meal.foods.length === 0 ? (
@@ -56,23 +61,10 @@ export function ReadOnlyMealCard({
           {meal.foods.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between gap-3 px-5 py-2.5"
+              className="flex items-center justify-between gap-3 px-5 py-3"
             >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] leading-tight">{f.name}</div>
-                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                  {f.brand ? `${f.brand} · ` : ""}
-                  {round1(f.grams)} g
-                </div>
-              </div>
-              <div className="shrink-0 text-right tabular-nums">
-                <span className="text-[13px] font-semibold">
-                  {Math.round(f.kcal)}
-                </span>
-                <span className="ml-1 text-[10px] text-muted-foreground">
-                  kcal
-                </span>
-              </div>
+              <FoodSummary food={f} />
+              <KcalColumn kcal={f.kcal} />
             </li>
           ))}
         </ul>
@@ -80,4 +72,3 @@ export function ReadOnlyMealCard({
     </Card>
   );
 }
-

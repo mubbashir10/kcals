@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Flame } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
+import { StatFigure } from "@/components/stat-figure";
 import { metricColor } from "@/lib/metric-colors";
 import { CaloriesChart } from "@/components/calories-chart";
 import { CaloriesHistory } from "@/components/calories-history";
@@ -75,14 +76,11 @@ export default async function CaloriesPage() {
                 : "Today"}
           </h1>
           <div className="mt-1 flex items-baseline gap-3">
-            <div className="text-5xl font-semibold leading-none tabular-nums tracking-tight">
-              {hero ? Math.round(hero.consumed.kcal).toLocaleString() : "—"}
-              {hero && (
-                <span className="ml-2 text-base font-normal text-muted-foreground">
-                  kcal
-                </span>
-              )}
-            </div>
+            <StatFigure
+              size="5xl"
+              value={hero ? Math.round(hero.consumed.kcal).toLocaleString() : "—"}
+              unit={hero ? "kcal" : undefined}
+            />
           </div>
           {hero && (
             <p className="mt-2 text-xs text-muted-foreground tabular-nums">

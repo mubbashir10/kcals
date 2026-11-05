@@ -22,19 +22,12 @@ export function MacroCard({ label, value, goal, unit = "g", color, flat = false 
 
   const inner = (
     <>
-      <div className="flex min-w-0 items-center gap-1.5">
-        <span
-          className="h-2 w-2 shrink-0 rounded-full"
-          style={{ backgroundColor: color }}
-          aria-hidden
-        />
-        <span className="truncate text-xs font-medium text-muted-foreground">
-          {label}
-        </span>
-      </div>
+      <span className="truncate text-xs font-medium" style={{ color }}>
+        {label}
+      </span>
 
-      <div className="mt-2 flex items-baseline gap-1 leading-none sm:mt-3">
-        <span className="text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
+      <div className="mt-1.5 flex items-baseline gap-1 leading-none">
+        <span className="font-heading text-2xl font-semibold tabular-nums tracking-tight">
           {value}
         </span>
         {tracked ? (
@@ -53,11 +46,13 @@ export function MacroCard({ label, value, goal, unit = "g", color, flat = false 
         )}
       </div>
 
-      <Progress
-        value={pct}
-        indicatorColor={color}
-        className="mt-3 sm:mt-4"
-      />
+      {tracked && (
+        <Progress
+          value={pct}
+          indicatorColor={color}
+          className="mt-3 [&_[data-slot=progress-track]]:h-1.5"
+        />
+      )}
     </>
   );
 

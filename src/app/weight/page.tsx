@@ -1,6 +1,7 @@
 import { ArrowLeft, TrendingDown, TrendingUp, Minus } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
+import { StatFigure } from "@/components/stat-figure";
 import { db } from "@/lib/db";
 import { requireProfile } from "@/lib/session";
 import { kgToLb, type Units } from "@/lib/bmr";
@@ -132,20 +133,19 @@ export default async function WeightPage() {
             Current
           </h1>
           <div className="mt-1 flex items-baseline gap-3">
-            <div className="text-5xl font-semibold leading-none tabular-nums tracking-tight">
-              {latest
-                ? round1(
-                    units === "imperial"
-                      ? kgToLb(latest.weightKg)
-                      : latest.weightKg
-                  ).toFixed(1)
-                : "—"}
-              {latest && (
-                <span className="ml-2 text-base font-normal text-muted-foreground">
-                  {units === "imperial" ? "lb" : "kg"}
-                </span>
-              )}
-            </div>
+            <StatFigure
+              size="5xl"
+              value={
+                latest
+                  ? round1(
+                      units === "imperial"
+                        ? kgToLb(latest.weightKg)
+                        : latest.weightKg
+                    ).toFixed(1)
+                  : "—"
+              }
+              unit={latest ? (units === "imperial" ? "lb" : "kg") : undefined}
+            />
           </div>
           {latest && (
             <p className="mt-2 text-xs text-muted-foreground">

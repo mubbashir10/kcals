@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { DayDashboard } from "@/components/day-dashboard";
-import { Logo } from "@/components/logo";
+import { BrandHeader } from "@/components/brand-header";
 import { UserMenu } from "@/components/user-menu";
 import { loadDayDetail } from "@/lib/day-detail";
 import { loadDayMealItems } from "@/lib/default-meals";
@@ -58,26 +58,15 @@ export default async function DayPage({
       />
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-6">
-          <div className="flex items-center">
-            <Logo className="h-9 w-9" />
-            <span className="translate-y-[5px] bg-gradient-to-b from-lime-400 to-emerald-500 bg-clip-text text-2xl font-semibold leading-none tracking-tight text-transparent">
-              kcals
-            </span>
-          </div>
+        <BrandHeader>
           <UserMenu />
-        </div>
+        </BrandHeader>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            {isToday ? "Today" : dateLabel}.
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Here&apos;s how this day went.
-          </p>
-        </div>
+      <main className="mx-auto w-full max-w-2xl flex-1 px-5 pb-8 pt-6 sm:px-6 lg:max-w-5xl">
+        <h1 className="mb-5 text-balance font-heading text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+          {isToday ? "Today" : dateLabel}.
+        </h1>
 
         <DayDashboard
           dayKey={dayKey}

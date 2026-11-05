@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/logo";
+import { BrandHeader } from "@/components/brand-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // The shared page chrome — ambient gradient + the sticky, blurred header
@@ -102,21 +102,14 @@ export function SkeletonHeading({
   );
 }
 
-// The brand header, exactly as app/page.tsx and app/day/[date]/page.tsx render
-// it. Chrome that's already known at build time is drawn for real — only the
+// The brand header, as the dashboard pages render it. Chrome that's already known at build time is drawn for real — only the
 // avatar (which needs the session) stands in as a circle. Skeleton bars where a
 // logo or a title belongs just read as breakage.
 export function SkeletonBrandHeader() {
   return (
-    <div className="mx-auto flex h-14 w-full max-w-2xl items-center justify-between px-6">
-      <div className="flex items-center">
-        <Logo className="h-9 w-9" />
-        <span className="translate-y-[5px] bg-gradient-to-b from-lime-400 to-emerald-500 bg-clip-text text-2xl font-semibold leading-none tracking-tight text-transparent">
-          kcals
-        </span>
-      </div>
+    <BrandHeader>
       <Skeleton className="h-8 w-8 rounded-full" />
-    </div>
+    </BrandHeader>
   );
 }
 

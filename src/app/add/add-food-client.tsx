@@ -947,7 +947,7 @@ function QuickAddDialog({
               className="text-xs font-medium text-muted-foreground"
             >
               Label
-              <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+              <span className="ml-1 text-muted-foreground/60">
                 (optional)
               </span>
             </Label>
@@ -962,7 +962,7 @@ function QuickAddDialog({
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">
               Macros
-              <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+              <span className="ml-1 text-muted-foreground/60">
                 (optional)
               </span>
             </Label>

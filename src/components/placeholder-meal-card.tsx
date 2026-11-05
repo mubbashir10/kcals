@@ -4,6 +4,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { AppLink } from "@/components/app-link";
+import { MealTitle } from "@/components/meal-card-parts";
 import { Card } from "@/components/ui/card";
 
 // A default meal that has no real meal yet today. Visually a MealCard in its
@@ -22,17 +23,12 @@ export function PlaceholderMealCard({
   const addHref = `/add?newMeal=${encodeURIComponent(name)}&time=${encodeURIComponent(timeHhmm)}`;
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-dashed border-border/60 bg-card/40 p-0 shadow-none">
-      <header className="border-b border-border/60 bg-muted/20 px-5 py-3">
-        <h3 className="truncate text-sm font-semibold tracking-tight text-foreground/80">
-          {name}
-        </h3>
-        <time className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
-          {timeLabel}
-        </time>
+    <Card className="gap-0 overflow-hidden rounded-3xl bg-card/40 p-0 shadow-none">
+      <header className="flex items-baseline gap-2 px-5 pt-4">
+        <MealTitle name={name} time={timeLabel} className="text-foreground/80" />
       </header>
 
-      <div className="px-5 py-6 text-center">
+      <div className="px-5 pb-5 pt-3 text-center">
         <p className="mb-3 text-xs text-muted-foreground">No food yet</p>
         <AppLink
           href={addHref}

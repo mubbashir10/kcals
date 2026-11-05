@@ -87,7 +87,7 @@ export function ActivityCard({
 
   return (
     <>
-      <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
+      <Card className="gap-0 rounded-3xl border-border/60 p-5 shadow-card-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className={ICON} style={{ color: metricColor.activity }} />
@@ -175,47 +175,6 @@ export function ActivityCard({
   );
 }
 
-// One movement metric: colored icon, caption, big tabular number, unit. Two of
-// these sit side by side when a day has a supplied total and steps to go with it.
-function StatTile({
-  icon: Icon,
-  color,
-  value,
-  unit,
-  label,
-  approx,
-}: {
-  icon: typeof Flame;
-  color: string;
-  value: number;
-  unit: string;
-  label: string;
-  /** Worked out from movement rather than handed to us — say so with a ~. */
-  approx?: boolean;
-}) {
-  return (
-    <div className="flex-1">
-      <div className="flex items-center gap-2">
-        <Icon className={ICON} style={{ color }} />
-        <span className="text-[11px] font-medium text-muted-foreground">
-          {label}
-        </span>
-      </div>
-      <div className="mt-1.5 flex items-baseline gap-1">
-        <span className="text-2xl font-semibold tabular-nums">
-          {approx && (
-            <span className="mr-0.5 text-lg font-normal text-muted-foreground">
-              ~
-            </span>
-          )}
-          {value.toLocaleString()}
-        </span>
-        <span className="text-xs text-muted-foreground">{unit}</span>
-      </div>
-    </div>
-  );
-}
-
 function ActivitySummary({
   today,
   activeBurnKcal,
@@ -264,14 +223,16 @@ function ActivitySummary({
   // for a day carrying something, and a supplied total is itself the headline.
   return (
     <div>
-      <StatTile
-        icon={Flame}
-        color={metricColor.energy}
-        value={activeBurnKcal}
-        unit="kcal"
-        label="Active energy"
-        approx={!supplied}
-      />
+      <div className="flex items-baseline gap-1.5 leading-none">
+        <span className="font-heading text-3xl font-semibold tabular-nums tracking-tight">
+          {/* Worked out from movement rather than handed to us. */}
+          {!supplied && (
+            <span className="mr-0.5 font-normal text-muted-foreground">~</span>
+          )}
+          {activeBurnKcal.toLocaleString()}
+        </span>
+        <span className="text-sm text-muted-foreground">kcal active</span>
+      </div>
       {chips.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
           {chips.map((c, i) => (
@@ -301,11 +262,11 @@ function Provenance({
   sourceIcon: string | null;
 }) {
   return (
-    <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground/70">
+    <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
       {today.manual ? (
         <>
           <Pencil className={ICON} />
-          Logged by hand — Health Connect won&apos;t change it. Clear the log to
+          Logged by hand, so Health Connect won&apos;t change it. Clear the log to
           hand this day back.
         </>
       ) : (

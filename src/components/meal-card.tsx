@@ -33,12 +33,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MacroFigures, MacroStripe } from "@/components/macro-figures";
+import {
+  FoodSummary,
+  KcalColumn,
+  MealTitle,
+} from "@/components/meal-card-parts";
 import { useLongPress } from "@/lib/use-long-press";
 import { cn, round1 } from "@/lib/utils";
 import {
   parseMacroInput,
   per100gOf,
   scaleFrom100g,
+  sumNutrients,
 } from "@/lib/nutrition";
 import {
   dayKeyInTz,
@@ -164,10 +171,7 @@ export function MealCard({
     });
   }
 
-  const mealKcal = meal.foods.reduce((a, f) => a + f.kcal, 0);
-  const mealProtein = meal.foods.reduce((a, f) => a + f.proteinG, 0);
-  const mealCarbs = meal.foods.reduce((a, f) => a + f.carbsG, 0);
-  const mealFat = meal.foods.reduce((a, f) => a + f.fatG, 0);
+  const totals = sumNutrients(meal.foods);
   const time = formatTimeInTz(meal.loggedAt, timezone);
   // Carry the meal's own day so "Add food" lands on the right date (and the
   // add flow redirects back here), not whatever "today" is.
@@ -177,26 +181,25 @@ export function MealCard({
   )}`;
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
-      <header className="border-b border-border/60 bg-muted/30 px-5 py-3">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="gap-0 overflow-hidden rounded-3xl border-border/60 p-0 shadow-none">
+      <header className="px-5 pb-1.5 pt-4">
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setRenameOpen(true)}
-            className="group min-w-0 flex-1 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="group flex min-w-0 flex-1 items-baseline gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            <h3 className="truncate text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground/70">
-              {meal.name ?? "Meal"}
-            </h3>
-            <time className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
-              {time}
-            </time>
+            <MealTitle
+              name={meal.name ?? "Meal"}
+              time={time}
+              className="transition-colors group-hover:text-foreground/70"
+            />
           </button>
 
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Meal options"
-              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
@@ -257,23 +260,18 @@ export function MealCard({
         </div>
 
         {/* Laid out like a FoodRow so the total sits directly above the rows'
-            kcal column. The spacer stands in for the row's action buttons
-            (two 24px + 2px gap), which selecting hides. */}
-        <div className="mt-2 flex items-baseline gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
-            <span>
-              P <span className="font-medium text-foreground/80">{Math.round(mealProtein)}</span>
-            </span>
-            <span>
-              C <span className="font-medium text-foreground/80">{Math.round(mealCarbs)}</span>
-            </span>
-            <span>
-              F <span className="font-medium text-foreground/80">{Math.round(mealFat)}</span>
-            </span>
-          </div>
-          <KcalColumn kcal={mealKcal} />
-          <div aria-hidden className={cn("w-[50px] shrink-0", selecting && "hidden")} />
+            kcal column. The spacer stands in for the row's menu button, which
+            selecting hides. */}
+        <div className="mt-1 flex items-baseline gap-3">
+          <MacroFigures
+            strong
+            {...totals}
+            className="min-w-0 flex-1 flex-wrap gap-y-0.5 text-xs text-muted-foreground"
+          />
+          <KcalColumn kcal={totals.kcal} strong />
+          <div aria-hidden className={cn("w-8 shrink-0", selecting && "hidden")} />
         </div>
+        <MacroStripe {...totals} className="mt-3" />
       </header>
 
       {meal.foods.length === 0 && (
@@ -441,15 +439,6 @@ function foodCountLabel(n: number): string {
 }
 
 // The kcal figure in a food row and in the meal header's total above them.
-function KcalColumn({ kcal }: { kcal: number }) {
-  return (
-    <div className="shrink-0 text-right tabular-nums">
-      <span className="text-[13px] font-semibold">{Math.round(kcal)}</span>
-      <span className="ml-1 text-[10px] text-muted-foreground">kcal</span>
-    </div>
-  );
-}
-
 function FoodRow({
   food: f,
   selecting,
@@ -472,8 +461,7 @@ function FoodRow({
   const [deletePending, startDelete] = useTransition();
   const [explodePending, startExplode] = useTransition();
 
-  function handleDelete(e: React.MouseEvent) {
-    e.stopPropagation();
+  function handleDelete() {
     startDelete(async () => {
       await deleteFood(f.id);
     });
@@ -514,42 +502,24 @@ function FoodRow({
           // select-none / touch-callout: on the web a press-and-hold would
           // otherwise raise the browser's text-selection UI over the row.
           // (The native shell already disables both — see globals.css.)
-          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-2.5 transition-colors select-none [-webkit-touch-callout:none] hover:bg-accent/40",
+          "group flex cursor-pointer items-center justify-between gap-3 px-5 py-3 transition-colors select-none [-webkit-touch-callout:none] hover:bg-accent/40",
           selecting && selected && "bg-accent/40",
           (deletePending || explodePending) && "opacity-50"
         )}
       >
         {selecting && <Checkbox checked={selected} />}
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] leading-tight">{f.name}</div>
-          {(f.brand || f.grams > 0) && (
-            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {f.brand ? f.brand : null}
-              {f.brand && f.grams > 0 ? " · " : null}
-              {f.grams > 0 ? `${round1(f.grams)} g` : null}
-            </div>
-          )}
-          {/* A quick-add logged with calories only stores 0/0/0 — that means
-              "not entered", so don't print it as if it were a measurement. */}
-          {f.proteinG + f.carbsG + f.fatG > 0 && (
-            <div className="mt-0.5 flex gap-2 text-[10px] tabular-nums text-muted-foreground/70">
-              <span>P {Math.round(f.proteinG)}</span>
-              <span>C {Math.round(f.carbsG)}</span>
-              <span>F {Math.round(f.fatG)}</span>
-            </div>
-          )}
-        </div>
+        <FoodSummary food={f} />
 
         <KcalColumn kcal={f.kcal} />
 
-        <div className={cn("flex items-center gap-0.5", selecting && "hidden")}>
+        {!selecting && (
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Food options"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 aria-expanded:bg-muted"
             >
-              <MoreHorizontal className="h-3 w-3" />
+              <MoreHorizontal className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
             {/* Stop item clicks from bubbling (via React's portal event
                 propagation) to the row's onClick, which would otherwise also
@@ -597,19 +567,19 @@ function FoodRow({
                     Break into ingredients
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={deletePending}
+                  className="cursor-pointer rounded-lg text-sm"
+                  onClick={handleDelete}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5 opacity-70" />
+                  Delete
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deletePending}
-            aria-label="Delete food"
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full text-destructive transition-colors hover:bg-destructive/15 disabled:pointer-events-none"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
+        )}
       </div>
     </li>
   );
@@ -1284,7 +1254,7 @@ function FoodEditForm({
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">
                 Macros
-                <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
+                <span className="ml-1 text-muted-foreground/60">
                   (optional)
                 </span>
               </Label>

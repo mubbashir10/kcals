@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,77 +48,85 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Theme: tweakcn "Light Green" (green primary, cool blue-gray neutral, 1rem
-   radius). Swapped in from https://tweakcn.com/themes/cmlhfpjhw000004l4f4ax3m7z.
-   The @theme map, radius scale, and custom utilities below are untouched. */
+/* Theme: pine and lime. The neutrals sit in the green of the brand instead of
+   a stock slate, and saturated colour is reserved for two jobs: lime for what
+   you can do, and --protein / --carbs / --fat for what you ate. Those three
+   carry one meaning everywhere — the ring, the meal stripes, the food rows —
+   so don't borrow them for decoration. */
 :root {
-  --background: oklch(0.9892 0.0054 117.9205);
-  --foreground: oklch(0.2077 0.0398 265.7549);
+  --background: oklch(0.975 0.008 125);
+  --foreground: oklch(0.25 0.035 168);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2077 0.0398 265.7549);
+  --card-foreground: oklch(0.25 0.035 168);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2077 0.0398 265.7549);
+  --popover-foreground: oklch(0.25 0.035 168);
   --primary: oklch(0.8871 0.2122 128.5041);
   --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.3717 0.0392 257.287);
-  --secondary-foreground: oklch(0.9842 0.0034 247.8575);
-  --muted: oklch(0.9683 0.0069 247.8956);
-  --muted-foreground: oklch(0.5544 0.0407 257.4166);
-  --accent: oklch(0.9819 0.0181 155.8263);
-  --accent-foreground: oklch(0.4479 0.1083 151.3277);
-  --destructive: oklch(0.6368 0.2078 25.3313);
+  --secondary: oklch(0.34 0.04 168);
+  --secondary-foreground: oklch(0.98 0.008 125);
+  --muted: oklch(0.95 0.012 135);
+  --muted-foreground: oklch(0.48 0.03 165);
+  --accent: oklch(0.955 0.03 135);
+  --accent-foreground: oklch(0.42 0.11 150);
+  --destructive: oklch(0.58 0.21 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9288 0.0126 255.5078);
-  --input: oklch(0.9288 0.0126 255.5078);
-  --ring: oklch(0.8871 0.2122 128.5041);
-  --chart-1: oklch(0.8871 0.2122 128.5041);
-  --chart-2: oklch(0.3717 0.0392 257.287);
-  --chart-3: oklch(0.7227 0.192 149.5793);
-  --chart-4: oklch(0.5544 0.0407 257.4166);
-  --chart-5: oklch(0.7107 0.0351 256.7878);
+  --border: oklch(0.905 0.016 140);
+  --input: oklch(0.905 0.016 140);
+  --ring: oklch(0.72 0.19 135);
+  --chart-1: oklch(0.72 0.19 135);
+  --chart-2: oklch(0.55 0.13 240);
+  --chart-3: oklch(0.62 0.17 150);
+  --chart-4: oklch(0.56 0.09 195);
+  --chart-5: oklch(0.68 0.15 70);
+  --protein: oklch(0.58 0.17 35);
+  --carbs: oklch(0.57 0.13 65);
+  --fat: oklch(0.53 0.15 315);
   --radius: 1rem;
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2077 0.0398 265.7549);
+  --sidebar-foreground: oklch(0.25 0.035 168);
   --sidebar-primary: oklch(0.8871 0.2122 128.5041);
   --sidebar-primary-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0.9842 0.0034 247.8575);
-  --sidebar-accent-foreground: oklch(0.2077 0.0398 265.7549);
-  --sidebar-border: oklch(0.9683 0.0069 247.8956);
-  --sidebar-ring: oklch(0.8871 0.2122 128.5041);
+  --sidebar-accent: oklch(0.95 0.012 135);
+  --sidebar-accent-foreground: oklch(0.25 0.035 168);
+  --sidebar-border: oklch(0.95 0.012 135);
+  --sidebar-ring: oklch(0.72 0.19 135);
 }
 
 .dark {
-  --background: oklch(0.1288 0.0406 264.6952);
-  --foreground: oklch(0.9842 0.0034 247.8575);
-  --card: oklch(0.2077 0.0398 265.7549);
-  --card-foreground: oklch(0.9842 0.0034 247.8575);
-  --popover: oklch(0.2077 0.0398 265.7549);
-  --popover-foreground: oklch(0.9842 0.0034 247.8575);
+  --background: oklch(0.185 0.028 168);
+  --foreground: oklch(0.975 0.012 110);
+  --card: oklch(0.235 0.03 168);
+  --card-foreground: oklch(0.975 0.012 110);
+  --popover: oklch(0.265 0.03 168);
+  --popover-foreground: oklch(0.975 0.012 110);
   --primary: oklch(0.8871 0.2122 128.5041);
   --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.2795 0.0368 260.031);
-  --secondary-foreground: oklch(0.9842 0.0034 247.8575);
-  --muted: oklch(0.2795 0.0368 260.031);
-  --muted-foreground: oklch(0.7107 0.0351 256.7878);
-  --accent: oklch(0.3925 0.0896 152.5353);
+  --secondary: oklch(0.3 0.03 168);
+  --secondary-foreground: oklch(0.975 0.012 110);
+  --muted: oklch(0.3 0.03 168);
+  --muted-foreground: oklch(0.77 0.03 150);
+  --accent: oklch(0.32 0.045 160);
   --accent-foreground: oklch(0.8871 0.2122 128.5041);
-  --destructive: oklch(0.4437 0.1613 26.8994);
+  --destructive: oklch(0.7 0.19 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.2795 0.0368 260.031);
-  --input: oklch(0.2795 0.0368 260.031);
+  --border: oklch(0.32 0.028 168);
+  --input: oklch(0.32 0.028 168);
   --ring: oklch(0.8871 0.2122 128.5041);
   --chart-1: oklch(0.8871 0.2122 128.5041);
-  --chart-2: oklch(0.6231 0.188 259.8145);
+  --chart-2: oklch(0.76 0.12 240);
   --chart-3: oklch(0.7227 0.192 149.5793);
-  --chart-4: oklch(0.6268 0.2325 303.9004);
-  --chart-5: oklch(0.7686 0.1647 70.0804);
-  --sidebar: oklch(0.1288 0.0406 264.6952);
-  --sidebar-foreground: oklch(0.9842 0.0034 247.8575);
+  --chart-4: oklch(0.8 0.11 195);
+  --chart-5: oklch(0.82 0.15 75);
+  --protein: oklch(0.76 0.14 35);
+  --carbs: oklch(0.86 0.14 88);
+  --fat: oklch(0.75 0.13 315);
+  --sidebar: oklch(0.185 0.028 168);
+  --sidebar-foreground: oklch(0.975 0.012 110);
   --sidebar-primary: oklch(0.8871 0.2122 128.5041);
   --sidebar-primary-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0.2795 0.0368 260.031);
-  --sidebar-accent-foreground: oklch(0.9842 0.0034 247.8575);
-  --sidebar-border: oklch(0.2795 0.0368 260.031);
+  --sidebar-accent: oklch(0.3 0.03 168);
+  --sidebar-accent-foreground: oklch(0.975 0.012 110);
+  --sidebar-border: oklch(0.3 0.03 168);
   --sidebar-ring: oklch(0.8871 0.2122 128.5041);
 }
 
@@ -205,33 +213,26 @@
       0 12px 28px -6px rgb(0 0 0 / 0.45);
   }
 
-  /* Ambient page background — two soft blobs (warm amber + brand-green)
-     bleed down from the top. Used on the home / settings / weight pages. */
+  /* Ambient page background — a single soft glow of the brand green bleeding
+     down from the top. Used on the home / settings / weight pages. */
   .ambient {
-    background:
-      radial-gradient(
-        55% 55% at 20% 0%,
-        oklch(0.92 0.12 80 / 0.55) 0%,
-        transparent 65%
-      ),
-      radial-gradient(
-        45% 45% at 85% 5%,
-        oklch(0.9 0.14 145 / 0.4) 0%,
-        transparent 65%
-      );
+    background: radial-gradient(
+      70% 60% at 50% 0%,
+      oklch(0.92 0.1 130 / 0.45) 0%,
+      transparent 70%
+    );
   }
   .dark .ambient {
-    background:
-      radial-gradient(
-        55% 55% at 20% 0%,
-        oklch(0.4 0.1 70 / 0.35) 0%,
-        transparent 65%
-      ),
-      radial-gradient(
-        45% 45% at 85% 5%,
-        oklch(0.4 0.1 150 / 0.22) 0%,
-        transparent 65%
-      );
+    background: radial-gradient(
+      70% 60% at 50% 0%,
+      oklch(0.42 0.08 150 / 0.35) 0%,
+      transparent 70%
+    );
+  }
+
+  /* The soft, rounded cut of the display face — the food-packaging look. */
+  .font-heading {
+    font-variation-settings: "SOFT" 100;
   }
 }
 
@@ -328,5 +329,25 @@
   100% {
     width: 90%;
     opacity: 1;
+  }
+}
+
+/* The calorie ring draws itself when it mounts, one macro after the next. Changes
+   after that ease via the stroke transition on the segments instead. */
+@keyframes ring-draw {
+  from {
+    stroke-dasharray: 0 var(--ring-circumference);
+    opacity: 0;
+  }
+}
+.ring-segment {
+  transition: stroke-dasharray 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: ring-draw 800ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-segment {
+    transition: none;
+    animation: none;
   }
 }

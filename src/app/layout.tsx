@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense, ViewTransition } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {
   THEME_BOOT_SCRIPT,
@@ -20,9 +20,19 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+// Only for a couple of code snippets, so not worth preloading on every route.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
+});
+
+// Numbers and headings. SOFT is what gives it the rounded, food-packaging cut.
+// Adding opsz would double this file for a difference you can barely see.
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["SOFT"],
 });
 
 // Public URL used by social-card crawlers (Slack, iMessage, Twitter, etc.)
@@ -82,8 +92,8 @@ export const metadata: Metadata = {
 
 export const viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f8f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#051710" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -100,7 +110,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <head>
         {/* Blocks paint until the theme class is on <html> — prevents

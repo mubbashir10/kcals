@@ -35,7 +35,7 @@ export default async function SignInPage({
             />
             <Logo className="h-16 w-16 drop-shadow-[0_8px_24px_oklch(0.7_0.18_145_/_0.35)]" />
           </div>
-          <h1 className="bg-gradient-to-b from-lime-400 to-emerald-500 bg-clip-text text-4xl font-semibold leading-none tracking-tight text-transparent">
+          <h1 className="font-heading bg-gradient-to-b from-lime-400 to-emerald-500 bg-clip-text text-4xl font-semibold leading-none tracking-tight text-transparent">
             kcals
           </h1>
           <p className="mt-3 max-w-[20rem] text-sm leading-relaxed text-muted-foreground">

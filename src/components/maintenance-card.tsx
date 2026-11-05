@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import { Baby, Dumbbell, Flame, Footprints, Heart, Watch } from "lucide-react";
 
+import { StatFigure } from "@/components/stat-figure";
 import { Card } from "@/components/ui/card";
-import { MetricBadge } from "@/components/metric-badge";
 import { WidgetMenu } from "@/components/widget-menu";
 import { cn } from "@/lib/utils";
 import { metricColor } from "@/lib/metric-colors";
@@ -40,31 +40,31 @@ export function MaintenanceCard({
   lactationKcal?: number;
 }) {
   return (
-    <Card className="rounded-3xl border-border/60 p-6 shadow-card-lg">
+    <Card className="gap-0 rounded-3xl border-border/60 p-5 shadow-card-lg">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <MetricBadge icon={Flame} color={metricColor.energy} />
+        <div className="flex items-center gap-2">
+          <Flame className="h-4 w-4 shrink-0" style={{ color: metricColor.energy }} />
           <span className="text-xs font-medium text-muted-foreground">
             Maintenance calories
           </span>
         </div>
         <WidgetMenu widgetId="maintenance" label="Maintenance" />
       </div>
-      <div className="mt-3 text-5xl font-semibold leading-none tabular-nums tracking-tight">
-        {Math.round(tdee).toLocaleString()}
-        <span className="ml-2 text-base font-normal text-muted-foreground">
-          kcal/day
-        </span>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        What this day costs you — eat this to hold your weight.
+      <StatFigure
+        size="4xl"
+        value={Math.round(tdee).toLocaleString()}
+        unit="kcal/day"
+        className="mt-3"
+      />
+      <p className="mt-2 text-xs text-muted-foreground">
+        What this day costs you. Eat this to hold your weight.
         {lactationKcal > 0 &&
           " The energy to make milk is included, so eating this holds your weight while nursing."}
       </p>
 
       <div
         className={cn(
-          "mt-5 grid gap-3 border-t border-border/60 pt-4",
+          "mt-4 grid gap-3 border-t border-border/60 pt-4",
           breakdown.kind === "estimate" ? "grid-cols-3" : "grid-cols-2"
         )}
       >
@@ -140,13 +140,13 @@ function BreakdownItem({
           {label}
         </div>
       </div>
-      <div className="mt-1 text-2xl font-semibold leading-none tabular-nums tracking-tight">
-        {Math.round(value).toLocaleString()}
-        <span className="ml-1 text-xs font-normal text-muted-foreground">
-          kcal
-        </span>
-      </div>
-      <div className="mt-1.5 truncate text-[11px] text-muted-foreground/70">
+      <StatFigure
+        size="xl"
+        value={Math.round(value).toLocaleString()}
+        unit="kcal"
+        className="mt-1.5"
+      />
+      <div className="mt-1.5 truncate text-[11px] text-muted-foreground">
         {hint}
       </div>
     </div>

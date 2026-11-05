@@ -11,7 +11,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { CalorieRing } from "@/components/calorie-ring";
 import { MacroCard } from "@/components/macro-card";
-import { MetricBadge } from "@/components/metric-badge";
+import { MacroGapNote } from "@/components/macro-figures";
+import { StatFigure } from "@/components/stat-figure";
 import { metricColor } from "@/lib/metric-colors";
 import { ReadOnlyMealCard } from "@/components/read-only-meal-card";
 import { db } from "@/lib/db";
@@ -86,7 +87,7 @@ export default async function FriendViewPage({
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">
+            <h1 className="font-heading truncate text-2xl font-semibold tracking-tight">
               {displayName}
             </h1>
             <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -135,16 +136,25 @@ function FriendDayView({
   } = stats;
 
   const units = profile.units as Units;
+  const eatenKcal = Math.round(consumed.kcal);
+  const macros = {
+    proteinG: consumed.protein,
+    carbsG: consumed.carbs,
+    fatG: consumed.fat,
+  };
+  const weight = latestWeight && displayWeight(latestWeight.weightKg, units);
 
   return (
     <>
       <Card className="relative rounded-3xl border-border/60 px-6 py-12 shadow-card-lg">
         <div className="flex flex-col items-center">
           <CalorieRing
-            consumed={Math.round(consumed.kcal)}
+            consumed={eatenKcal}
             goal={calorieGoal}
             mode="remaining"
+            macros={macros}
           />
+          <MacroGapNote kcal={eatenKcal} {...macros} />
         </div>
       </Card>
 
@@ -172,17 +182,16 @@ function FriendDayView({
       <section className="mt-8 grid grid-cols-2 gap-3">
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2.5">
-            <MetricBadge icon={Flame} color={metricColor.energy} />
+            <Flame className="h-4 w-4 shrink-0" style={{ color: metricColor.energy }} />
             <span className="text-xs font-medium text-muted-foreground">
               Maintenance
             </span>
           </div>
-          <div className="text-2xl font-semibold tabular-nums tracking-tight">
-            {Math.round(tdee).toLocaleString()}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">
-              kcal
-            </span>
-          </div>
+          <StatFigure
+            size="2xl"
+            value={Math.round(tdee).toLocaleString()}
+            unit="kcal"
+          />
           <div className="mt-1 text-[11px] text-muted-foreground">
             Daily energy goal
           </div>
@@ -190,19 +199,14 @@ function FriendDayView({
 
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2.5">
-            <MetricBadge icon={Weight} color={metricColor.weight} />
+            <Weight className="h-4 w-4 shrink-0" style={{ color: metricColor.weight }} />
             <span className="text-xs font-medium text-muted-foreground">
               Weight
             </span>
           </div>
-          {latestWeight ? (
+          {weight ? (
             <>
-              <div className="text-2xl font-semibold tabular-nums tracking-tight">
-                {(() => {
-                  const w = displayWeight(latestWeight.weightKg, units);
-                  return `${w.value} ${w.unit}`;
-                })()}
-              </div>
+              <StatFigure size="2xl" value={weight.value} unit={weight.unit} />
               <div className="mt-1 text-[11px] text-muted-foreground tabular-nums">
                 {delta7dKg === null
                   ? "Single log so far"
@@ -217,13 +221,13 @@ function FriendDayView({
 
       <section className="mt-12">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight">
+          <h2 className="font-heading text-xl font-semibold tracking-tight">
             {displayName.split(" ")[0]}’s meals today
           </h2>
           <span className="text-xs text-muted-foreground tabular-nums">
             {meals.length === 0
               ? "nothing yet"
-              : `${meals.length} ${meals.length === 1 ? "meal" : "meals"} · ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
+              : `${meals.length} ${meals.length === 1 ? "meal" : "meals"}, ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
           </span>
         </div>
 

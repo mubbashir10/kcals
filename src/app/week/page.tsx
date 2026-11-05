@@ -116,7 +116,7 @@ export default async function WeekPage({
           ) : (
             <>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <div className="text-5xl font-semibold leading-none tabular-nums tracking-tight">
+                <div className="font-heading text-5xl font-semibold leading-none tabular-nums tracking-tight">
                   {Math.abs(net).toLocaleString()}
                 </div>
                 <span className="text-base font-normal text-muted-foreground">

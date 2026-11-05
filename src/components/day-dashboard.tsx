@@ -107,9 +107,14 @@ export function DayDashboard({
   const { consumed, active, bmr } = stats;
   const units = profile.units as Units;
 
+  // The meals section's own empty state already leads with "Add food".
+  const mealsEmpty = mealsState !== "hidden" && mealItems.length === 0;
+
   return (
-    <>
-      <div className="mb-4">
+    // pb-20: room to scroll the last meal clear of the floating Add food button.
+    <div className="pb-20 lg:grid lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] lg:items-start lg:gap-10 lg:pb-0">
+      {/* On a big screen the day stays in view while the meals scroll past. */}
+      <div className="mb-4 lg:sticky lg:top-20 lg:mb-0">
         <DayHero
           activeDayKey={dayKey}
           todayKey={todayKey}
@@ -132,6 +137,22 @@ export function DayDashboard({
           weekSummary={weekSummary}
           units={units}
         />
+        {/* Logging is the app's main job, so it's always a thumb away: floating
+            on a phone, parked under the hero on a big screen. */}
+        {!mealsEmpty && (
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[calc(env(safe-area-inset-bottom)+1rem)] lg:pointer-events-auto lg:static lg:mt-3 lg:pb-0">
+            <AppLink
+              href={`/add?day=${dayKey}`}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "pointer-events-auto h-12 gap-1.5 rounded-full px-6 font-semibold shadow-card-lg lg:w-full"
+              )}
+            >
+              <Plus className="h-4 w-4" />
+              Add food
+            </AppLink>
+          </div>
+        )}
       </div>
 
       <SortableWidgets
@@ -203,21 +224,21 @@ export function DayDashboard({
             id: "meals" as const,
             node: (
               <section>
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AppLink
                       href="/diary"
                       aria-label="View food diary"
                       className="group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
-                      <h2 className="text-sm font-semibold tracking-tight transition-colors group-hover:text-foreground/80">
+                      <h2 className="font-heading text-xl font-semibold tracking-tight transition-colors group-hover:text-foreground/80">
                         {isToday ? "Today's meals" : "Meals"}
                       </h2>
                     </AppLink>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {mealsCount === 0
                         ? "nothing yet"
-                        : `${mealsCount} ${mealsCount === 1 ? "meal" : "meals"} · ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
+                        : `${mealsCount} ${mealsCount === 1 ? "meal" : "meals"}, ${foodCount} ${foodCount === 1 ? "food" : "foods"}`}
                     </span>
                   </div>
                   <SectionWidgetMenu
@@ -269,7 +290,7 @@ export function DayDashboard({
           (x): x is SortableWidgetItem => x !== false
         )}
       />
-    </>
+    </div>
   );
 }
 

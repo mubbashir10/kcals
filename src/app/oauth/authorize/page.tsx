@@ -57,7 +57,7 @@ export default async function AuthorizePage({
         <Card className="w-full rounded-2xl border-border/60 p-6 shadow-card">
           <Logo className="mx-auto h-12 w-12" />
 
-          <h1 className="mt-5 text-center text-xl font-semibold tracking-tight">
+          <h1 className="font-heading mt-5 text-center text-xl font-semibold tracking-tight">
             Connect {client.name}?
           </h1>
           <p className="mt-1 text-center text-xs text-muted-foreground">
@@ -109,7 +109,7 @@ function Message({ title, body }: { title: string; body: string }) {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center px-6 py-16">
       <Card className="w-full rounded-2xl border-border/60 p-6 text-center shadow-card">
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        <h1 className="font-heading text-lg font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{body}</p>
       </Card>
     </main>

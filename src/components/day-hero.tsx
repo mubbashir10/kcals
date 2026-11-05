@@ -3,7 +3,7 @@
 // macros run along the foot. Server component — only the ring's
 // remaining/consumed toggle is a nested client island.
 
-import { ArrowUpRight, CalendarDays } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
 import { Card } from "@/components/ui/card";
@@ -64,10 +64,9 @@ export function DayHero({
           <AppLink
             href="/calendar"
             aria-label="Open calendar"
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-primary/12 px-2.5 text-primary outline-none transition-colors hover:bg-primary/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent-foreground outline-none transition-colors hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            <CalendarDays className="h-3.5 w-3.5" />
-            <ArrowUpRight className="h-3 w-3 opacity-70" />
+            <CalendarDays className="h-4 w-4" />
           </AppLink>
         </div>
         <WeekStrip
@@ -77,7 +76,7 @@ export function DayHero({
         />
       </div>
 
-      <div className="px-5 pb-8 pt-5 sm:px-6 sm:pb-10">
+      <div className="px-5 pb-6 pt-4 sm:px-6">
         <CalorieRingBlock
           consumed={consumed}
           goal={goal}
@@ -86,6 +85,11 @@ export function DayHero({
           goalType={goalType}
           kcalOffset={kcalOffset}
           initialMode={initialMode}
+          macros={{
+            proteinG: macros.protein,
+            carbsG: macros.carbs,
+            fatG: macros.fat,
+          }}
         />
       </div>
 
@@ -142,7 +146,7 @@ function WeekSummaryLine({
       aria-label="View week summary"
       className="group flex min-w-0 items-center gap-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <span className="shrink-0 text-[11px] font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+      <span className="shrink-0 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
         This week
       </span>
       {summary && summary.loggedDays > 0 && weight ? (
@@ -151,9 +155,9 @@ function WeekSummaryLine({
             {Math.abs(net).toLocaleString()}
           </span>
           <span className="text-muted-foreground"> kcal {netBalanceWord(net)}</span>
-          <span className="tabular-nums text-muted-foreground/60">
+          <span className="tabular-nums text-muted-foreground">
             {" "}
-            · ≈{weight.value} {weight.unit}
+            ≈ {weight.value} {weight.unit}
           </span>
         </span>
       ) : (
