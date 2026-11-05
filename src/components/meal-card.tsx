@@ -519,6 +519,15 @@ function FoodRow({
               {f.grams > 0 ? `${round1(f.grams)} g` : null}
             </div>
           )}
+          {/* A quick-add logged with calories only stores 0/0/0 — that means
+              "not entered", so don't print it as if it were a measurement. */}
+          {f.proteinG + f.carbsG + f.fatG > 0 && (
+            <div className="mt-0.5 flex gap-2 text-[10px] tabular-nums text-muted-foreground/70">
+              <span>P {Math.round(f.proteinG)}</span>
+              <span>C {Math.round(f.carbsG)}</span>
+              <span>F {Math.round(f.fatG)}</span>
+            </div>
+          )}
         </div>
 
         <div className="shrink-0 text-right tabular-nums">
