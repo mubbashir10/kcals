@@ -106,7 +106,7 @@ export default async function WeekPage({
 
         {/* Hero — net balance + predicted weight verdict */}
         <section>
-          <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <h2 className="text-xs font-medium text-muted-foreground">
             Net energy balance
           </h2>
           {summary.loggedDays === 0 ? (
@@ -168,7 +168,7 @@ export default async function WeekPage({
 
         {/* Daily breakdown */}
         <section className="mt-8">
-          <h2 className="mb-3 px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <h2 className="mb-3 px-1 text-xs text-muted-foreground">
             Daily breakdown
           </h2>
           <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
@@ -198,7 +198,7 @@ function DayRow({ day }: { day: WeekSummary["days"][number] }) {
             {date}
           </span>
           {day.isToday && (
-            <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-foreground/70">
+            <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">
               Today
             </span>
           )}

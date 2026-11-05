@@ -182,7 +182,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
 
       {showPace && (
         <Card className="space-y-2 rounded-2xl border-border/60 p-3 shadow-card">
-          <div className="px-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="px-1 text-xs text-muted-foreground">
             Pace
           </div>
           <div className="space-y-1.5">
@@ -224,7 +224,7 @@ export function GoalSettings({ initial, unitsLabel }: Props) {
                     </div>
                     <div
                       className={cn(
-                        "text-[11px] font-medium uppercase tracking-[0.14em]",
+                        "text-xs font-medium",
                         active ? "text-background/70" : "text-muted-foreground"
                       )}
                     >
@@ -295,14 +295,14 @@ function MaintainCard({ tdee }: { tdee: number }) {
         </span>
       </div>
       <div className="mt-4">
-        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="text-xs font-medium text-muted-foreground">
           Daily target
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <span className="text-3xl font-semibold tabular-nums tracking-tight">
             {Math.round(tdee).toLocaleString()}
           </span>
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             kcal
           </span>
         </div>
@@ -364,7 +364,7 @@ function TrackEditor({
       <div>
         <label
           htmlFor="track-kcal"
-          className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          className="mb-1.5 block text-xs font-medium text-muted-foreground"
         >
           Daily calorie target
         </label>
@@ -433,7 +433,7 @@ function MacroEditor({
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2 px-1">
         <div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="text-xs font-medium text-muted-foreground">
             Macros
           </div>
           <p className="mt-1 max-w-md text-[11px] leading-relaxed text-muted-foreground/75">

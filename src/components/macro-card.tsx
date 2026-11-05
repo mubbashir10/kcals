@@ -28,7 +28,7 @@ export function MacroCard({ label, value, goal, unit = "g", color, flat = false 
           style={{ backgroundColor: color }}
           aria-hidden
         />
-        <span className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="truncate text-xs font-medium text-muted-foreground">
           {label}
         </span>
       </div>

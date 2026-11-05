@@ -91,7 +91,7 @@ export function ActivityCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className={ICON} style={{ color: metricColor.activity }} />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {isToday ? "Today's activity" : "Activity"}
             </span>
           </div>
@@ -197,7 +197,7 @@ function StatTile({
     <div className="flex-1">
       <div className="flex items-center gap-2">
         <Icon className={ICON} style={{ color }} />
-        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="text-[11px] font-medium text-muted-foreground">
           {label}
         </span>
       </div>
@@ -470,7 +470,7 @@ function LogActivityForm({
 
       <div className="mt-4 space-y-4">
         <div className="space-y-2">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             Active burn
           </Label>
           <div className="inline-flex w-full rounded-full bg-muted p-1">
@@ -604,7 +604,7 @@ function NumberField({
     <div className="space-y-2">
       <Label
         htmlFor={id}
-        className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+        className="text-xs font-medium text-muted-foreground"
       >
         {label}
       </Label>

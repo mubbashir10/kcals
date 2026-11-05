@@ -60,7 +60,7 @@ export function RecipeListItem({ recipe }: { recipe: RecipeListItemData }) {
       <div className="text-sm font-semibold tabular-nums">
         {Math.round(recipe.per100Kcal)}
       </div>
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-xs font-medium text-muted-foreground">
         kcal/100g
       </div>
     </div>

@@ -355,7 +355,7 @@ function MealTargetPicker({
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2 px-1">
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="text-xs font-medium text-muted-foreground">
           Adding to
         </span>
         <div className="h-px flex-1 bg-border/60" />
@@ -437,7 +437,7 @@ function ResultGroup({
     <section>
       {label && (
         <div className="mb-2 flex items-center gap-2 px-1">
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             {label}
           </span>
           <span className="text-[10px] tabular-nums text-muted-foreground/60">
@@ -495,7 +495,7 @@ function ResultRow({
             <div className="text-sm font-semibold tabular-nums">
               {Math.round(f.per100g.kcal)}
             </div>
-            <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               kcal/100g
             </div>
           </div>
@@ -560,7 +560,7 @@ function SourceLadder() {
         {sources.map((s) => (
           <span
             key={s}
-            className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground"
           >
             {s}
           </span>
@@ -739,7 +739,7 @@ function PortionForm({
           <div className="flex items-baseline justify-between">
             <Label
               htmlFor="grams"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Serving
             </Label>
@@ -915,7 +915,7 @@ function QuickAddDialog({
           <div className="space-y-2">
             <Label
               htmlFor="qa-kcal"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Calories
             </Label>
@@ -944,7 +944,7 @@ function QuickAddDialog({
           <div className="space-y-2">
             <Label
               htmlFor="qa-label"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Label
               <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
@@ -960,7 +960,7 @@ function QuickAddDialog({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <Label className="text-xs font-medium text-muted-foreground">
               Macros
               <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
                 (optional)
@@ -1037,7 +1037,7 @@ function MacroInput({
         placeholder="0"
         className="pl-7 pr-8 tabular-nums"
       />
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium text-muted-foreground">
         {label}
       </span>
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
@@ -1073,7 +1073,7 @@ function Stat({
           </span>
         )}
       </div>
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-xs font-medium text-muted-foreground">
         {label}
       </div>
     </div>

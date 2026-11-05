@@ -273,7 +273,7 @@ function EditWeightForm({
         <div className="space-y-2">
           <Label
             htmlFor="edit-weight"
-            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground"
           >
             Weight
           </Label>

@@ -95,7 +95,7 @@ export function CalorieRingBlock({
               ? "Switch to showing consumed"
               : "Switch to showing remaining"
           }
-          className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex h-7 items-center gap-1.5 rounded-full bg-muted/50 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeftRight className="h-3 w-3" />
           {mode === "remaining" ? "Remaining" : "Consumed"}
@@ -135,7 +135,7 @@ function GoalChip({ type, offset }: { type: GoalType; offset: number }) {
   return (
     <span
       className={cn(
-        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium uppercase tracking-[0.14em]",
+        "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
         meta.bg,
         meta.accent
       )}

@@ -142,7 +142,7 @@ function WeekSummaryLine({
       aria-label="View week summary"
       className="group flex min-w-0 items-center gap-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors group-hover:text-foreground">
+      <span className="shrink-0 text-[11px] font-medium text-muted-foreground transition-colors group-hover:text-foreground">
         This week
       </span>
       {summary && summary.loggedDays > 0 && weight ? (

@@ -178,7 +178,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
       {/* Derived totals — what your composition currently yields. */}
       <section className="mt-6 rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
         <div className="flex items-baseline justify-between">
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Per 100g
           </span>
           {totals.perServingKcal != null && (
@@ -201,7 +201,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
       {/* Ingredients list. */}
       <section className="mt-8">
         <div className="mb-3 flex items-center gap-2 px-1">
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Ingredients
           </span>
           <span className="text-[10px] tabular-nums text-muted-foreground/60">
@@ -264,7 +264,7 @@ export function RecipeBuilder({ recipe }: { recipe: RecipeBuilderData }) {
       {/* Search — same data as /add, but tap appends as ingredient. */}
       <section className="mt-8">
         <div className="mb-3 flex items-center gap-2 px-1">
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Add ingredient
           </span>
           <div className="h-px flex-1 bg-border/60" />
@@ -413,7 +413,7 @@ function IngredientSearch({
               {["My recipes", "Reference", "Community", "USDA", "Open Food Facts"].map((s) => (
                 <span
                   key={s}
-                  className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                  className="inline-flex items-center rounded-full border border-border/60 bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground"
                 >
                   {s}
                 </span>
@@ -455,7 +455,7 @@ function IngredientSearch({
                       <div className="text-sm font-semibold tabular-nums">
                         {Math.round(f.per100g.kcal)}
                       </div>
-                      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      <div className="text-xs font-medium text-muted-foreground">
                         kcal/100g
                       </div>
                     </div>
@@ -524,7 +524,7 @@ function IngredientPortionDialog({
               <div className="space-y-2">
                 <Label
                   htmlFor="ing-grams"
-                  className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                  className="text-xs font-medium text-muted-foreground"
                 >
                   Amount in recipe
                 </Label>
@@ -643,7 +643,7 @@ function EditIngredientDialog({
               <div className="space-y-2">
                 <Label
                   htmlFor="edit-ing-grams"
-                  className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                  className="text-xs font-medium text-muted-foreground"
                 >
                   Amount
                 </Label>
@@ -770,7 +770,7 @@ function EditRecipeMetaDialog({
           <div className="space-y-2">
             <Label
               htmlFor="r-edit-name"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Name
             </Label>
@@ -785,7 +785,7 @@ function EditRecipeMetaDialog({
             <div className="space-y-2">
               <Label
                 htmlFor="r-edit-weight"
-                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground"
               >
                 Total weight
               </Label>
@@ -807,7 +807,7 @@ function EditRecipeMetaDialog({
             <div className="space-y-2">
               <Label
                 htmlFor="r-edit-servings"
-                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground"
               >
                 Servings
               </Label>
@@ -930,7 +930,7 @@ function Stat({
           </span>
         )}
       </div>
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-xs font-medium text-muted-foreground">
         {label}
       </div>
     </div>

@@ -750,7 +750,7 @@ function SessionGroup({
             onChange={(e) => onFreqChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">
             × / week
           </span>
         </div>
@@ -763,7 +763,7 @@ function SessionGroup({
             onChange={(e) => onDurChange(e.target.value)}
             className="pr-14"
           />
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">
             min
           </span>
         </div>
@@ -772,7 +772,7 @@ function SessionGroup({
   );
 }
 
-/** The uppercase, letter-spaced caption used above every control on this form. */
+/** The caption used above every control on this form. */
 function FieldLabel({
   icon: Icon,
   htmlFor,
@@ -785,7 +785,7 @@ function FieldLabel({
   return (
     <Label
       htmlFor={htmlFor}
-      className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+      className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
     >
       {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" />}
       {children}
@@ -795,7 +795,7 @@ function FieldLabel({
 
 function OptionalTag() {
   return (
-    <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
+    <span className="text-xs font-medium text-muted-foreground/60">
       Optional
     </span>
   );
@@ -811,7 +811,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Icon className="h-4 w-4 text-primary" />
         {children}
       </span>

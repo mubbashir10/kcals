@@ -239,7 +239,7 @@ function CustomFoodForm({
 
       {/* Mode toggle */}
       <div className="space-y-2">
-        <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <Label className="text-xs font-medium text-muted-foreground">
           Values are
         </Label>
         <div className="inline-flex w-full rounded-full bg-muted p-1">
@@ -331,7 +331,7 @@ function CustomFoodForm({
       <button
         type="button"
         onClick={() => setMoreOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+        className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         <span>More nutrients (optional)</span>
         {moreOpen ? (
@@ -429,17 +429,17 @@ function Field({
       <div className="flex items-baseline justify-between">
         <Label
           htmlFor={id}
-          className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+          className="text-xs font-medium text-muted-foreground"
         >
           {label}
         </Label>
         {optional && (
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
+          <span className="text-xs font-medium text-muted-foreground/60">
             Optional
           </span>
         )}
         {required && (
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/60">
+          <span className="text-xs font-medium text-muted-foreground/60">
             Required
           </span>
         )}
@@ -477,7 +477,7 @@ function NutrientField({
           placeholder={placeholder}
           className="pr-12"
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">
           {suffix}
         </span>
       </div>

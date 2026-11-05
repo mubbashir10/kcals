@@ -196,7 +196,7 @@ export function CalorieRing({
           strokeWidth={2}
           aria-hidden
         />
-        <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {topLabel}
         </div>
         <div className="mt-1 text-5xl font-semibold leading-none tracking-tight tabular-nums">

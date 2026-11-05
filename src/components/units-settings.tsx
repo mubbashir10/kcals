@@ -27,7 +27,7 @@ export function UnitsSettings({ initial }: { initial: UnitsPreference }) {
       <div className="mb-3 flex items-center gap-2">
         <Ruler className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-sm font-medium">Units</span>
-        <span className="ml-auto text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="ml-auto text-xs font-medium text-muted-foreground">
           Everywhere
         </span>
       </div>
@@ -55,7 +55,7 @@ export function UnitsSettings({ initial }: { initial: UnitsPreference }) {
               <span>{label}</span>
               <span
                 className={cn(
-                  "text-[9px] font-normal uppercase tracking-wider",
+                  "text-[10px] font-normal",
                   active ? "text-muted-foreground" : "text-muted-foreground/70"
                 )}
               >

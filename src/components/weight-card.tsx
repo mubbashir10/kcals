@@ -93,7 +93,7 @@ export function WeightCard({ latest, delta7dKg, units, timezone }: WeightCardPro
         <div className="pointer-events-none relative flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <MetricBadge icon={Weight} color={metricColor.weight} />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Weight
             </span>
           </div>
@@ -298,7 +298,7 @@ function LogWeightDialog({
           <div className="space-y-2">
             <Label
               htmlFor="weight-input"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Weight
             </Label>

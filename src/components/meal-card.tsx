@@ -665,7 +665,7 @@ function EditMealDialog({
           <div className="space-y-2">
             <Label
               htmlFor="meal-name"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Name
             </Label>
@@ -687,7 +687,7 @@ function EditMealDialog({
           <div className="space-y-2">
             <Label
               htmlFor="meal-time"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Time
             </Label>
@@ -803,7 +803,7 @@ function TransferMealForm({
           <div className="space-y-2">
             <Label
               htmlFor="transfer-date"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Date
             </Label>
@@ -819,7 +819,7 @@ function TransferMealForm({
           <div className="space-y-2">
             <Label
               htmlFor="transfer-time"
-              className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground"
             >
               Time
             </Label>
@@ -978,7 +978,7 @@ function FoodTransferForm({
         <div className="space-y-2">
           <Label
             htmlFor="food-transfer-date"
-            className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground"
           >
             Day
           </Label>
@@ -993,7 +993,7 @@ function FoodTransferForm({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <Label className="text-xs font-medium text-muted-foreground">
             Meal
           </Label>
           {meals === null ? (
@@ -1256,7 +1256,7 @@ function FoodEditForm({
             <div className="space-y-2">
               <Label
                 htmlFor="edit-kcal"
-                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground"
               >
                 Calories
               </Label>
@@ -1282,7 +1282,7 @@ function FoodEditForm({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <Label className="text-xs font-medium text-muted-foreground">
                 Macros
                 <span className="ml-1 normal-case tracking-normal text-muted-foreground/60">
                   (optional)
@@ -1315,7 +1315,7 @@ function FoodEditForm({
             <div className="space-y-2">
               <Label
                 htmlFor="edit-grams"
-                className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+                className="text-xs font-medium text-muted-foreground"
               >
                 Serving
               </Label>
@@ -1415,7 +1415,7 @@ function FoodStat({
           </span>
         )}
       </div>
-      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-xs font-medium text-muted-foreground">
         {label}
       </div>
     </div>
@@ -1449,7 +1449,7 @@ function MacroEditInput({
         placeholder="0"
         className="pl-7 pr-8 tabular-nums"
       />
-      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium text-muted-foreground">
         {label}
       </span>
       <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">

@@ -150,7 +150,7 @@ function Macro({
         style={{ backgroundColor: accent }}
         aria-hidden
       />
-      <span className="font-medium uppercase tracking-[0.14em]">{label}</span>
+      <span className="font-medium">{label}</span>
       <span className="font-semibold text-foreground/80">{value}</span>
       {tracked ? (
         <span className="text-muted-foreground/60">/{goal.g}</span>

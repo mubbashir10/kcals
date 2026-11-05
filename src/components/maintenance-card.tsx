@@ -44,7 +44,7 @@ export function MaintenanceCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <MetricBadge icon={Flame} color={metricColor.energy} />
-          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Maintenance calories
           </span>
         </div>
@@ -136,7 +136,7 @@ function BreakdownItem({
     <div>
       <div className="flex items-center gap-1.5">
         <Icon className="h-3 w-3 text-muted-foreground" />
-        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="text-xs font-medium text-muted-foreground">
           {label}
         </div>
       </div>

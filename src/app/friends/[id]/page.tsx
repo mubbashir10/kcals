@@ -173,7 +173,7 @@ function FriendDayView({
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2.5">
             <MetricBadge icon={Flame} color={metricColor.energy} />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Maintenance
             </span>
           </div>
@@ -191,7 +191,7 @@ function FriendDayView({
         <Card className="rounded-2xl border-border/60 p-5 shadow-card">
           <div className="mb-2 flex items-center gap-2.5">
             <MetricBadge icon={Weight} color={metricColor.weight} />
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Weight
             </span>
           </div>

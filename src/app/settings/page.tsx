@@ -64,7 +64,7 @@ export default async function SettingsPage() {
         </div>
 
         <section className="mb-8 space-y-3">
-          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <h2 className="px-1 text-xs font-medium text-muted-foreground">
             Preferences
           </h2>
           <Card className="divide-y divide-border/60 rounded-2xl border-border/60 p-4 shadow-card">
@@ -85,7 +85,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          <h2 className="px-1 text-xs font-medium text-muted-foreground">
             Widgets
           </h2>
           <WidgetsSettings
