@@ -121,6 +121,7 @@ export function CalorieRingBlock({
             burned={Math.round(tdeeKcal) - Math.round(bmrKcal)}
             eaten={consumed}
             goal={Math.round(goal)}
+            goalType={goalType}
           />
         </div>
       )}

@@ -194,7 +194,13 @@ export default async function CalendarPage({
           </AppLink>
 
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-border/60 px-5 py-4 text-[13px] sm:px-6">
-            <EqDayBalance bmr={bmr} burned={burned} eaten={eaten} goal={goal} />
+            <EqDayBalance
+              bmr={bmr}
+              burned={burned}
+              eaten={eaten}
+              goal={goal}
+              goalType={detail.goalType}
+            />
           </div>
 
           <div className="space-y-3.5 border-t border-border/60 px-5 py-4 sm:px-6">

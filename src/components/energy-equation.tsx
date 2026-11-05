@@ -7,6 +7,7 @@
 import { Flame, HeartPulse, Sigma, Target, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import type { GoalType } from "@/lib/goal";
 import { cn } from "@/lib/utils";
 
 export function EqTerm({
@@ -60,32 +61,44 @@ export function EqOp({ children }: { children: React.ReactNode }) {
  *
  * The goal term is derived from the target instead of read off the raw pace
  * offset, so the line reconciles with the ring whatever moved the target — the
- * deficit or surplus, a lactation allowance, the BMR floor, a hand-set "just
- * track" number — and so the printed terms always sum to the printed result
- * rather than drifting by a rounding step. Without it the line would total
- * what's left of the *burn* while the ring counts down from the *target*: two
- * different numbers, both called "remaining".
+ * deficit or surplus, a lactation allowance, the BMR floor — and so the printed
+ * terms always sum to the printed result rather than drifting by a rounding
+ * step. Without it the line would total what's left of the *burn* while the
+ * ring counts down from the *target*: two different numbers, both called
+ * "remaining".
+ *
+ * Track is the exception: the user picked the number, so burn has no part in
+ * it. Reconciling the two would report whatever gap today's burn left as a
+ * "surplus" or "deficit" nobody chose, so the line starts from the goal instead.
  */
 export function EqDayBalance({
   bmr,
   burned,
   eaten,
   goal,
+  goalType,
 }: {
   bmr: number;
   burned: number;
   eaten: number;
   /** Effective calorie target — the number the ring counts down from. */
   goal: number;
+  goalType: GoalType;
 }) {
   // Burned/eaten aren't labelled — the flame/fork icons carry them, which keeps
   // the line to one row.
   return (
     <>
-      <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
-      <EqOp>+</EqOp>
-      <EqTerm icon={Flame} value={burned} />
-      <EqGoalTerm adjust={goal - (bmr + burned)} />
+      {goalType === "track" ? (
+        <EqTerm icon={Target} value={goal} label="goal" />
+      ) : (
+        <>
+          <EqTerm icon={HeartPulse} value={bmr} label="BMR" />
+          <EqOp>+</EqOp>
+          <EqTerm icon={Flame} value={burned} />
+          <EqGoalTerm adjust={goal - (bmr + burned)} />
+        </>
+      )}
       <EqOp>−</EqOp>
       <EqTerm icon={Utensils} value={eaten} />
       <EqResult remaining={goal - eaten} />
