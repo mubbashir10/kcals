@@ -1,8 +1,8 @@
-// The "at a glance" energy equation, shared by the day views
-// (BMR + burned ± goal − eaten) and the week page (eaten − burned). Same icons,
-// same operators, same sign language everywhere: a positive result is what's
-// left in the bank, a negative one is an overshoot and gets the destructive
-// tone rather than a leading minus.
+// The "at a glance" energy equation (BMR + burned ± goal − eaten), shared by
+// the day views and the week page, which prints it once per day and once more
+// with the week's totals. Same icons, same operators, same sign language
+// everywhere: a positive result is what's left in the bank, a negative one is
+// an overshoot and gets the destructive tone rather than a leading minus.
 
 import { Flame, HeartPulse, Sigma, Target, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -10,7 +10,7 @@ import type { LucideIcon } from "lucide-react";
 import type { GoalType } from "@/lib/goal";
 import { cn } from "@/lib/utils";
 
-export function EqTerm({
+function EqTerm({
   icon: Icon,
   value,
   label,
@@ -50,14 +50,15 @@ export function EqTerm({
   );
 }
 
-export function EqOp({ children }: { children: React.ReactNode }) {
+function EqOp({ children }: { children: React.ReactNode }) {
   return <span className="text-muted-foreground/40">{children}</span>;
 }
 
 /**
  * A day's whole equation, terms only — the caller owns the container. Shared
- * verbatim by the day hero and the calendar's day preview so the preview stays
- * a preview rather than a second, differently-shaped truth.
+ * verbatim by the day hero, the calendar's day preview and the week page's rows
+ * and totals, so each stays a view of the day rather than a second,
+ * differently-shaped truth.
  *
  * The goal term is derived from the target instead of read off the raw pace
  * offset, so the line reconciles with the ring whatever moved the target — the
@@ -129,7 +130,7 @@ function EqGoalTerm({ adjust }: { adjust: number }) {
  * after eating: positive = still in the bank, negative = ate past it. The `=`
  * rides along so it never dangles at the end of a wrapped line.
  */
-export function EqResult({ remaining }: { remaining: number }) {
+function EqResult({ remaining }: { remaining: number }) {
   const over = remaining < 0;
   return (
     <span className="inline-flex items-center gap-2.5">

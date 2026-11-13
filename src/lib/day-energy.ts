@@ -129,7 +129,7 @@ export function computeDayTargets({
 /**
  * A day's total burn: what the body spends, milk included. The lactation fold
  * is the step callers most often forget, so it lives here for the surfaces
- * that need burn rather than a target (the week summary).
+ * that need burn rather than a target (the MCP body tools).
  */
 export function dayBurnKcal(
   baseTdeeKcal: number,

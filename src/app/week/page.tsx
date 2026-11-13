@@ -2,21 +2,19 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Flame,
   Minus,
   TrendingDown,
   TrendingUp,
-  Utensils,
 } from "lucide-react";
 
 import { AppLink } from "@/components/app-link";
-import { EqOp, EqResult, EqTerm } from "@/components/energy-equation";
+import { EqDayBalance } from "@/components/energy-equation";
 import { Card } from "@/components/ui/card";
 import { requireProfile } from "@/lib/session";
 import { displayWeight, type Units } from "@/lib/bmr";
 import { parseDayKey } from "@/lib/clock";
-import { goalPaceLabel, KCAL_PER_KG } from "@/lib/goal";
-import { loadWeekSummary, netBalanceWord, type WeekSummary } from "@/lib/week";
+import { goalPaceLabel, KCAL_PER_KG, type GoalType } from "@/lib/goal";
+import { loadWeekSummary, type WeekDay, type WeekSummary } from "@/lib/week";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +22,8 @@ export const dynamic = "force-dynamic";
 const NOISE_FLOOR_KG = 0.05;
 // How close to the goal-pace target still counts as "on track" (±15%).
 const ON_TRACK_BAND = 0.15;
+
+type Verdict = { tone: "down" | "up" | "neutral"; text: string };
 
 export default async function WeekPage({
   searchParams,
@@ -42,12 +42,14 @@ export default async function WeekPage({
   );
 
   const rangeLabel = formatRange(summary.startKey, summary.endKey);
-  const verdict = weightVerdict(summary, units);
-  const goalLine = goalComparison(summary, units);
 
-  // Deficit is negative net; show the magnitude with a deficit/surplus word.
-  const net = Math.round(summary.netKcal);
-  const netWord = netBalanceWord(net);
+  // The loader decided what the week is measured against; the page only picks
+  // its copy by that. Track reads against the goal, the rest as an energy
+  // balance → weight.
+  const { balance } = summary;
+  const onGoal = balance.against === "goal";
+  const verdict = onGoal ? goalVerdict(summary) : weightVerdict(summary, units);
+  const goalLine = goalComparison(summary, units);
 
   // The net deficit/surplus expressed as body weight, in the user's unit.
   const netWeight = displayWeight(Math.abs(summary.predictedWeightKg), units);
@@ -104,10 +106,10 @@ export default async function WeekPage({
           )}
         </div>
 
-        {/* Hero — net balance + predicted weight verdict */}
+        {/* Hero — the week's balance + its verdict */}
         <section>
           <h2 className="text-xs font-medium text-muted-foreground">
-            Net energy balance
+            {onGoal ? "Against your goal" : "Net energy balance"}
           </h2>
           {summary.loggedDays === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">
@@ -117,17 +119,19 @@ export default async function WeekPage({
             <>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <div className="font-heading text-5xl font-semibold leading-none tabular-nums tracking-tight">
-                  {Math.abs(net).toLocaleString()}
+                  {Math.abs(balance.kcal).toLocaleString()}
                 </div>
                 <span className="text-base font-normal text-muted-foreground">
-                  kcal {netWord}
+                  kcal {balance.word}
                 </span>
-                <span className="text-base font-normal text-muted-foreground tabular-nums">
-                  ≈{" "}
-                  <span className="font-medium text-foreground/80">
-                    {netWeight.value} {netWeight.unit}
+                {!onGoal && (
+                  <span className="text-base font-normal text-muted-foreground tabular-nums">
+                    ≈{" "}
+                    <span className="font-medium text-foreground/80">
+                      {netWeight.value} {netWeight.unit}
+                    </span>
                   </span>
-                </span>
+                )}
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <VerdictIcon tone={verdict.tone} />
@@ -140,21 +144,16 @@ export default async function WeekPage({
           )}
         </section>
 
-        {/* The week's totals as the same equation the day rows use. */}
+        {/* The week's totals as the same equation each day prints. */}
         {summary.loggedDays > 0 && (
           <div className="mt-6 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-2xl bg-muted/40 px-4 py-3 text-[13px]">
-            <EqTerm
-              icon={Utensils}
-              value={Math.round(summary.consumedKcal)}
-              label="eaten"
+            <EqDayBalance
+              bmr={summary.bmrKcal}
+              burned={summary.burnedKcal - summary.bmrKcal}
+              eaten={summary.consumedKcal}
+              goal={summary.goalKcal}
+              goalType={summary.goalType}
             />
-            <EqOp>−</EqOp>
-            <EqTerm
-              icon={Flame}
-              value={Math.round(summary.burnedKcal)}
-              label="burned"
-            />
-            <EqResult remaining={-net} />
           </div>
         )}
         <p className="mt-3 px-1 text-[11px] text-muted-foreground">
@@ -162,8 +161,10 @@ export default async function WeekPage({
           <span className="font-medium text-foreground/80">
             {summary.loggedDays} of 7 days
           </span>{" "}
-          you logged. Unlogged days are assumed at maintenance and left out of
-          the balance.
+          you logged
+          {onGoal
+            ? ", each against that day's goal. Unlogged days are left out."
+            : ". Unlogged days are assumed at maintenance and left out of the balance."}
         </p>
 
         {/* Daily breakdown */}
@@ -173,7 +174,7 @@ export default async function WeekPage({
           </h2>
           <Card className="divide-y divide-border/60 overflow-hidden rounded-2xl border-border/60 p-0 shadow-none">
             {summary.days.map((d) => (
-              <DayRow key={d.dayKey} day={d} />
+              <DayRow key={d.dayKey} day={d} goalType={summary.goalType} />
             ))}
           </Card>
         </section>
@@ -182,10 +183,8 @@ export default async function WeekPage({
   );
 }
 
-function DayRow({ day }: { day: WeekSummary["days"][number] }) {
+function DayRow({ day, goalType }: { day: WeekDay; goalType: GoalType }) {
   const { weekday, date } = formatDayParts(day.dayKey);
-  const eaten = Math.round(day.consumedKcal);
-  const burned = Math.round(day.tdeeKcal);
 
   const inner = (
     <div className="px-5 py-3.5">
@@ -213,12 +212,16 @@ function DayRow({ day }: { day: WeekSummary["days"][number] }) {
         )}
       </div>
 
+      {/* The day's own equation, exactly as its page prints it. */}
       {day.hasFood && (
         <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
-          <EqTerm icon={Utensils} value={eaten} />
-          <EqOp>−</EqOp>
-          <EqTerm icon={Flame} value={burned} />
-          <EqResult remaining={burned - eaten} />
+          <EqDayBalance
+            bmr={day.bmrKcal}
+            burned={day.tdeeKcal - day.bmrKcal}
+            eaten={day.consumedKcal}
+            goal={day.goalKcal}
+            goalType={goalType}
+          />
         </div>
       )}
     </div>
@@ -236,7 +239,7 @@ function DayRow({ day }: { day: WeekSummary["days"][number] }) {
   );
 }
 
-function VerdictIcon({ tone }: { tone: "down" | "up" | "neutral" }) {
+function VerdictIcon({ tone }: { tone: Verdict["tone"] }) {
   const cls = "h-4 w-4 shrink-0";
   if (tone === "down")
     return <TrendingDown className={`${cls} text-accent-foreground`} />;
@@ -245,10 +248,7 @@ function VerdictIcon({ tone }: { tone: "down" | "up" | "neutral" }) {
   return <Minus className={`${cls} text-muted-foreground`} />;
 }
 
-function weightVerdict(
-  s: WeekSummary,
-  units: Units
-): { tone: "down" | "up" | "neutral"; text: string } {
+function weightVerdict(s: WeekSummary, units: Units): Verdict {
   if (s.loggedDays === 0) {
     return { tone: "neutral", text: "No days logged yet." };
   }
@@ -264,6 +264,20 @@ function weightVerdict(
   return {
     tone: lost ? "down" : "up",
     text: `At this balance you'd have ${lost ? "lost" : "gained"} about ${value} ${unit}.`,
+  };
+}
+
+// Track's verdict: the goal is the user's own number, so the week is simply
+// how the logged days landed against it, added up.
+function goalVerdict(s: WeekSummary): Verdict {
+  const days = `The ${s.loggedDays} day${s.loggedDays === 1 ? "" : "s"} you logged`;
+  if (s.remainingKcal === 0) {
+    return { tone: "neutral", text: `${days} land right on your goal.` };
+  }
+  const under = s.remainingKcal > 0;
+  return {
+    tone: under ? "down" : "up",
+    text: `${days} add up to ${under ? "under" : "over"} your goal.`,
   };
 }
 

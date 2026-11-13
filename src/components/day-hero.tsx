@@ -13,15 +13,16 @@ import { CalorieRingBlock } from "@/components/calorie-ring-block";
 import type { CalorieDisplayMode } from "@/components/calorie-ring";
 import { metricColor } from "@/lib/metric-colors";
 import { displayWeight, type Units } from "@/lib/bmr";
-import { netBalanceWord } from "@/lib/week";
+import type { WeekSummary as LoadedWeekSummary } from "@/lib/week";
 import type { GoalType } from "@/lib/goal";
 import type { MacroGoals } from "@/lib/macros";
 
-export type WeekSummary = {
-  loggedDays: number;
-  netKcal: number;
-  predictedWeightKg: number;
-};
+// The slice of the week the app bar prints, cut from the loader's own type so
+// the two can't drift.
+export type WeekSummary = Pick<
+  LoadedWeekSummary,
+  "loggedDays" | "balance" | "predictedWeightKg"
+>;
 
 export function DayHero({
   activeDayKey,
@@ -127,7 +128,9 @@ export function DayHero({
 }
 
 // The week's running balance, inline in the app bar. Links to the full /week
-// breakdown.
+// breakdown. The loader already decided what the week is measured against, so
+// this prints its number and word, and the ≈ weight only where the reading is
+// an energy balance.
 function WeekSummaryLine({
   summary,
   units,
@@ -135,11 +138,6 @@ function WeekSummaryLine({
   summary: WeekSummary | null;
   units: Units;
 }) {
-  const net = summary ? Math.round(summary.netKcal) : 0;
-  const weight = summary
-    ? displayWeight(Math.abs(summary.predictedWeightKg), units)
-    : null;
-
   return (
     <AppLink
       href="/week"
@@ -149,22 +147,38 @@ function WeekSummaryLine({
       <span className="shrink-0 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
         This week
       </span>
-      {summary && summary.loggedDays > 0 && weight ? (
-        <span className="truncate text-xs">
-          <span className="font-semibold tabular-nums">
-            {Math.abs(net).toLocaleString()}
-          </span>
-          <span className="text-muted-foreground"> kcal {netBalanceWord(net)}</span>
-          <span className="tabular-nums text-muted-foreground">
-            {" "}
-            ≈ {weight.value} {weight.unit}
-          </span>
-        </span>
+      {summary && summary.loggedDays > 0 ? (
+        <WeekBalanceLine summary={summary} units={units} />
       ) : (
         <span className="truncate text-xs text-muted-foreground">
           Nothing logged yet
         </span>
       )}
     </AppLink>
+  );
+}
+
+function WeekBalanceLine({
+  summary,
+  units,
+}: {
+  summary: WeekSummary;
+  units: Units;
+}) {
+  const { balance } = summary;
+  const weight = displayWeight(Math.abs(summary.predictedWeightKg), units);
+  return (
+    <span className="truncate text-xs">
+      <span className="font-semibold tabular-nums">
+        {Math.abs(balance.kcal).toLocaleString()}
+      </span>
+      <span className="text-muted-foreground"> kcal {balance.word}</span>
+      {balance.against === "maintenance" && (
+        <span className="tabular-nums text-muted-foreground">
+          {" "}
+          ≈ {weight.value} {weight.unit}
+        </span>
+      )}
+    </span>
   );
 }
